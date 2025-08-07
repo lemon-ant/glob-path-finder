@@ -1,4 +1,4 @@
-name: LemonAnt PR Build
+name: LemonAnt PR Verify
 
 on:
   pull_request:
@@ -24,14 +24,6 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
           cache: maven
-
-      - name: Cache Maven dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.m2/repository
-          key: maven-${{ runner.os }}-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            maven-${{ runner.os }}-
 
       - name: Build and verify
         run: mvn -B -ntp clean verify -Dci=true
