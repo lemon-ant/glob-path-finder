@@ -4,6 +4,9 @@ on:
   pull_request:
     branches:
       - main
+  push:
+    branches:
+      - main
 
 jobs:
   build:
@@ -17,3 +20,19 @@ jobs:
 
       - name: Verify build
         run: mvn -B verify
+
+  publish-snapshot:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    container:
+      image: maven:3.9.6-eclipse-temurin-21
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Publish snapshot to GitHub Packages
+        run: mvn deploy --settings .github/maven-settings.xml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
