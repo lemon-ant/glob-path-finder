@@ -25,14 +25,6 @@ jobs:
           java-version: '21'
           cache: maven # Built-in cache for Maven
 
-      - name: Cache Maven dependencies
-        uses: actions/cache@v4 # v4 with better compression
-        with:
-          path: ~/.m2/repository
-          key: maven-${{ runner.os }}-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            maven-${{ runner.os }}-
-
       - name: Deploy snapshot to GitHub Packages
         run: mvn -B -ntp clean deploy -Dci=true --settings .github/maven-settings.xml
         env:
