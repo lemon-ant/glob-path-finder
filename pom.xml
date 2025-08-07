@@ -357,4 +357,12 @@
             </build>
         </profile>
     </profiles>
+
+    <distributionManagement>
+        <snapshotRepository>
+            <id>github</id>
+            <url>https://maven.pkg.github.com/lemon-ant/glob-path-finder</url>
+        </snapshotRepository>
+    </distributionManagement>
+
 </project>
