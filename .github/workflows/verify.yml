@@ -6,7 +6,7 @@ on:
     paths:
       - '**.java'
       - '**/pom.xml'
-      - '**/src/main/resources/**'
+      - '**/src/**/resources/**'
       - '.github/workflows/*.yml'
 
 concurrency:
