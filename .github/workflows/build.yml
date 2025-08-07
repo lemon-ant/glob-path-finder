@@ -59,4 +59,4 @@ jobs:
       - name: Publish snapshot to GitHub Packages
         run: mvn -B -ntp deploy --settings .github/maven-settings.xml
         env:
-          MAVEN_DEPLOY_PAT: ${{ secrets.MAVEN_DEPLOY_PAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
