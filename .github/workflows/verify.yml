@@ -2,8 +2,12 @@ name: LemonAnt PR Verify
 
 on:
   pull_request:
-    branches:
-      - main
+    branches: [ main ]
+    paths:
+      - '**.java'
+      - '**/pom.xml'
+      - '**/src/**/resources/**'
+      - '.github/workflows/*.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref }} # Per PR branch
