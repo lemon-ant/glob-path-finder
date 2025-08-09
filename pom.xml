@@ -9,6 +9,13 @@
 
     <name>Glob Path Finder</name>
 
+    <distributionManagement>
+        <snapshotRepository>
+            <id>github</id>
+            <url>https://maven.pkg.github.com/lemon-ant/glob-path-finder</url>
+        </snapshotRepository>
+    </distributionManagement>
+
     <properties>
         <maven-clean-plugin.version>3.4.1</maven-clean-plugin.version>
         <maven-dependency-plugin.version>3.8.1</maven-dependency-plugin.version>
@@ -80,6 +87,14 @@
     </dependencyManagement>
 
     <dependencies>
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+        </dependency>
         <dependency>
             <groupId>com.github.spotbugs</groupId>
             <artifactId>spotbugs-annotations</artifactId>
@@ -357,12 +372,5 @@
             </build>
         </profile>
     </profiles>
-
-    <distributionManagement>
-        <snapshotRepository>
-            <id>github</id>
-            <url>https://maven.pkg.github.com/lemon-ant/glob-path-finder</url>
-        </snapshotRepository>
-    </distributionManagement>
 
 </project>
