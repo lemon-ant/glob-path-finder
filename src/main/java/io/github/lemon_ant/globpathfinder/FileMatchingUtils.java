@@ -14,9 +14,11 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.NonNull;
 import lombok.experimental.UtilityClass;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 
+@Slf4j
 @UtilityClass
 class FileMatchingUtils {
     private static final PathMatcher MATCH_ALL = path -> true;
@@ -46,8 +48,12 @@ class FileMatchingUtils {
     }
 
     @NonNull
-    private static Pair<Path, PathMatcher> extractBaseAndPattern(Path defaultAbsoluteBase, String glob) {
-        String normalizedGlob = glob.replace('\\', '/');
+    private static Pair<Path, PathMatcher> extractBaseAndPattern(Path defaultAbsoluteBase, String globPattern) {
+        log.debug(
+                "Extracting base and pattern from globPattern='{}' with defaultAbsoluteBase={}",
+                globPattern,
+                defaultAbsoluteBase);
+        String normalizedGlob = globPattern.replace('\\', '/');
         String[] pathSegments = StringUtils.split(normalizedGlob, '/');
 
         StringBuilder baseBuilder = new StringBuilder();
@@ -70,22 +76,25 @@ class FileMatchingUtils {
         }
 
         String staticRoot = baseBuilder.toString();
-        Path absoluteBasePath;
+        Path extractedBasePath;
         if (staticRoot.isEmpty()) {
-            absoluteBasePath = defaultAbsoluteBase;
+            extractedBasePath = defaultAbsoluteBase;
         } else {
             Path staticRootPath = Path.of(staticRoot).normalize();
             if (staticRootPath.isAbsolute()) {
-                absoluteBasePath = staticRootPath;
+                extractedBasePath = staticRootPath;
             } else {
-                absoluteBasePath = defaultAbsoluteBase.resolve(staticRootPath).toAbsolutePath();
+                extractedBasePath = defaultAbsoluteBase.resolve(staticRootPath).toAbsolutePath();
             }
         }
+        log.trace("Extracted base path: {}", extractedBasePath);
+
         String pattern =
                 composePattern(segmentIdx, pathSegments, normalizedGlob.charAt(normalizedGlob.length() - 1) == '/');
+        log.trace("Extracted pattern: {}", pattern);
 
         return Pair.of(
-                absoluteBasePath,
+                extractedBasePath,
                 ofNullable(pattern)
                         .map(ptr -> FileSystems.getDefault().getPathMatcher("glob:" + ptr))
                         .orElse(MATCH_ALL));
@@ -93,8 +102,14 @@ class FileMatchingUtils {
 
     @Nullable
     private static String composePattern(int startSegment, String[] segments, boolean addTrailSlash) {
+        log.debug(
+                "Composing pattern: startSegment={}, segments={}, appendTrailingSlash={}",
+                startSegment,
+                segments,
+                addTrailSlash);
+
         if (startSegment == segments.length) {
-            // The pattern is empty
+            log.trace("No remaining segments after base segment count {}, returning null", startSegment);
             return null;
         }
         StringBuilder patternBuilder = new StringBuilder();
@@ -107,10 +122,16 @@ class FileMatchingUtils {
         if (addTrailSlash) {
             patternBuilder.append('/');
         }
-        return patternBuilder.toString();
+        String pattern = patternBuilder.toString();
+        log.debug("Composed pattern: {}", pattern);
+        return pattern;
     }
 
+    @SuppressWarnings("PMD.GuardLogStatement")
     private static boolean isWildcardSegment(String segment) {
-        return StringUtils.containsAny(segment, "*?[{]}");
+        log.trace("Checking if segment contains wildcard characters: '{}'", segment);
+        boolean result = StringUtils.containsAny(segment, "*?[{]}");
+        log.trace("Segment '{}' is {}a wildcard segment", segment, result ? "" : "not ");
+        return result;
     }
 }

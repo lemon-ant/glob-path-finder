@@ -62,7 +62,7 @@ public class GlobPathFinder {
                         // TODO add Trace
                         return foundPaths
                                 .filter(extensionFilter)
-                                .filter(rel -> FileMatchingUtils.isMatchedToPatterns(rel, pathMatchers))
+                                .filter(path -> FileMatchingUtils.isMatchedToPatterns(path, pathMatchers))
                                 .filter(excludeFilter)
                                 .onClose(foundPaths::close); // ensure resource cleanup when the OUTER stream is closed
 
