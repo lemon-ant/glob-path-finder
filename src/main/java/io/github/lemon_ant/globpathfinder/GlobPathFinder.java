@@ -51,30 +51,33 @@ public class GlobPathFinder {
                 ? (path) -> true
                 : path -> excludeMatchers.stream().noneMatch(matcher -> matcher.matches(path));
 
-        Stream<Entry<Path, Set<PathMatcher>>> entryStream = baseToPatterns.entrySet().parallelStream();
-        return entryStream.flatMap(globalEntry -> {
-            try {
-                Path basePath = globalEntry.getKey();
-                return Files.find(
+        Stream<Entry<Path, Set<PathMatcher>>> baseDirs = baseToPatterns.entrySet().parallelStream();
+
+        return baseDirs.flatMap(globalEntry -> {
+                    Path basePath = globalEntry.getKey();
+                    Set<PathMatcher> matchers = globalEntry.getValue();
+
+                    try {
+                        // Open inner stream
+                        Stream<Path> foundPaths = Files.find(
                                 basePath,
                                 Integer.MAX_VALUE,
-                                (path, basicFileAttributes) -> !basicFileAttributes.isRegularFile(),
-                                FileVisitOption.FOLLOW_LINKS)
-                        .parallel()
-                        .map(basePath::relativize)
-                        .filter(extensionFilter)
-                        .filter(currentPath -> {
-                            Set<PathMatcher> matchers = globalEntry.getValue();
-                            return isCollectionEmpty(matchers)
-                                    || matchers.stream().anyMatch(matcher -> matcher.matches(currentPath));
-                        })
-                        .filter(excludeFilter)
-                        .distinct() /*
-                                    .onClose(entryStream::close)*/;
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
-        });
+                                (path, attrs) -> attrs.isRegularFile(),
+                                FileVisitOption.FOLLOW_LINKS);
+
+                        return foundPaths
+                                .map(basePath::relativize)
+                                .filter(extensionFilter)
+                                .filter(rel -> isCollectionEmpty(matchers)
+                                        || matchers.stream().anyMatch(m -> m.matches(rel)))
+                                .filter(excludeFilter)
+                                .onClose(foundPaths::close); // <-- critical: propagate close
+
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                })
+                .distinct();
     }
 
     @NonNull
