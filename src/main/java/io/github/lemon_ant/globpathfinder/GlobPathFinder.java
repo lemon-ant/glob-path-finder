@@ -1,7 +1,7 @@
 package io.github.lemon_ant.globpathfinder;
 
+import static java.util.Objects.isNull;
 import static java.util.Optional.ofNullable;
-import static java.util.function.Function.identity;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 import java.io.File;
@@ -12,11 +12,14 @@ import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Collection;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -29,27 +32,25 @@ import org.apache.commons.lang3.tuple.Pair;
 
 @UtilityClass
 public class GlobPathFinder {
+    private static final PathMatcher MATCH_ALL = path -> true;
 
-    // TODO Create builder: deepness, onlyFiles, FOLLOW_LINKS
     @NonNull
-    public static Stream<Path> findPaths(
-            @Nullable Path baseDir,
-            @NonNull Set<String> includeGlobs,
-            @Nullable Set<String> allowedExtensions,
-            @Nullable Set<String> excludeGlobs) {
-        Path normalizedBaseDir =
-                ofNullable(baseDir).orElse(Path.of(".")).normalize().toAbsolutePath();
-        Map<Path, Set<PathMatcher>> baseToPatterns = computeBaseToPattern(normalizedBaseDir, includeGlobs);
-        Set<String> normalizedExtensions = processNormalizesStrings(allowedExtensions, identity());
-        Set<PathMatcher> excludeMatchers = processNormalizesStrings(
-                excludeGlobs, pattern -> FileSystems.getDefault().getPathMatcher("glob:" + pattern));
-
+    public static Stream<Path> findPaths(@NonNull PathQuery query) {
+        Path normalizedBaseDir = normalizeBaseDir(query.getBaseDir());
+        Map<Path, Set<PathMatcher>> baseToPatterns = computeBaseToPattern(normalizedBaseDir, query.getIncludeGlobs());
+        Set<String> normalizedExtensions =
+                processNormalizesStrings(query.getAllowedExtensions(), extension -> extension.toLowerCase(Locale.ROOT));
         Predicate<Path> extensionFilter = normalizedExtensions.isEmpty()
-                ? (path -> true)
-                : (path -> FilenameUtils.isExtension(path.toString(), allowedExtensions));
+                ? path -> true
+                : path -> normalizedExtensions.contains(
+                        StringUtils.lowerCase(FilenameUtils.getExtension(path.toString())));
+        Set<PathMatcher> excludeMatchers = processNormalizesStrings(
+                query.getExcludeGlobs(), pattern -> FileSystems.getDefault().getPathMatcher("glob:" + pattern));
         Predicate<Path> excludeFilter = excludeMatchers.isEmpty()
-                ? (path) -> true
+                ? path -> true
                 : path -> excludeMatchers.stream().noneMatch(matcher -> matcher.matches(path));
+        BiPredicate<Path, BasicFileAttributes> regularFileFilter =
+                query.isOnlyFiles() ? (path, attrs) -> attrs.isRegularFile() : (path, attrs) -> true;
 
         Stream<Entry<Path, Set<PathMatcher>>> baseDirs = baseToPatterns.entrySet().parallelStream();
 
@@ -58,37 +59,55 @@ public class GlobPathFinder {
                     Set<PathMatcher> matchers = globalEntry.getValue();
 
                     try {
-                        // Open inner stream
-                        Stream<Path> foundPaths = Files.find(
+                        // Open inner stream; do NOT try-with-resources (would close too early).
+                        Stream<Path> found = Files.find(
                                 basePath,
-                                Integer.MAX_VALUE,
-                                (path, attrs) -> attrs.isRegularFile(),
-                                FileVisitOption.FOLLOW_LINKS);
+                                query.getMaxDepth(),
+                                regularFileFilter,
+                                query.visitOptions().toArray(new FileVisitOption[0]));
 
-                        return foundPaths
-                                .map(basePath::relativize)
-                                .filter(extensionFilter)
-                                .filter(rel -> isCollectionEmpty(matchers)
-                                        || matchers.stream().anyMatch(m -> m.matches(rel)))
+                        // TODO add Trace
+                        return found.filter(extensionFilter)
+                                .filter(rel -> isMatchedToPatterns(rel, matchers))
                                 .filter(excludeFilter)
-                                .onClose(foundPaths::close); // <-- critical: propagate close
+                                .onClose(found::close); // ensure resource cleanup when the OUTER stream is closed
 
                     } catch (IOException e) {
                         throw new UncheckedIOException(e);
                     }
                 })
+                // Keep downstream parallel; help stateful ops
+                .unordered()
                 .distinct();
+    }
+
+    private static boolean isMatchedToPatterns(Path pathToMatch, Set<PathMatcher> matchers) {
+        return isCollectionEmpty(matchers) || matchers.stream().anyMatch(matcher -> matcher.matches(pathToMatch));
+    }
+
+    @NonNull
+    private static Path normalizeBaseDir(@Nullable Path baseDir) {
+        Path normalizedBaseDir;
+        Path cwd = Path.of(".");
+        if (isNull(baseDir)) {
+            normalizedBaseDir = cwd.toAbsolutePath();
+        } else if (baseDir.isAbsolute()) {
+            normalizedBaseDir = baseDir.normalize();
+        } else {
+            normalizedBaseDir = cwd.relativize(baseDir).toAbsolutePath();
+        }
+        return normalizedBaseDir;
     }
 
     @NonNull
     private static <TProcessResult> Set<TProcessResult> processNormalizesStrings(
-            Set<String> allowedExtensions, Function<String, TProcessResult> processor) {
-        return isCollectionEmpty(allowedExtensions)
+            Set<String> strings, Function<String, TProcessResult> processor) {
+        return isCollectionEmpty(strings)
                 ? Set.of()
-                : allowedExtensions.stream()
+                : strings.stream()
                         .map(StringUtils::trimToNull)
-                        .map(processor)
                         .filter(Objects::nonNull)
+                        .map(processor)
                         .collect(Collectors.toUnmodifiableSet());
     }
 
@@ -102,7 +121,7 @@ public class GlobPathFinder {
                         Pair::getKey,
                         Collectors.collectingAndThen(
                                 Collectors.mapping(Pair::getValue, Collectors.toUnmodifiableSet()),
-                                set -> set.contains(null) ? null : set)));
+                                set -> set.contains(MATCH_ALL) ? null : set)));
     }
 
     private static boolean isCollectionEmpty(Collection<?> c) {
@@ -110,13 +129,13 @@ public class GlobPathFinder {
     }
 
     @NonNull
-    private static Pair<Path, PathMatcher> extractBaseAndPattern(Path defaultBase, String glob) {
-        String normalized = glob.replace('\\', '/');
-        String[] pathSegments = StringUtils.split(normalized, '/');
+    private static Pair<Path, PathMatcher> extractBaseAndPattern(Path defaultAbsoluteBase, String glob) {
+        String normalizedGlob = glob.replace('\\', '/');
+        String[] pathSegments = StringUtils.split(normalizedGlob, '/');
 
         StringBuilder baseBuilder = new StringBuilder();
 
-        if (!normalized.isEmpty() && normalized.charAt(0) == '/') {
+        if (!normalizedGlob.isEmpty() && normalizedGlob.charAt(0) == '/') {
             // Absolute path started from root slash
             baseBuilder.append(File.separatorChar);
         }
@@ -133,15 +152,26 @@ public class GlobPathFinder {
             baseBuilder.append(pathSegments[segmentIdx]);
         }
 
-        String base = baseBuilder.toString();
-        Path basePath = base.isEmpty() ? defaultBase : Path.of(base).normalize().toAbsolutePath();
-        String pattern = composePattern(segmentIdx, pathSegments, normalized.charAt(normalized.length() - 1) == '/');
+        String staticRoot = baseBuilder.toString();
+        Path absoluteBasePath;
+        if (staticRoot.isEmpty()) {
+            absoluteBasePath = defaultAbsoluteBase;
+        } else {
+            Path staticRootPath = Path.of(staticRoot).normalize();
+            if (staticRootPath.isAbsolute()) {
+                absoluteBasePath = staticRootPath;
+            } else {
+                absoluteBasePath = defaultAbsoluteBase.resolve(staticRootPath).toAbsolutePath();
+            }
+        }
+        String pattern =
+                composePattern(segmentIdx, pathSegments, normalizedGlob.charAt(normalizedGlob.length() - 1) == '/');
 
         return Pair.of(
-                basePath,
+                absoluteBasePath,
                 ofNullable(pattern)
                         .map(ptr -> FileSystems.getDefault().getPathMatcher("glob:" + ptr))
-                        .orElse(null));
+                        .orElse(MATCH_ALL));
     }
 
     @Nullable
