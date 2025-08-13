@@ -97,7 +97,10 @@ public class PathQuery {
 
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof PathQuery pathQuery)) return false;
+        if (!(o instanceof PathQuery)) {
+            return false;
+        }
+        PathQuery pathQuery = (PathQuery) o;
         return maxDepth == pathQuery.maxDepth
                 && onlyFiles == pathQuery.onlyFiles
                 && followLinks == pathQuery.followLinks

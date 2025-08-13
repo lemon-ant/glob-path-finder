@@ -99,7 +99,7 @@ class FileMatchingUtils {
         }
         StringBuilder patternBuilder = new StringBuilder();
         for (int j = startSegment; j < segments.length; j++) {
-            if (!patternBuilder.isEmpty()) {
+            if (patternBuilder.length() > 0) {
                 patternBuilder.append('/');
             }
             patternBuilder.append(segments[j]);
