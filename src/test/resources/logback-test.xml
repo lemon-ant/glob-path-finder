@@ -1,23 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration scan="true" scanPeriod="5 seconds">
 
-    <!-- Можно управлять уровнями через Maven:
+    <!-- You can control levels via Maven:
          mvn -DROOT_LOG_LEVEL=INFO -DGPF_LOG_LEVEL=TRACE test -->
     <property name="ROOT_LOG_LEVEL" value="${ROOT_LOG_LEVEL:-WARN}"/>
     <property name="GPF_LOG_LEVEL"   value="${GPF_LOG_LEVEL:-DEBUG}"/>
 
-    <!-- Консольный аппендер -->
+    <!-- Console appender -->
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
             <pattern>%d{HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
 
-    <!-- Файловый аппендер -->
+    <!-- File appender -->
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>target/test-logs/glob-path-finder.log</file>
 
-        <!-- Ротация логов: один файл в день, хранить 7 дней -->
+        <!-- Log rotation: one file per day, keep 7 days -->
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
             <fileNamePattern>target/test-logs/glob-path-finder.%d{yyyy-MM-dd}.log</fileNamePattern>
             <maxHistory>7</maxHistory>
@@ -28,13 +28,13 @@
         </encoder>
     </appender>
 
-    <!-- Логгер для пакета библиотеки -->
+    <!-- Logger for the library package -->
     <logger name="io.github.lemon_ant.globpathfinder" level="${GPF_LOG_LEVEL}" additivity="false">
         <appender-ref ref="STDOUT"/>
         <appender-ref ref="FILE"/>
     </logger>
 
-    <!-- Корневой логгер -->
+    <!-- Root logger -->
     <root level="${ROOT_LOG_LEVEL}">
         <appender-ref ref="STDOUT"/>
         <appender-ref ref="FILE"/>

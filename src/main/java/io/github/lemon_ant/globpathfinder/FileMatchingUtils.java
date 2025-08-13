@@ -107,8 +107,7 @@ class FileMatchingUtils {
         if (addTrailSlash) {
             patternBuilder.append('/');
         }
-        String pattern = patternBuilder.toString();
-        return pattern;
+        return patternBuilder.toString();
     }
 
     private static boolean isWildcardSegment(String segment) {
