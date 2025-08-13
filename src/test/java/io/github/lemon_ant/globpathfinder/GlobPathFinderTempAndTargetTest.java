@@ -1,5 +1,6 @@
 package io.github.lemon_ant.globpathfinder;
 
+import static java.util.stream.Collectors.toUnmodifiableList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
@@ -66,7 +67,7 @@ class GlobPathFinderTempAndTargetTest {
         // ----- Act -----
         List<Path> actualPaths;
         try (Stream<Path> foundPaths = GlobPathFinder.findPaths(query)) {
-            actualPaths = foundPaths.toList();
+            actualPaths = foundPaths.collect(toUnmodifiableList());
         } finally {
             // Best-effort cleanup: remove only what we created under target
             try (Stream<Path> walk = Files.walk(targetSandboxDirectory)) {

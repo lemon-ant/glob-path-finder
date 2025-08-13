@@ -1,5 +1,6 @@
 package io.github.lemon_ant.globpathfinder;
 
+import static java.util.stream.Collectors.toUnmodifiableList;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
@@ -135,7 +136,7 @@ class GlobPathFinderTest {
 
         // when
         List<String> all =
-                collectToRelStringSet(GlobPathFinder.findPaths(q), tmp).stream().toList();
+                collectToRelStringSet(GlobPathFinder.findPaths(q), tmp).stream().collect(toUnmodifiableList());
 
         // then
         // Should contain both the directory and the file somewhere in the results.
@@ -212,7 +213,7 @@ class GlobPathFinderTest {
         // when
         List<Path> actualPaths;
         try (Stream<Path> foundPaths = GlobPathFinder.findPaths(q)) {
-            actualPaths = foundPaths.toList();
+            actualPaths = foundPaths.collect(toUnmodifiableList());
         }
 
         // then
