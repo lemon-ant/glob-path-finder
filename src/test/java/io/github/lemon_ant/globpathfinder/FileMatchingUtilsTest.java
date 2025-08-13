@@ -2,7 +2,6 @@ package io.github.lemon_ant.globpathfinder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
@@ -13,26 +12,13 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class FileMatchingUtilsTest {
 
-    // --- reflection helper: private static invoker (no dependency on forceAccess overloads) ---
-    private static <T> T invokePrivateStatic(
-            Class<?> targetClass, String methodName, Class<?>[] parameterTypes, Object[] arguments) throws Exception {
-        Method reflectedMethod = targetClass.getDeclaredMethod(methodName, parameterTypes);
-        reflectedMethod.setAccessible(true);
-        @SuppressWarnings("unchecked")
-        T result = (T) reflectedMethod.invoke(null, arguments);
-        return result;
-    }
-
     // ---------- composePattern ----------
     @Test
     void composePattern_emptyRest_returnsNull() throws Exception {
         String[] pathSegments = {"a", "b"};
 
-        String result = invokePrivateStatic(
-                FileMatchingUtils.class,
-                "composePattern",
-                new Class<?>[] {int.class, String[].class, boolean.class},
-                new Object[] {2, pathSegments, false});
+        String result = ReflectiveMethodInvoker.invokePrivateStatic(
+                FileMatchingUtils.class, "composePattern", 2, pathSegments, false);
 
         assertThat(result).isNull();
     }
@@ -41,11 +27,8 @@ class FileMatchingUtilsTest {
     void composePattern_withoutTrailingSlash_buildsSlashSeparated() throws Exception {
         String[] pathSegments = {"a", "b", "*.txt"};
 
-        String result = invokePrivateStatic(
-                FileMatchingUtils.class,
-                "composePattern",
-                new Class<?>[] {int.class, String[].class, boolean.class},
-                new Object[] {1, pathSegments, false});
+        String result = ReflectiveMethodInvoker.invokePrivateStatic(
+                FileMatchingUtils.class, "composePattern", 1, pathSegments, false);
 
         assertThat(result).isEqualTo("b/*.txt");
     }
@@ -54,11 +37,8 @@ class FileMatchingUtilsTest {
     void composePattern_withTrailingSlash_appendsSlashAtEnd() throws Exception {
         String[] pathSegments = {"a", "b"};
 
-        String result = invokePrivateStatic(
-                FileMatchingUtils.class,
-                "composePattern",
-                new Class<?>[] {int.class, String[].class, boolean.class},
-                new Object[] {0, pathSegments, true});
+        String result = ReflectiveMethodInvoker.invokePrivateStatic(
+                FileMatchingUtils.class, "composePattern", 0, pathSegments, true);
 
         assertThat(result).isEqualTo("a/b/");
     }
@@ -67,8 +47,8 @@ class FileMatchingUtilsTest {
     @ParameterizedTest
     @ValueSource(strings = {"*", "?.txt", "file{1,2}.log", "a[b]"})
     void isWildcardSegment_containsMeta_returnsTrue(String segment) throws Exception {
-        Boolean result = invokePrivateStatic(
-                FileMatchingUtils.class, "isWildcardSegment", new Class<?>[] {String.class}, new Object[] {segment});
+        Boolean result =
+                ReflectiveMethodInvoker.invokePrivateStatic(FileMatchingUtils.class, "isWildcardSegment", segment);
 
         assertThat(result).isTrue();
     }
@@ -76,8 +56,8 @@ class FileMatchingUtilsTest {
     @ParameterizedTest
     @ValueSource(strings = {"abc", "logs", "2025"})
     void isWildcardSegment_plain_returnsFalse(String segment) throws Exception {
-        Boolean result = invokePrivateStatic(
-                FileMatchingUtils.class, "isWildcardSegment", new Class<?>[] {String.class}, new Object[] {segment});
+        Boolean result =
+                ReflectiveMethodInvoker.invokePrivateStatic(FileMatchingUtils.class, "isWildcardSegment", segment);
 
         assertThat(result).isFalse();
     }
@@ -88,11 +68,8 @@ class FileMatchingUtilsTest {
         Path defaultBaseDirectory = Path.of(".").toAbsolutePath().normalize();
         String globExpression = "/var/log/nginx/*.log";
 
-        Pair<Path, PathMatcher> resultPair = invokePrivateStatic(
-                FileMatchingUtils.class,
-                "extractBaseAndPattern",
-                new Class<?>[] {Path.class, String.class},
-                new Object[] {defaultBaseDirectory, globExpression});
+        Pair<Path, PathMatcher> resultPair = ReflectiveMethodInvoker.invokePrivateStatic(
+                FileMatchingUtils.class, "extractBaseAndPattern", defaultBaseDirectory, globExpression);
 
         assertThat(resultPair.getLeft().toString())
                 .endsWith(Paths.get("/var/log/nginx").toString());
@@ -107,11 +84,8 @@ class FileMatchingUtilsTest {
                 Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath().normalize();
         String globExpression = "src/main/java/**/*.java";
 
-        Pair<Path, PathMatcher> resultPair = invokePrivateStatic(
-                FileMatchingUtils.class,
-                "extractBaseAndPattern",
-                new Class<?>[] {Path.class, String.class},
-                new Object[] {defaultBaseDirectory, globExpression});
+        Pair<Path, PathMatcher> resultPair = ReflectiveMethodInvoker.invokePrivateStatic(
+                FileMatchingUtils.class, "extractBaseAndPattern", defaultBaseDirectory, globExpression);
 
         assertThat(resultPair.getLeft()).isEqualTo(defaultBaseDirectory.resolve("src/main/java"));
         PathMatcher matcher = resultPair.getRight();
@@ -125,11 +99,8 @@ class FileMatchingUtilsTest {
         Path defaultBaseDirectory = basePath.toAbsolutePath();
         String globExpression = "/opt/data/";
 
-        Pair<Path, PathMatcher> resultPair = invokePrivateStatic(
-                FileMatchingUtils.class,
-                "extractBaseAndPattern",
-                new Class<?>[] {Path.class, String.class},
-                new Object[] {defaultBaseDirectory, globExpression});
+        Pair<Path, PathMatcher> resultPair = ReflectiveMethodInvoker.invokePrivateStatic(
+                FileMatchingUtils.class, "extractBaseAndPattern", defaultBaseDirectory, globExpression);
 
         assertThat(resultPair.getLeft().toString()).endsWith(basePath.toString());
         PathMatcher matcher = resultPair.getRight();
@@ -142,11 +113,8 @@ class FileMatchingUtilsTest {
         Path defaultBaseDirectory = Path.of(".").toAbsolutePath().normalize();
         String globExpression = "src\\**\\*.java";
 
-        Pair<Path, PathMatcher> resultPair = invokePrivateStatic(
-                FileMatchingUtils.class,
-                "extractBaseAndPattern",
-                new Class<?>[] {Path.class, String.class},
-                new Object[] {defaultBaseDirectory, globExpression});
+        Pair<Path, PathMatcher> resultPair = ReflectiveMethodInvoker.invokePrivateStatic(
+                FileMatchingUtils.class, "extractBaseAndPattern", defaultBaseDirectory, globExpression);
 
         assertThat(resultPair.getLeft().toString()).endsWith(Paths.get("src").toString());
         PathMatcher matcher = resultPair.getRight();
@@ -160,11 +128,8 @@ class FileMatchingUtilsTest {
         Path defaultBaseDirectory = Path.of("/tmp").toAbsolutePath().normalize();
         String globExpression = "**/*.log";
 
-        Pair<Path, PathMatcher> resultPair = invokePrivateStatic(
-                FileMatchingUtils.class,
-                "extractBaseAndPattern",
-                new Class<?>[] {Path.class, String.class},
-                new Object[] {defaultBaseDirectory, globExpression});
+        Pair<Path, PathMatcher> resultPair = ReflectiveMethodInvoker.invokePrivateStatic(
+                FileMatchingUtils.class, "extractBaseAndPattern", defaultBaseDirectory, globExpression);
 
         assertThat(resultPair.getLeft()).isEqualTo(defaultBaseDirectory);
         PathMatcher matcher = resultPair.getRight();
@@ -177,11 +142,8 @@ class FileMatchingUtilsTest {
         Path defaultBaseDirectory = Path.of("/").toAbsolutePath().normalize();
         String globExpression = "/";
 
-        Pair<Path, PathMatcher> resultPair = invokePrivateStatic(
-                FileMatchingUtils.class,
-                "extractBaseAndPattern",
-                new Class<?>[] {Path.class, String.class},
-                new Object[] {defaultBaseDirectory, globExpression});
+        Pair<Path, PathMatcher> resultPair = ReflectiveMethodInvoker.invokePrivateStatic(
+                FileMatchingUtils.class, "extractBaseAndPattern", defaultBaseDirectory, globExpression);
 
         assertThat(resultPair.getLeft()).isEqualTo(defaultBaseDirectory);
         PathMatcher matcher = resultPair.getRight();

@@ -1,6 +1,8 @@
 package io.github.lemon_ant.globpathfinder;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.nio.file.FileVisitOption;
 import java.nio.file.Path;
