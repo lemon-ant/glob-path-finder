@@ -18,9 +18,7 @@ class FileMatchingUtilsTest {
         String[] pathSegments = {"a", "b"};
 
         String result = ReflectiveMethodInvoker.invokePrivateStatic(
-            FileMatchingUtils.class,
-            "composePattern",
-            2, pathSegments, false);
+                FileMatchingUtils.class, "composePattern", 2, pathSegments, false);
 
         assertThat(result).isNull();
     }
@@ -30,9 +28,7 @@ class FileMatchingUtilsTest {
         String[] pathSegments = {"a", "b", "*.txt"};
 
         String result = ReflectiveMethodInvoker.invokePrivateStatic(
-            FileMatchingUtils.class,
-            "composePattern",
-            1, pathSegments, false);
+                FileMatchingUtils.class, "composePattern", 1, pathSegments, false);
 
         assertThat(result).isEqualTo("b/*.txt");
     }
@@ -42,9 +38,7 @@ class FileMatchingUtilsTest {
         String[] pathSegments = {"a", "b"};
 
         String result = ReflectiveMethodInvoker.invokePrivateStatic(
-            FileMatchingUtils.class,
-            "composePattern",
-            0, pathSegments, true);
+                FileMatchingUtils.class, "composePattern", 0, pathSegments, true);
 
         assertThat(result).isEqualTo("a/b/");
     }
@@ -53,8 +47,8 @@ class FileMatchingUtilsTest {
     @ParameterizedTest
     @ValueSource(strings = {"*", "?.txt", "file{1,2}.log", "a[b]"})
     void isWildcardSegment_containsMeta_returnsTrue(String segment) throws Exception {
-        Boolean result = ReflectiveMethodInvoker.invokePrivateStatic(
-            FileMatchingUtils.class, "isWildcardSegment", segment);
+        Boolean result =
+                ReflectiveMethodInvoker.invokePrivateStatic(FileMatchingUtils.class, "isWildcardSegment", segment);
 
         assertThat(result).isTrue();
     }
@@ -62,8 +56,8 @@ class FileMatchingUtilsTest {
     @ParameterizedTest
     @ValueSource(strings = {"abc", "logs", "2025"})
     void isWildcardSegment_plain_returnsFalse(String segment) throws Exception {
-        Boolean result = ReflectiveMethodInvoker.invokePrivateStatic(
-            FileMatchingUtils.class, "isWildcardSegment", segment);
+        Boolean result =
+                ReflectiveMethodInvoker.invokePrivateStatic(FileMatchingUtils.class, "isWildcardSegment", segment);
 
         assertThat(result).isFalse();
     }
@@ -75,12 +69,10 @@ class FileMatchingUtilsTest {
         String globExpression = "/var/log/nginx/*.log";
 
         Pair<Path, PathMatcher> resultPair = ReflectiveMethodInvoker.invokePrivateStatic(
-            FileMatchingUtils.class,
-            "extractBaseAndPattern",
-            defaultBaseDirectory, globExpression);
+                FileMatchingUtils.class, "extractBaseAndPattern", defaultBaseDirectory, globExpression);
 
         assertThat(resultPair.getLeft().toString())
-            .endsWith(Paths.get("/var/log/nginx").toString());
+                .endsWith(Paths.get("/var/log/nginx").toString());
         PathMatcher matcher = resultPair.getRight();
         assertThat(matcher.matches(Paths.get("error.log"))).isTrue();
         assertThat(matcher.matches(Paths.get("sub/error.log"))).isFalse();
@@ -89,13 +81,11 @@ class FileMatchingUtilsTest {
     @Test
     void extractBaseAndPattern_relativeBase_usesDefaultBase() throws Exception {
         Path defaultBaseDirectory =
-            Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath().normalize();
+                Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath().normalize();
         String globExpression = "src/main/java/**/*.java";
 
         Pair<Path, PathMatcher> resultPair = ReflectiveMethodInvoker.invokePrivateStatic(
-            FileMatchingUtils.class,
-            "extractBaseAndPattern",
-            defaultBaseDirectory, globExpression);
+                FileMatchingUtils.class, "extractBaseAndPattern", defaultBaseDirectory, globExpression);
 
         assertThat(resultPair.getLeft()).isEqualTo(defaultBaseDirectory.resolve("src/main/java"));
         PathMatcher matcher = resultPair.getRight();
@@ -110,9 +100,7 @@ class FileMatchingUtilsTest {
         String globExpression = "/opt/data/";
 
         Pair<Path, PathMatcher> resultPair = ReflectiveMethodInvoker.invokePrivateStatic(
-            FileMatchingUtils.class,
-            "extractBaseAndPattern",
-            defaultBaseDirectory, globExpression);
+                FileMatchingUtils.class, "extractBaseAndPattern", defaultBaseDirectory, globExpression);
 
         assertThat(resultPair.getLeft().toString()).endsWith(basePath.toString());
         PathMatcher matcher = resultPair.getRight();
@@ -126,9 +114,7 @@ class FileMatchingUtilsTest {
         String globExpression = "src\\**\\*.java";
 
         Pair<Path, PathMatcher> resultPair = ReflectiveMethodInvoker.invokePrivateStatic(
-            FileMatchingUtils.class,
-            "extractBaseAndPattern",
-            defaultBaseDirectory, globExpression);
+                FileMatchingUtils.class, "extractBaseAndPattern", defaultBaseDirectory, globExpression);
 
         assertThat(resultPair.getLeft().toString()).endsWith(Paths.get("src").toString());
         PathMatcher matcher = resultPair.getRight();
@@ -143,9 +129,7 @@ class FileMatchingUtilsTest {
         String globExpression = "**/*.log";
 
         Pair<Path, PathMatcher> resultPair = ReflectiveMethodInvoker.invokePrivateStatic(
-            FileMatchingUtils.class,
-            "extractBaseAndPattern",
-            defaultBaseDirectory, globExpression);
+                FileMatchingUtils.class, "extractBaseAndPattern", defaultBaseDirectory, globExpression);
 
         assertThat(resultPair.getLeft()).isEqualTo(defaultBaseDirectory);
         PathMatcher matcher = resultPair.getRight();
@@ -159,9 +143,7 @@ class FileMatchingUtilsTest {
         String globExpression = "/";
 
         Pair<Path, PathMatcher> resultPair = ReflectiveMethodInvoker.invokePrivateStatic(
-            FileMatchingUtils.class,
-            "extractBaseAndPattern",
-            defaultBaseDirectory, globExpression);
+                FileMatchingUtils.class, "extractBaseAndPattern", defaultBaseDirectory, globExpression);
 
         assertThat(resultPair.getLeft()).isEqualTo(defaultBaseDirectory);
         PathMatcher matcher = resultPair.getRight();

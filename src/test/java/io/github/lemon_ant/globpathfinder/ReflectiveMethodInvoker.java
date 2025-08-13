@@ -1,7 +1,7 @@
 package io.github.lemon_ant.globpathfinder;
 
-import lombok.experimental.UtilityClass;
 import java.lang.reflect.Method;
+import lombok.experimental.UtilityClass;
 
 @UtilityClass
 class ReflectiveMethodInvoker {
@@ -27,8 +27,8 @@ class ReflectiveMethodInvoker {
 
     // ---------- resolution helpers ----------
 
-    private static Method resolveCompatibleDeclaredMethod(
-        Class<?> targetClass, String methodName, Object[] arguments) throws NoSuchMethodException {
+    private static Method resolveCompatibleDeclaredMethod(Class<?> targetClass, String methodName, Object[] arguments)
+            throws NoSuchMethodException {
 
         Method[] declaredMethods = targetClass.getDeclaredMethods();
         for (Method candidateMethod : declaredMethods) {
@@ -51,8 +51,7 @@ class ReflectiveMethodInvoker {
                 return candidateMethod;
             }
         }
-        throw new NoSuchMethodException(
-            "No compatible method '" + methodName + "' found in " + targetClass.getName());
+        throw new NoSuchMethodException("No compatible method '" + methodName + "' found in " + targetClass.getName());
     }
 
     private static Class<?>[] inferExactParameterTypes(Object[] arguments) {

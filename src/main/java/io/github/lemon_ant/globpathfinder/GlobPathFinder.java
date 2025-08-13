@@ -59,7 +59,6 @@ public class GlobPathFinder {
                                 regularFileFilter,
                                 query.visitOptions().toArray(new FileVisitOption[0]));
 
-                        // TODO add Trace
                         return foundPaths
                                 .filter(extensionFilter)
                                 .filter(path -> FileMatchingUtils.isMatchedToPatterns(path, pathMatchers))
