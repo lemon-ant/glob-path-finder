@@ -1,9 +1,9 @@
-name: Publish Snapshot
+name: GPF 03 — Publish Snapshot
 
 on:
   workflow_run:
-    workflows: ["JDK Compatibility Test"]
-    types: [completed]
+    workflows: ["GPF 02 — Compat Verify"]
+    types: [ completed ]
 
 permissions:
   contents: read
@@ -12,16 +12,17 @@ permissions:
 
 jobs:
   deploy:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'release') }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' && ((github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main') || github.event.workflow_run.event == 'release') }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo at triggering commit
+      - name: Checkout at triggering commit
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Download VERIFIED dist
-        env: { GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} }
+      - name: Download VERIFIED dist from 02
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p artifact
           gh run download ${{ github.event.workflow_run.id }} --name gpf-dist-verified --dir artifact
@@ -31,13 +32,13 @@ jobs:
         id: pick
         run: |
           MAIN=$(ls artifact/*.jar | grep -v -- '-sources.jar' | grep -v -- '-javadoc.jar' | head -n1)
-          SRC=$(ls artifact/*-sources.jar | head -n1)
+          SRC=$(ls artifact/*-sources.jar | head -n1 || true)
           DOC=$(ls artifact/*-javadoc.jar | head -n1 || true)
           echo "main=$MAIN" >> $GITHUB_OUTPUT
           echo "src=$SRC"   >> $GITHUB_OUTPUT
           echo "doc=$DOC"   >> $GITHUB_OUTPUT
 
-      - name: Set up Java 21 (as in your working deploy)
+      - name: Set up Java 21 (deploy env)
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -50,7 +51,7 @@ jobs:
           VERSION=$(mvn -q -Dexec.executable=echo -Dexec.args='${project.version}' --non-recursive exec:exec)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Deploy EXACT artifacts (no rebuild)
+      - name: Deploy EXACT artifacts (jar + sources + javadoc, no rebuild)
         run: |
           EXTRA_FILES=""
           EXTRA_CLASSIFIERS=""
