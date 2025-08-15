@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   deploy:
+    # run only if 02 succeeded and event is push(main) or release
     if: ${{ github.event.workflow_run.conclusion == 'success' && ((github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main') || github.event.workflow_run.event == 'release') }}
     runs-on: ubuntu-latest
     steps:
@@ -25,7 +26,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p artifact
-          gh run download ${{ github.event.workflow_run.id }} --name gpf-dist-verified --dir artifact
+          gh run download ${{ github.event.workflow_run.id }} \
+            -R ${{ github.event.workflow_run.repository.full_name }} \
+            --name gpf-dist-verified --dir artifact
           ls -l artifact
 
       - name: Pick files
@@ -51,7 +54,7 @@ jobs:
           VERSION=$(mvn -q -Dexec.executable=echo -Dexec.args='${project.version}' --non-recursive exec:exec)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Deploy EXACT artifacts (jar + sources + javadoc, no rebuild)
+      - name: Deploy EXACT artifacts (jar + sources + javadoc)
         run: |
           EXTRA_FILES=""
           EXTRA_CLASSIFIERS=""

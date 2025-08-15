@@ -23,13 +23,13 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'      # baseline compile; байткод задаёт pom (release=11)
+          java-version: '17'        # baseline compile; bytecode=11 comes from your pom
           cache: maven
 
       - name: Build once (light)
         run: mvn -B -ntp -Dci=true -Dskip-quality-gates=true clean verify
 
-      - name: Attach sources & javadoc JARs
+      - name: Attach sources & javadoc
         run: |
           mvn -B -ntp -Dci=true -DskipTests -Ddoclint=none source:jar javadoc:jar
           ls -l target/*.jar
