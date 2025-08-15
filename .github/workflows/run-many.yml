@@ -1,23 +1,33 @@
-name: Build once → Run many (compat) + Snapshot publish
+name: LemonAnt Snapshot Deploy (compat-gated)
 
 on:
   push:
-    branches: [ main ]   # post-merge проверка
-  workflow_dispatch:      # ручной запуск по желанию
+    branches: [ main ]
+    paths:
+      - '**.java'
+      - '**/pom.xml'
+      - '**/src/**/resources/**'
+      - '.github/workflows/*.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
   packages: write
 
 jobs:
+  # 1) Собираем JAR один раз (baseline), без тяжёлых гейтов
   build-baseline:
     name: Build baseline JAR (one compile)
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Java 17 (baseline)
+      - name: Set up Java 17 (baseline compile, bytecode=11 via pom)
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -25,10 +35,7 @@ jobs:
           cache: maven
 
       - name: Build once (light)
-        run: |
-          # Один раз собираем артефакт (байткод у тебя release=11)
-          mvn -B -q -Dci=true -Dskip-quality-gates=true clean verify
-          ls -l target
+        run: mvn -B -ntp -Dci=true -Dskip-quality-gates=true clean verify
 
       - name: Upload built JAR
         uses: actions/upload-artifact@v4
@@ -37,6 +44,7 @@ jobs:
           path: target/*.jar
           if-no-files-found: error
 
+  # 2) Параллельная проверка рантайма на разных JVM (без перекомпиляции либы)
   compat-matrix:
     name: Runtime compat — JDK ${{ matrix.java }} / ${{ matrix.vendor }}
     needs: build-baseline
@@ -48,12 +56,12 @@ jobs:
           - { vendor: temurin,   java: 11 }
           - { vendor: temurin,   java: 17 }
           - { vendor: temurin,   java: 21 }
-          - { vendor: temurin,   java: 23 }   # у Temurin есть 23
+          - { vendor: temurin,   java: 23 }   # 23 есть у Temurin
           - { vendor: microsoft, java: 11 }
           - { vendor: microsoft, java: 17 }
           - { vendor: microsoft, java: 21 }   # у MS 23 нет
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Download built JAR
@@ -77,10 +85,7 @@ jobs:
         run: java -version
 
       - name: Copy runtime dependencies to ./deps
-        run: |
-          # Копируем ВСЕ runtime-зависимости проекта в папку deps (без сборки исходников)
-          mvn -q -DincludeScope=runtime -DoutputDirectory=deps dependency:copy-dependencies
-          ls -l deps || true
+        run: mvn -q -DincludeScope=runtime -DoutputDirectory=deps dependency:copy-dependencies
 
       - name: Compile smoke consumer (against lib JAR + deps)
         run: |
@@ -88,7 +93,6 @@ jobs:
           import java.nio.file.*; import java.util.*; import java.util.stream.*;
           import io.github.lemon_ant.globpathfinder.GlobPathFinder;
           import io.github.lemon_ant.globpathfinder.PathQuery;
-
           public class Runner {
             public static void main(String[] args) {
               PathQuery q = PathQuery.builder()
@@ -99,7 +103,6 @@ jobs:
                   .onlyFiles(false)
                   .maxDepth(Integer.MAX_VALUE)
                   .build();
-
               try (Stream<Path> s = GlobPathFinder.findPaths(q)) {
                 System.out.println("OK " + s.limit(1).count());
               }
@@ -111,47 +114,24 @@ jobs:
       - name: Run smoke on this JVM
         run: java -cp "${{ steps.pick.outputs.jar }}:deps/*:." Runner
 
-  publish-snapshot:
-    name: Publish SNAPSHOT to GitHub Packages (only if compat passed)
+  # 3) Твой рабочий деплой — запускаем ТОЛЬКО если compat зелёный
+  deploy:
+    name: Publish snapshot to GitHub Packages
     needs: compat-matrix
-    if: ${{ success() }}
+    if: ${{ success() }}        # блокируем публикацию, если матрица упала
     runs-on: ubuntu-latest
-    permissions:
-      packages: write
-      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: actions/download-artifact@v4
-        with: { name: gpf-jar, path: artifact }
-
-      - id: pick
-        run: echo "jar=$(ls artifact/*.jar | head -n1)" >> $GITHUB_OUTPUT
-
-      - name: Set up Java and Maven server creds
+      - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: '17'
-          server-id: github                 # совпадает с <id> в pom.xml
-          server-username: ${{ github.actor }}      # <-- исправлено
-          server-password: ${{ secrets.GITHUB_TOKEN }}
+          distribution: 'temurin'
+          java-version: '21'
+          cache: maven
 
-      - name: Read project version
-        id: version
-        run: |
-          VERSION=$(mvn -q -Dexec.executable=echo -Dexec.args='${project.version}' --non-recursive exec:exec)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Version: $VERSION"
-
-      - name: Deploy exactly that JAR as SNAPSHOT
-        run: |
-          mvn -B -q deploy:deploy-file \
-            -Dfile="${{ steps.pick.outputs.jar }}" \
-            -DrepositoryId=github \
-            -Durl="https://maven.pkg.github.com/lemon-ant/glob-path-finder" \
-            -DgroupId=io.github.lemon-ant \
-            -DartifactId=glob-path-finder \
-            -Dversion="${{ steps.version.outputs.version }}" \
-            -Dpackaging=jar \
-            -DpomFile=pom.xml
+      - name: Deploy snapshot to GitHub Packages
+        run: mvn -B -ntp clean deploy -Dci=true --settings .github/maven-settings.xml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
