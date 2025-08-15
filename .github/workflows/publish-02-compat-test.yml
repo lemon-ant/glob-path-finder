@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   compat-matrix:
-    # запуск ТОЛЬКО если 01 завершился успехом и это push в main или release
+    # run only if 01 succeeded and event is push(main) or release
     if: ${{ github.event.workflow_run.conclusion == 'success' && ((github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main') || github.event.workflow_run.event == 'release') }}
     runs-on: ubuntu-latest
     strategy:
@@ -33,7 +33,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p artifact
-          gh run download ${{ github.event.workflow_run.id }} --name gpf-dist --dir artifact
+          gh run download ${{ github.event.workflow_run.id }} \
+            -R ${{ github.event.workflow_run.repository.full_name }} \
+            --name gpf-dist --dir artifact
           ls -l artifact
 
       - name: Pick main/sources/javadoc
@@ -56,7 +58,7 @@ jobs:
 
       - run: java -version
 
-      - name: Copy runtime deps to ./deps (no rebuild)
+      - name: Copy runtime deps (no rebuild)
         run: mvn -q -DincludeScope=runtime -DoutputDirectory=deps dependency:copy-dependencies
 
       - name: Compile tiny consumer (against lib JAR + deps)
@@ -82,19 +84,22 @@ jobs:
       - name: Run consumer on this JVM
         run: java -cp "${{ steps.pick.outputs.main }}:deps/*:." Runner
 
-  # единая передача артефакта в 03 (без дубликатов из матрицы)
+  # Single non-matrix handoff to provide a clean, verified artifact set for 03
   handoff:
     needs: compat-matrix
+    if: ${{ success() }}
     runs-on: ubuntu-latest
     permissions:
       actions: read
     steps:
-      - name: Download EXACT dist from 01 (again, single copy)
+      - name: Download EXACT dist from 01
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p artifact
-          gh run download ${{ github.event.workflow_run.id }} --name gpf-dist --dir artifact
+          gh run download ${{ github.event.workflow_run.id }} \
+            -R ${{ github.event.workflow_run.repository.full_name }} \
+            --name gpf-dist --dir artifact
           ls -l artifact
 
       - name: Upload VERIFIED dist for 03
