@@ -1,0 +1,43 @@
+name: Build Artifacts
+
+on:
+  push:
+    branches: [ main ]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Build main jar
+        run: mvn -B -ntp -Dci=true clean verify
+
+      - name: Attach sources & javadoc jars
+        run: |
+          mvn -B -ntp -Dci=true -DskipTests=true -Ddoclint=none source:jar javadoc:jar
+          ls -l target/*.jar
+
+      - name: Upload dist (jar + sources + javadoc)
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpf-dist
+          path: |
+            target/*.jar
+          if-no-files-found: error

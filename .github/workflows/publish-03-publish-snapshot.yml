@@ -1,0 +1,88 @@
+name: Publish Snapshot
+
+on:
+  workflow_run:
+    workflows: ["JDK Compatibility Test"]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+  packages: write
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'release') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo at triggering commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Download VERIFIED dist
+        env: { GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} }
+        run: |
+          mkdir -p artifact
+          gh run download ${{ github.event.workflow_run.id }} --name gpf-dist-verified --dir artifact
+          ls -l artifact
+
+      - name: Pick files
+        id: pick
+        run: |
+          MAIN=$(ls artifact/*.jar | grep -v -- '-sources.jar' | grep -v -- '-javadoc.jar' | head -n1)
+          SRC=$(ls artifact/*-sources.jar | head -n1)
+          DOC=$(ls artifact/*-javadoc.jar | head -n1 || true)
+          echo "main=$MAIN" >> $GITHUB_OUTPUT
+          echo "src=$SRC"   >> $GITHUB_OUTPUT
+          echo "doc=$DOC"   >> $GITHUB_OUTPUT
+
+      - name: Set up Java 21 (as in your working deploy)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Read project version (no build)
+        id: version
+        run: |
+          VERSION=$(mvn -q -Dexec.executable=echo -Dexec.args='${project.version}' --non-recursive exec:exec)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Deploy EXACT artifacts (no rebuild)
+        run: |
+          EXTRA_FILES=""
+          EXTRA_CLASSIFIERS=""
+          EXTRA_TYPES=""
+          if [ -f "${{ steps.pick.outputs.src }}" ]; then
+            EXTRA_FILES="${{ steps.pick.outputs.src }}"
+            EXTRA_CLASSIFIERS="sources"
+            EXTRA_TYPES="jar"
+          fi
+          if [ -f "${{ steps.pick.outputs.doc }}" ]; then
+            if [ -n "$EXTRA_FILES" ]; then
+              EXTRA_FILES="$EXTRA_FILES,${{ steps.pick.outputs.doc }}"
+              EXTRA_CLASSIFIERS="$EXTRA_CLASSIFIERS,javadoc"
+              EXTRA_TYPES="$EXTRA_TYPES,jar"
+            else
+              EXTRA_FILES="${{ steps.pick.outputs.doc }}"
+              EXTRA_CLASSIFIERS="javadoc"
+              EXTRA_TYPES="jar"
+            fi
+          fi
+
+          mvn -B -ntp -s .github/maven-settings.xml deploy:deploy-file \
+            -DrepositoryId=github \
+            -Durl="https://maven.pkg.github.com/lemon-ant/glob-path-finder" \
+            -DgroupId=io.github.lemon-ant \
+            -DartifactId=glob-path-finder \
+            -Dversion="${{ steps.version.outputs.version }}" \
+            -Dpackaging=jar \
+            -DpomFile=pom.xml \
+            -Dfile="${{ steps.pick.outputs.main }}" \
+            -Dfiles="$EXTRA_FILES" \
+            -Dclassifiers="$EXTRA_CLASSIFIERS" \
+            -Dtypes="$EXTRA_TYPES"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
