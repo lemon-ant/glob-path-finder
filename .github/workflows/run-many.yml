@@ -1,4 +1,4 @@
-name: LemonAnt Snapshot Deploy (compat-gated)
+name: LemonAnt Snapshot Deploy (build-once → run-many → publish-same-jar)
 
 on:
   push:
@@ -27,7 +27,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Java 17 (baseline compile, bytecode=11 via pom)
+      - name: Set up Java 17 (baseline compile; bytecode=11 via pom)
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -44,7 +44,7 @@ jobs:
           path: target/*.jar
           if-no-files-found: error
 
-  # 2) Параллельная проверка рантайма на разных JVM (без перекомпиляции либы)
+  # 2) Параллельно проверяем РАНТАЙМ (используя готовый JAR + его deps)
   compat-matrix:
     name: Runtime compat — JDK ${{ matrix.java }} / ${{ matrix.vendor }}
     needs: build-baseline
@@ -114,24 +114,50 @@ jobs:
       - name: Run smoke on this JVM
         run: java -cp "${{ steps.pick.outputs.jar }}:deps/*:." Runner
 
-  # 3) Твой рабочий деплой — запускаем ТОЛЬКО если compat зелёный
+  # 3) Публикуем ИМЕННО ТОТ JAR; если compat упал — публикации нет
   deploy:
-    name: Publish snapshot to GitHub Packages
+    name: Publish snapshot to GitHub Packages (publish same JAR)
     needs: compat-matrix
-    if: ${{ success() }}        # блокируем публикацию, если матрица упала
+    if: ${{ success() }}      # блок: не публикуем при падении матрицы
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Java 21
+      - name: Download built JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: gpf-jar
+          path: artifact
+
+      - name: Pick JAR path
+        id: pick
+        run: echo "jar=$(ls artifact/*.jar | head -n1)" >> $GITHUB_OUTPUT
+
+      - name: Set up Java 21 (same as your working job)
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
           cache: maven
 
-      - name: Deploy snapshot to GitHub Packages
-        run: mvn -B -ntp clean deploy -Dci=true --settings .github/maven-settings.xml
+      - name: Read project version (no build)
+        id: version
+        run: |
+          VERSION=$(mvn -q -Dexec.executable=echo -Dexec.args='${project.version}' --non-recursive exec:exec)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Deploy EXACTLY this JAR (no rebuild)
+        run: |
+          mvn -B -ntp -s .github/maven-settings.xml deploy:deploy-file \
+            -Dfile="${{ steps.pick.outputs.jar }}" \
+            -DrepositoryId=github \
+            -Durl="https://maven.pkg.github.com/lemon-ant/glob-path-finder" \
+            -DgroupId=io.github.lemon-ant \
+            -DartifactId=glob-path-finder \
+            -Dversion="${{ steps.version.outputs.version }}" \
+            -Dpackaging=jar \
+            -DpomFile=pom.xml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
