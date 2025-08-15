@@ -164,8 +164,6 @@
                                 <version>${lombok.version}</version>
                             </path>
                         </annotationProcessorPaths>
-                        <!-- опционально, но можно зафиксировать явно -->
-                        <proc>full</proc>
                     </configuration>
                 </plugin>
                 <plugin>
