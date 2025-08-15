@@ -114,29 +114,27 @@ jobs:
   publish-snapshot:
     name: Publish SNAPSHOT to GitHub Packages (only if compat passed)
     needs: compat-matrix
-    if: ${{ success() }}   # публикация блокируется, если матрица упала
+    if: ${{ success() }}
     runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Download built JAR
-        uses: actions/download-artifact@v4
-        with:
-          name: gpf-jar
-          path: artifact
+      - uses: actions/download-artifact@v4
+        with: { name: gpf-jar, path: artifact }
 
-      - name: Pick JAR path
-        id: pick
+      - id: pick
         run: echo "jar=$(ls artifact/*.jar | head -n1)" >> $GITHUB_OUTPUT
 
-      - name: Set up Java for deploy (and Maven server creds)
+      - name: Set up Java and Maven server creds
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-          server-id: github                     # должен совпадать с <id> в pom.xml
-          server-username: GITHUB_ACTOR
+          server-id: github                 # совпадает с <id> в pom.xml
+          server-username: ${{ github.actor }}      # <-- исправлено
           server-password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Read project version
