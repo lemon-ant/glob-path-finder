@@ -1,9 +1,9 @@
-name: JDK Compatibility Test
+name: GPF 02 — Compat Verify
 
 on:
   workflow_run:
-    workflows: ["Build Artifacts"]
-    types: [completed]
+    workflows: ["GPF 01 — Build Artifacts"]
+    types: [ completed ]
 
 permissions:
   contents: read
@@ -11,7 +11,8 @@ permissions:
 
 jobs:
   compat-matrix:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'release') }}
+    # запуск ТОЛЬКО если 01 завершился успехом и это push в main или release
+    if: ${{ github.event.workflow_run.conclusion == 'success' && ((github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main') || github.event.workflow_run.event == 'release') }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -22,23 +23,24 @@ jobs:
           - vendor: microsoft
             java: 23
     steps:
-      - name: Checkout repo at triggering commit
+      - name: Checkout at triggering commit
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Download EXACT dist from build run
-        env: { GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} }
+      - name: Download EXACT dist from 01
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p artifact
           gh run download ${{ github.event.workflow_run.id }} --name gpf-dist --dir artifact
           ls -l artifact
 
-      - name: Pick main/sources/javadoc jars
+      - name: Pick main/sources/javadoc
         id: pick
         run: |
           MAIN=$(ls artifact/*.jar | grep -v -- '-sources.jar' | grep -v -- '-javadoc.jar' | head -n1)
-          SRC=$(ls artifact/*-sources.jar | head -n1)
+          SRC=$(ls artifact/*-sources.jar | head -n1 || true)
           DOC=$(ls artifact/*-javadoc.jar | head -n1 || true)
           echo "main=$MAIN" >> $GITHUB_OUTPUT
           echo "src=$SRC"   >> $GITHUB_OUTPUT
@@ -54,7 +56,7 @@ jobs:
 
       - run: java -version
 
-      - name: Copy runtime dependencies to ./deps
+      - name: Copy runtime deps to ./deps (no rebuild)
         run: mvn -q -DincludeScope=runtime -DoutputDirectory=deps dependency:copy-dependencies
 
       - name: Compile tiny consumer (against lib JAR + deps)
@@ -80,11 +82,23 @@ jobs:
       - name: Run consumer on this JVM
         run: java -cp "${{ steps.pick.outputs.main }}:deps/*:." Runner
 
-      - name: Re-upload tested dist for publisher
+  # единая передача артефакта в 03 (без дубликатов из матрицы)
+  handoff:
+    needs: compat-matrix
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    steps:
+      - name: Download EXACT dist from 01 (again, single copy)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p artifact
+          gh run download ${{ github.event.workflow_run.id }} --name gpf-dist --dir artifact
+          ls -l artifact
+
+      - name: Upload VERIFIED dist for 03
         uses: actions/upload-artifact@v4
         with:
           name: gpf-dist-verified
-          path: |
-            ${{ steps.pick.outputs.main }}
-            ${{ steps.pick.outputs.src }}
-            ${{ steps.pick.outputs.doc }}
+          path: artifact/*.jar

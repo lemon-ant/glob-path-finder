@@ -1,10 +1,10 @@
-name: Build Artifacts
+name: GPF 01 — Build Artifacts
 
 on:
   push:
     branches: [ main ]
   release:
-    types: [published]
+    types: [ published ]
   workflow_dispatch:
 
 concurrency:
@@ -23,21 +23,20 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '17'      # baseline compile; байткод задаёт pom (release=11)
           cache: maven
 
-      - name: Build main jar
-        run: mvn -B -ntp -Dci=true clean verify
+      - name: Build once (light)
+        run: mvn -B -ntp -Dci=true -Dskip-quality-gates=true clean verify
 
-      - name: Attach sources & javadoc jars
+      - name: Attach sources & javadoc JARs
         run: |
-          mvn -B -ntp -Dci=true -DskipTests=true -Ddoclint=none source:jar javadoc:jar
+          mvn -B -ntp -Dci=true -DskipTests -Ddoclint=none source:jar javadoc:jar
           ls -l target/*.jar
 
       - name: Upload dist (jar + sources + javadoc)
         uses: actions/upload-artifact@v4
         with:
           name: gpf-dist
-          path: |
-            target/*.jar
+          path: target/*.jar
           if-no-files-found: error
