@@ -15,6 +15,9 @@ jobs:
       matrix:
         java: [ 11, 17, 21, 23 ]          # LTS + current
         vendor: [ temurin, microsoft ]     # расширишь при желании
+        exclude:
+          - vendor: microsoft
+            java: 23
     steps:
       - name: Checkout
         uses: actions/checkout@v4
