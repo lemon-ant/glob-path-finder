@@ -2,8 +2,8 @@ name: Build once → Run many (compat) + Snapshot publish
 
 on:
   push:
-    branches: [ main ]   # после merge в default-ветку
-  workflow_dispatch:      # ручной запуск, удобно для отладки
+    branches: [ main ]   # post-merge проверка
+  workflow_dispatch:      # ручной запуск по желанию
 
 permissions:
   contents: read
@@ -11,29 +11,29 @@ permissions:
 
 jobs:
   build-baseline:
-    name: Build baseline JAR (no heavy gates)
+    name: Build baseline JAR (one compile)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Set up Java 17 (baseline compiler, bytecode 11 via --release)
+      - name: Set up Java 17 (baseline)
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
           cache: maven
 
-      - name: Build once
+      - name: Build once (light)
         run: |
-          # Full build here if нужно: mvn -Pquality-gates verify
-          # Для скорости — лёгкая сборка без тяжёлых гейтов:
+          # Один раз собираем артефакт (байткод у тебя release=11)
           mvn -B -q -Dci=true -Dskip-quality-gates=true clean verify
           ls -l target
 
-      - name: Upload library JAR
+      - name: Upload built JAR
         uses: actions/upload-artifact@v4
         with:
-          name: glob-path-finder-jar
+          name: gpf-jar
           path: target/*.jar
           if-no-files-found: error
 
@@ -48,50 +48,50 @@ jobs:
           - { vendor: temurin,   java: 11 }
           - { vendor: temurin,   java: 17 }
           - { vendor: temurin,   java: 21 }
-          - { vendor: temurin,   java: 21.0.2 }   # пример пиннинга патч-версии
-          - { vendor: temurin,   java: 23 }       # 23 есть у Temurin
+          - { vendor: temurin,   java: 23 }   # у Temurin есть 23
           - { vendor: microsoft, java: 11 }
           - { vendor: microsoft, java: 17 }
-          - { vendor: microsoft, java: 21 }       # у MS 23 нет
+          - { vendor: microsoft, java: 21 }   # у MS 23 нет
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Download built JAR
         uses: actions/download-artifact@v4
         with:
-          name: glob-path-finder-jar
+          name: gpf-jar
           path: artifact
 
       - name: Pick JAR path
         id: pick
-        run: |
-          JAR=$(ls artifact/*.jar | head -n1)
-          echo "jar=$JAR" >> $GITHUB_OUTPUT
-          echo "Picked $JAR"
+        run: echo "jar=$(ls artifact/*.jar | head -n1)" >> $GITHUB_OUTPUT
 
       - name: Set up Java ${{ matrix.java }} (${{ matrix.vendor }})
         uses: actions/setup-java@v4
         with:
           distribution: ${{ matrix.vendor }}
           java-version: ${{ matrix.java }}
+          cache: maven
 
       - name: Show java -version
         run: java -version
 
-      - name: Compile smoke consumer (against the built JAR)
+      - name: Copy runtime dependencies to ./deps
+        run: |
+          # Копируем ВСЕ runtime-зависимости проекта в папку deps (без сборки исходников)
+          mvn -q -DincludeScope=runtime -DoutputDirectory=deps dependency:copy-dependencies
+          ls -l deps || true
+
+      - name: Compile smoke consumer (against lib JAR + deps)
         run: |
           cat > Runner.java <<'JAVA'
-          // Minimal runtime smoke to link & call the lib on this JVM
-          import java.nio.file.*;
-          import java.util.*;
-          import java.util.stream.*;
+          import java.nio.file.*; import java.util.*; import java.util.stream.*;
           import io.github.lemon_ant.globpathfinder.GlobPathFinder;
           import io.github.lemon_ant.globpathfinder.PathQuery;
 
           public class Runner {
             public static void main(String[] args) {
-              // Build a minimal query; adjust if API changes.
-              PathQuery query = PathQuery.builder()
+              PathQuery q = PathQuery.builder()
                   .baseDir(Paths.get("."))
                   .includeGlobs(Set.of("**/*"))
                   .excludeGlobs(Set.of())
@@ -100,59 +100,60 @@ jobs:
                   .maxDepth(Integer.MAX_VALUE)
                   .build();
 
-              try (Stream<Path> s = GlobPathFinder.findPaths(query)) {
-                long cnt = s.limit(1).count();
-                System.out.println("OK, visible entries: " + cnt);
+              try (Stream<Path> s = GlobPathFinder.findPaths(q)) {
+                System.out.println("OK " + s.limit(1).count());
               }
             }
           }
           JAVA
-          javac -cp "${{ steps.pick.outputs.jar }}:." Runner.java
+          javac -cp "${{ steps.pick.outputs.jar }}:deps/*:." Runner.java
 
       - name: Run smoke on this JVM
-        run: |
-          java -cp "${{ steps.pick.outputs.jar }}:." Runner
+        run: java -cp "${{ steps.pick.outputs.jar }}:deps/*:." Runner
 
   publish-snapshot:
     name: Publish SNAPSHOT to GitHub Packages (only if compat passed)
     needs: compat-matrix
+    if: ${{ success() }}   # публикация блокируется, если матрица упала
     runs-on: ubuntu-latest
-    if: ${{ success() }}   # блокировка публикации при падении матрицы
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Download built JAR
         uses: actions/download-artifact@v4
         with:
-          name: glob-path-finder-jar
+          name: gpf-jar
           path: artifact
 
       - name: Pick JAR path
         id: pick
-        run: |
-          JAR=$(ls artifact/*.jar | head -n1)
-          echo "jar=$JAR" >> $GITHUB_OUTPUT
-          echo "Picked $JAR"
+        run: echo "jar=$(ls artifact/*.jar | head -n1)" >> $GITHUB_OUTPUT
 
-      - name: Set up Java for deploy creds
+      - name: Set up Java for deploy (and Maven server creds)
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-          server-id: github                     # matches <id> in distributionManagement
+          server-id: github                     # должен совпадать с <id> в pom.xml
           server-username: GITHUB_ACTOR
           server-password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Deploy the very same JAR (snapshot)
+      - name: Read project version
+        id: version
         run: |
-          # Deploy exactly the artifact we built earlier:
-          mvn -B -q \
-            deploy:deploy-file \
+          VERSION=$(mvn -q -Dexec.executable=echo -Dexec.args='${project.version}' --non-recursive exec:exec)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Deploy exactly that JAR as SNAPSHOT
+        run: |
+          mvn -B -q deploy:deploy-file \
             -Dfile="${{ steps.pick.outputs.jar }}" \
             -DrepositoryId=github \
             -Durl="https://maven.pkg.github.com/lemon-ant/glob-path-finder" \
             -DgroupId=io.github.lemon-ant \
             -DartifactId=glob-path-finder \
-            -Dversion=1.0-SNAPSHOT \
+            -Dversion="${{ steps.version.outputs.version }}" \
             -Dpackaging=jar \
             -DpomFile=pom.xml
