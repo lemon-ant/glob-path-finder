@@ -23,7 +23,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'        # baseline compile; bytecode=11 comes from your pom
+          java-version: '17'        # baseline; bytecode=11 from your pom
           cache: maven
 
       - name: Build once (light)
