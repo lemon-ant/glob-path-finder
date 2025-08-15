@@ -1,0 +1,90 @@
+name: JDK Compatibility Test
+
+on:
+  workflow_run:
+    workflows: ["Build Artifacts"]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  compat-matrix:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'release') }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        vendor: [ temurin, microsoft ]
+        java:   [ 11, 17, 21, 23 ]
+        exclude:
+          - vendor: microsoft
+            java: 23
+    steps:
+      - name: Checkout repo at triggering commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Download EXACT dist from build run
+        env: { GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} }
+        run: |
+          mkdir -p artifact
+          gh run download ${{ github.event.workflow_run.id }} --name gpf-dist --dir artifact
+          ls -l artifact
+
+      - name: Pick main/sources/javadoc jars
+        id: pick
+        run: |
+          MAIN=$(ls artifact/*.jar | grep -v -- '-sources.jar' | grep -v -- '-javadoc.jar' | head -n1)
+          SRC=$(ls artifact/*-sources.jar | head -n1)
+          DOC=$(ls artifact/*-javadoc.jar | head -n1 || true)
+          echo "main=$MAIN" >> $GITHUB_OUTPUT
+          echo "src=$SRC"   >> $GITHUB_OUTPUT
+          echo "doc=$DOC"   >> $GITHUB_OUTPUT
+          echo "Main: $MAIN"; echo "Src: $SRC"; echo "Doc: $DOC"
+
+      - name: Set up Java ${{ matrix.java }} (${{ matrix.vendor }})
+        uses: actions/setup-java@v4
+        with:
+          distribution: ${{ matrix.vendor }}
+          java-version: ${{ matrix.java }}
+          cache: maven
+
+      - run: java -version
+
+      - name: Copy runtime dependencies to ./deps
+        run: mvn -q -DincludeScope=runtime -DoutputDirectory=deps dependency:copy-dependencies
+
+      - name: Compile tiny consumer (against lib JAR + deps)
+        run: |
+          cat > Runner.java <<'JAVA'
+          import java.nio.file.*; import java.util.*; import java.util.stream.*;
+          import io.github.lemon_ant.globpathfinder.GlobPathFinder;
+          import io.github.lemon_ant.globpathfinder.PathQuery;
+          public class Runner {
+            public static void main(String[] args) {
+              PathQuery q = PathQuery.builder()
+                .baseDir(Paths.get(".")) .includeGlobs(Set.of("**/*"))
+                .excludeGlobs(Set.of()) .allowedExtensions(Set.of())
+                .onlyFiles(false) .maxDepth(Integer.MAX_VALUE).build();
+              try (Stream<Path> s = GlobPathFinder.findPaths(q)) {
+                System.out.println("OK " + s.limit(1).count());
+              }
+            }
+          }
+          JAVA
+          javac -cp "${{ steps.pick.outputs.main }}:deps/*:." Runner.java
+
+      - name: Run consumer on this JVM
+        run: java -cp "${{ steps.pick.outputs.main }}:deps/*:." Runner
+
+      - name: Re-upload tested dist for publisher
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpf-dist-verified
+          path: |
+            ${{ steps.pick.outputs.main }}
+            ${{ steps.pick.outputs.src }}
+            ${{ steps.pick.outputs.doc }}
