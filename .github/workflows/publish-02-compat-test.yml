@@ -1,8 +1,8 @@
-name: GPF 02 — Compat Verify
+name: 02-Compatibility Test
 
 on:
   workflow_run:
-    workflows: ["GPF 01 — Build Artifacts"]
+    workflows: ["01-Build artifactss"]
     types: [ completed ]
 
 permissions:
@@ -28,22 +28,22 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Download EXACT dist from 01
+      - name: Download EXACT dist from stage 01
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mkdir -p artifact
+          mkdir -p artifacts
           gh run download ${{ github.event.workflow_run.id }} \
             -R ${{ github.event.workflow_run.repository.full_name }} \
-            --name gpf-dist --dir artifact
-          ls -l artifact
+            --name gpf-dist --dir artifacts
+          ls -l artifacts
 
       - name: Pick main/sources/javadoc
         id: pick
         run: |
-          MAIN=$(ls artifact/*.jar | grep -v -- '-sources.jar' | grep -v -- '-javadoc.jar' | head -n1)
-          SRC=$(ls artifact/*-sources.jar | head -n1 || true)
-          DOC=$(ls artifact/*-javadoc.jar | head -n1 || true)
+          MAIN=$(ls artifacts/*.jar | grep -v -- '-sources.jar' | grep -v -- '-javadoc.jar' | head -n1)
+          SRC=$(ls artifacts/*-sources.jar | head -n1 || true)
+          DOC=$(ls artifacts/*-javadoc.jar | head -n1 || true)
           echo "main=$MAIN" >> $GITHUB_OUTPUT
           echo "src=$SRC"   >> $GITHUB_OUTPUT
           echo "doc=$DOC"   >> $GITHUB_OUTPUT
@@ -96,14 +96,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mkdir -p artifact
+          mkdir -p artifacts
           gh run download ${{ github.event.workflow_run.id }} \
             -R ${{ github.event.workflow_run.repository.full_name }} \
-            --name gpf-dist --dir artifact
-          ls -l artifact
+            --name gpf-dist --dir artifacts
+          ls -l artifacts
 
       - name: Upload VERIFIED dist for 03
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifacts@v4
         with:
           name: gpf-dist-verified
-          path: artifact/*.jar
+          path: artifacts/*.jar
