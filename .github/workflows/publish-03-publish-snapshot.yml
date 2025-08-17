@@ -2,7 +2,7 @@ name: GPF 03 — Publish Snapshot
 
 on:
   workflow_run:
-    workflows: ["GPF 02 — Compat Verify"]
+    workflows: ["02-Compatibility Test"]
     types: [ completed ]
 
 permissions:

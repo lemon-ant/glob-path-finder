@@ -1,4 +1,4 @@
-name: GPF 01 — Build Artifacts
+name: 01-Build Artifacts
 
 on:
   push:
@@ -27,7 +27,7 @@ jobs:
           cache: maven
 
       - name: Build once (light)
-        run: mvn -B -ntp -Dci=true -Dskip-quality-gates=true clean verify
+        run: mvn -B -ntp -Dci=true clean verify
 
       - name: Attach sources & javadoc
         run: |
