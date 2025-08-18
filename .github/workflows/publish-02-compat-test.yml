@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   compat-matrix:
-    # run only if 01 succeeded and base event was push(main) or release
+    # Run only if 01 succeeded and base event was push(main) or release
     if: ${{ github.event.workflow_run.conclusion == 'success' && ((github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main') || github.event.workflow_run.event == 'release') }}
     runs-on: ubuntu-latest
     strategy:
@@ -28,26 +28,30 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Download EXACT dist from stage 01
+      - name: Download dist, deps, and runner from 01
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mkdir -p artifacts
+          mkdir -p dist deps runner
           gh run download ${{ github.event.workflow_run.id }} \
             -R ${{ github.event.workflow_run.repository.full_name }} \
-            --name gpf-dist --dir artifacts
-          ls -l artifacts
+            --name gpf-dist --dir dist
+          gh run download ${{ github.event.workflow_run.id }} \
+            -R ${{ github.event.workflow_run.repository.full_name }} \
+            --name gpf-deps-runtime --dir deps
+          gh run download ${{ github.event.workflow_run.id }} \
+            -R ${{ github.event.workflow_run.repository.full_name }} \
+            --name gpf-runner --dir runner
+          echo "Dist:" && ls -l dist || true
+          echo "Deps:" && ls -l deps || true
+          echo "Runner:" && ls -l runner || true
 
-      - name: Pick main/sources/javadoc
+      - name: Pick main jar
         id: pick
         run: |
-          MAIN=$(ls artifacts/*.jar | grep -v -- '-sources.jar' | grep -v -- '-javadoc.jar' | head -n1)
-          SRC=$(ls artifacts/*-sources.jar | head -n1 || true)
-          DOC=$(ls artifacts/*-javadoc.jar | head -n1 || true)
-          echo "main=$MAIN" >> $GITHUB_OUTPUT
-          echo "src=$SRC"   >> $GITHUB_OUTPUT
-          echo "doc=$DOC"   >> $GITHUB_OUTPUT
-          echo "Main: $MAIN"; echo "Src: $SRC"; echo "Doc: $DOC"
+          MAIN=$(ls dist/*.jar | grep -v -- '-sources.jar' | grep -v -- '-javadoc.jar' | head -n1)
+          echo "main=$MAIN" >> "$GITHUB_OUTPUT"
+          echo "Main: $MAIN"
 
       - name: Set up Java ${{ matrix.java }} (${{ matrix.vendor }})
         uses: actions/setup-java@v4
@@ -58,33 +62,11 @@ jobs:
 
       - run: java -version
 
-      - name: Copy runtime deps (no rebuild)
-        run: mvn -q -DincludeScope=runtime -DoutputDirectory=deps dependency:copy-dependencies
-
-      - name: Compile tiny consumer (against lib JAR + deps)
+      - name: Run precompiled Runner on this JVM
         run: |
-          cat > Runner.java <<'JAVA'
-          import java.nio.file.*; import java.util.*; import java.util.stream.*;
-          import io.github.lemon_ant.globpathfinder.GlobPathFinder;
-          import io.github.lemon_ant.globpathfinder.PathQuery;
-          public class Runner {
-            public static void main(String[] args) {
-              PathQuery q = PathQuery.builder()
-                .baseDir(Paths.get(".")) .includeGlobs(Set.of("**/*"))
-                .excludeGlobs(Set.of()) .allowedExtensions(Set.of())
-                .onlyFiles(false) .maxDepth(Integer.MAX_VALUE).build();
-              try (Stream<Path> s = GlobPathFinder.findPaths(q)) {
-                System.out.println("OK " + s.limit(1).count());
-              }
-            }
-          }
-          JAVA
-          javac -cp "${{ steps.pick.outputs.main }}:deps/*:." Runner.java
+          java -cp "${{ steps.pick.outputs.main }}:deps/*:runner" Runner
 
-      - name: Run consumer on this JVM
-        run: java -cp "${{ steps.pick.outputs.main }}:deps/*:." Runner
-
-  # single handoff to 03 (no matrix fan-out)
+  # Single non-matrix handoff to provide a clean, verified dist for 03
   handoff:
     needs: compat-matrix
     if: ${{ success() }}
@@ -96,14 +78,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mkdir -p artifacts
+          mkdir -p dist
           gh run download ${{ github.event.workflow_run.id }} \
             -R ${{ github.event.workflow_run.repository.full_name }} \
-            --name gpf-dist --dir artifacts
-          ls -l artifacts
+            --name gpf-dist --dir dist
+          ls -l dist
 
       - name: Upload VERIFIED dist for 03
-        uses: actions/upload-artifacts@v4
+        uses: actions/upload-artifact@v4
         with:
           name: gpf-dist-verified
-          path: artifacts/*.jar
+          path: dist/*.jar
