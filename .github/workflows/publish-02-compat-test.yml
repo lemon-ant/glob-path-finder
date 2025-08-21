@@ -2,7 +2,7 @@ name: 02-Compatibility Test
 
 on:
   workflow_run:
-    workflows: ["01-Build artifactss"]
+    workflows: ["01-Build Artifacts"]
     types: [ completed ]
 
 permissions:
@@ -65,27 +65,3 @@ jobs:
       - name: Run precompiled Runner on this JVM
         run: |
           java -cp "${{ steps.pick.outputs.main }}:deps/*:runner" Runner
-
-  # Single non-matrix handoff to provide a clean, verified dist for 03
-  handoff:
-    needs: compat-matrix
-    if: ${{ success() }}
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-    steps:
-      - name: Download EXACT dist from 01
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          mkdir -p dist
-          gh run download ${{ github.event.workflow_run.id }} \
-            -R ${{ github.event.workflow_run.repository.full_name }} \
-            --name gpf-dist --dir dist
-          ls -l dist
-
-      - name: Upload VERIFIED dist for 03
-        uses: actions/upload-artifact@v4
-        with:
-          name: gpf-dist-verified
-          path: dist/*.jar

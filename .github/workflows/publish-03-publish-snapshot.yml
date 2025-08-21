@@ -12,23 +12,34 @@ permissions:
 
 jobs:
   deploy:
-    # Triggered by 02; just require success.
+    # Triggered by 02; require success only.
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout at triggering commit
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+      # Resolve run_id of 01 by head_sha + workflow name, then download its artifacts.
+      - name: Resolve run_id of "01-Build Artifacts" for this SHA
+        id: find_build_run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SHA=${{ github.event.workflow_run.head_sha }}
+          RID=$(gh run list -R ${{ github.repository }} \
+            -w "01-Build Artifacts" \
+            --json databaseId,headSha,conclusion,createdAt \
+            --jq '. | sort_by(.createdAt) | reverse | map(select(.headSha=="'"$SHA"'" and .conclusion=="success"))[0].databaseId')
+          if [ -z "$RID" ] || [ "$RID" = "null" ]; then
+            echo "No successful '01-Build Artifacts' run found for commit $SHA"; exit 1;
+          fi
+          echo "rid=$RID" >> "$GITHUB_OUTPUT"
 
-      - name: Download VERIFIED dist from 02
+      - name: Download dist from 01 (exact run_id)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p dist
-          gh run download ${{ github.event.workflow_run.id }} \
-            -R ${{ github.event.workflow_run.repository.full_name }} \
-            --name gpf-dist-verified --dir dist
+          gh run download "${{ steps.find_build_run.outputs.rid }}" \
+            -R ${{ github.repository }} \
+            --name "gpf-dist" --dir dist
           ls -l dist
 
       - name: Pick files
@@ -48,13 +59,7 @@ jobs:
           java-version: '21'
           cache: maven
 
-      - name: Read project version (no build)
-        id: version
-        run: |
-          VERSION=$(mvn -q -Dexec.executable=echo -Dexec.args='${project.version}' --non-recursive exec:exec)
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
-      - name: Deploy EXACT artifacts (jar + sources + javadoc)
+      - name: Deploy EXACT artifacts using original POM from dist/
         run: |
           EXTRA_FILES=""
           EXTRA_CLASSIFIERS=""
@@ -79,11 +84,7 @@ jobs:
           mvn -B -ntp -s .github/maven-settings.xml deploy:deploy-file \
             -DrepositoryId=github \
             -Durl="https://maven.pkg.github.com/lemon-ant/glob-path-finder" \
-            -DgroupId=io.github.lemon-ant \
-            -DartifactId=glob-path-finder \
-            -Dversion="${{ steps.version.outputs.version }}" \
-            -Dpackaging=jar \
-            -DpomFile=pom.xml \
+            -DpomFile=dist/pom.xml \
             -Dfile="${{ steps.pick.outputs.main }}" \
             -Dfiles="$EXTRA_FILES" \
             -Dclassifiers="$EXTRA_CLASSIFIERS" \

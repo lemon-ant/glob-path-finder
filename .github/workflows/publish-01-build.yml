@@ -18,9 +18,11 @@ jobs:
   build-baseline:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v4
+      - name: Set up Java 21 (baseline)
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
@@ -32,23 +34,19 @@ jobs:
       - name: Attach sources & javadoc
         run: mvn -B -ntp -Dci=true -DskipTests -Dskip-quality-gates=true -Ddoclint=none source:jar javadoc:jar
 
-      - name: Stage dist/ and deps/
+      - name: Stage dist/ and deps/ and original POM
         run: |
           mkdir -p dist deps
+          # Stage built jars
           cp target/*.jar dist/
-          # Pull runtime deps into ./deps (no rebuild)
+          # Stage original POM for later deploy
+          cp pom.xml dist/pom.xml
+          # Stage runtime dependencies to deps/
           mvn -q -DincludeScope=runtime -DoutputDirectory=deps dependency:copy-dependencies
           echo "Dist:" && ls -l dist || true
           echo "Deps:" && ls -l deps || true
 
-      - name: Pick main jar
-        id: pick
-        run: |
-          MAIN=$(ls dist/*.jar | grep -v -- '-sources.jar' | grep -v -- '-javadoc.jar' | head -n1)
-          echo "main=$MAIN" >> "$GITHUB_OUTPUT"
-          echo "Main: $MAIN"
-
-      - name: Create and compile consumer Runner (once)
+      - name: Create and compile consumer Runner
         run: |
           mkdir -p runner
           cat > runner/Runner.java <<'JAVA'
@@ -67,11 +65,11 @@ jobs:
             }
           }
           JAVA
-          javac -cp "${{ steps.pick.outputs.main }}:deps/*:runner" -d runner runner/Runner.java
-          echo "Runner compiled:"
-          find runner -maxdepth 1 -type f -name '*.class' -ls || true
+          MAIN_JAR=$(ls dist/*.jar | grep -v -- '-sources.jar' | grep -v -- '-javadoc.jar' | head -n1)
+          javac -cp "$MAIN_JAR:deps/*:runner" -d runner runner/Runner.java
+          echo "Runner compiled:" && ls -l runner || true
 
-      - name: Upload dist (jar + sources + javadoc)
+      - name: Upload dist (jar + sources + javadoc + pom.xml)
         uses: actions/upload-artifact@v4
         with:
           name: gpf-dist
