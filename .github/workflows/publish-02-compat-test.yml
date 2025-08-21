@@ -23,27 +23,17 @@ jobs:
           - vendor: microsoft
             java: 23
     steps:
-      - name: Checkout at triggering commit
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
-
       - name: Download dist, deps, and runner from 01
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p dist deps runner
-          gh run download ${{ github.event.workflow_run.id }} \
-            -R ${{ github.event.workflow_run.repository.full_name }} \
-            --name gpf-dist --dir dist
-          gh run download ${{ github.event.workflow_run.id }} \
-            -R ${{ github.event.workflow_run.repository.full_name }} \
-            --name gpf-deps-runtime --dir deps
-          gh run download ${{ github.event.workflow_run.id }} \
-            -R ${{ github.event.workflow_run.repository.full_name }} \
-            --name gpf-runner --dir runner
-          echo "Dist:" && ls -l dist || true
-          echo "Deps:" && ls -l deps || true
+          RID=${{ github.event.workflow_run.id }}
+          gh run download "$RID" -R ${{ github.event.workflow_run.repository.full_name }} --name "gpf-dist" --dir dist
+          gh run download "$RID" -R ${{ github.event.workflow_run.repository.full_name }} --name "gpf-deps-runtime" --dir deps
+          gh run download "$RID" -R ${{ github.event.workflow_run.repository.full_name }} --name "gpf-runner" --dir runner
+          echo "Distribution:" && ls -l dist || true
+          echo "Dependencies:" && ls -l deps || true
           echo "Runner:" && ls -l runner || true
 
       - name: Pick main jar
@@ -60,8 +50,8 @@ jobs:
           java-version: ${{ matrix.java }}
           cache: maven
 
-      - run: java -version
+      - name: Show java -version
+        run: java -version
 
       - name: Run precompiled Runner on this JVM
-        run: |
-          java -cp "${{ steps.pick.outputs.main }}:deps/*:runner" Runner
+        run: java -cp "${{ steps.pick.outputs.main }}:deps/*:runner" Runner
