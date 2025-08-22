@@ -81,7 +81,9 @@ jobs:
             fi
           fi
 
-          mvn -B -ntp -Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins.deploy=INFO deploy:deploy-file \
+          mvn -B -ntp deploy:deploy-file \
+            -Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins.deploy=INFO \
+            -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=INFO \
             -DrepositoryId=github \
             -Durl="https://maven.pkg.github.com/lemon-ant/glob-path-finder" \
             -DpomFile=dist/pom.xml \
