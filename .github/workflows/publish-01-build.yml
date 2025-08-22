@@ -39,9 +39,8 @@ jobs:
           mkdir -p dist deps
           # Stage built jars
           cp target/*.jar dist/
-          # Stage original POM and maven-settings for later deploy
+          # Stage original POM for later deploy
           cp pom.xml dist/pom.xml
-          cp .github/maven-settings.xml dist/maven-settings.xml
           # Stage runtime dependencies to deps/
           mvn -q -DincludeScope=runtime -DoutputDirectory=deps dependency:copy-dependencies
           echo "Dist:" && ls -l dist || true
