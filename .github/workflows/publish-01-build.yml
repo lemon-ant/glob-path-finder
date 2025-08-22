@@ -66,7 +66,7 @@ jobs:
           }
           JAVA
           MAIN_JAR=$(ls dist/*.jar | grep -v -- '-sources.jar' | grep -v -- '-javadoc.jar' | head -n1)
-          javac -cp "$MAIN_JAR:deps/*:runner" -d runner runner/Runner.java
+          javac --release 11 -cp "$MAIN_JAR:deps/*:runner" -d runner runner/Runner.java
           echo "Runner compiled:" && ls -l runner || true
 
       - name: Upload dist (jar + sources + javadoc + pom.xml)
