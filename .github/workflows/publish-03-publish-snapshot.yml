@@ -81,7 +81,7 @@ jobs:
             fi
           fi
 
-          mvn -B -ntp -s .github/maven-settings.xml deploy:deploy-file \
+          mvn -B -ntp -s dist/maven-settings.xml deploy:deploy-file \
             -DrepositoryId=github \
             -Durl="https://maven.pkg.github.com/lemon-ant/glob-path-finder" \
             -DpomFile=dist/pom.xml \
