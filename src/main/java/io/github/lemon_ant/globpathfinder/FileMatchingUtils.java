@@ -1,6 +1,5 @@
 package io.github.lemon_ant.globpathfinder;
 
-import static io.github.lemon_ant.globpathfinder.CollectionUtils.isCollectionEmpty;
 import static java.util.Optional.ofNullable;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -19,22 +18,15 @@ import org.apache.commons.lang3.tuple.Pair;
 
 @UtilityClass
 class FileMatchingUtils {
-    private static final PathMatcher MATCH_ALL = path -> true;
+    private static final PathMatcher MATCH_ALL = FileSystems.getDefault().getPathMatcher("glob:**");
 
-    static boolean isMatchedToPatterns(@Nullable Path pathToMatch, @Nullable Set<PathMatcher> pathMatchers) {
-        return isCollectionEmpty(pathMatchers)
-                || pathMatchers.stream().anyMatch(matcher -> matcher.matches(pathToMatch));
-    }
-
-    @NonNull
-    static Path normalizeBaseDir(@Nullable Path baseDir) {
-        // null -> ".", relative -> resolved against CWD, absolute -> unchanged; then normalize
-        return ofNullable(baseDir).orElse(Path.of(".")).toAbsolutePath().normalize();
+    static boolean isMatchedToPatterns(@NonNull Path pathToMatch, @NonNull Set<PathMatcher> pathMatchers) {
+        return pathMatchers.isEmpty() || pathMatchers.stream().anyMatch(matcher -> matcher.matches(pathToMatch));
     }
 
     @NonNull
     static Map<Path, Set<PathMatcher>> computeBaseToPattern(@NonNull Path baseDir, @NonNull Set<String> includeGlobs) {
-        return includeGlobs.stream()
+        Map<Path, Set<PathMatcher>> result = includeGlobs.stream()
                 .map(StringUtils::trimToNull)
                 .filter(Objects::nonNull)
                 .map(glob -> extractBaseAndPattern(baseDir, glob))
@@ -42,7 +34,11 @@ class FileMatchingUtils {
                         Pair::getKey,
                         Collectors.collectingAndThen(
                                 Collectors.mapping(Pair::getValue, Collectors.toUnmodifiableSet()),
-                                set -> set.contains(MATCH_ALL) ? null : set)));
+                                set -> set.contains(MATCH_ALL) ? Set.of() : set)));
+        if (!result.isEmpty()) {
+            return result;
+        }
+        return Map.of(baseDir, Set.of());
     }
 
     @NonNull

@@ -6,20 +6,15 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.file.FileVisitOption;
 import java.nio.file.Path;
-import java.util.Collections;
 import java.util.EnumSet;
-import java.util.Objects;
 import java.util.Set;
 import lombok.Builder;
-import lombok.Getter;
 import lombok.NonNull;
 import lombok.Value;
 
 /**
  * Immutable query describing how to search for paths.
  */
-@Getter
-@Builder(toBuilder = true)
 @Value
 @SuppressFBWarnings("EI_EXPOSE_REP2")
 public class PathQuery {
@@ -27,72 +22,68 @@ public class PathQuery {
     /**
      * Base directory to start from. Defaults to current working directory.
      */
-    @Nullable
+    @NonNull
     Path baseDir;
 
     /**
      * Include glob patterns (required, at least one).
      */
     @NonNull
+    @SuppressFBWarnings("EI_EXPOSE_REP")
     Set<String> includeGlobs;
 
     /**
      * Optional set of allowed file extensions (case-insensitive, without dots).
      */
-    @Nullable
+    @NonNull
     @SuppressFBWarnings("EI_EXPOSE_REP")
     Set<String> allowedExtensions;
 
     /**
      * Optional set of exclude glob patterns.
      */
-    @Nullable
+    @NonNull
     @SuppressFBWarnings("EI_EXPOSE_REP")
     Set<String> excludeGlobs;
 
     /**
      * Maximum depth to traverse. Defaults to unlimited.
      */
-    @SuppressWarnings("PMD.UnusedAssignment")
-    @Builder.Default
-    int maxDepth = Integer.MAX_VALUE;
+    int maxDepth;
 
     /**
      * Whether to match only regular files (true) or everything (false).
      */
-    @SuppressWarnings("PMD.UnusedAssignment")
-    @Builder.Default
-    boolean onlyFiles = true;
+    boolean onlyFiles;
 
     /**
      * Whether to follow symbolic links.
      */
-    @SuppressWarnings("PMD.UnusedAssignment")
-    @Builder.Default
-    boolean followLinks = true;
+    boolean followLinks;
 
-    PathQuery(
+    @Builder(toBuilder = true)
+    private PathQuery(
             @Nullable Path baseDir,
-            @NonNull Set<String> includeGlobs,
+            @Nullable Set<String> includeGlobs,
             @Nullable Set<String> allowedExtensions,
             @Nullable Set<String> excludeGlobs,
-            int maxDepth,
-            boolean onlyFiles,
-            boolean followLinks) {
-        this.baseDir = baseDir;
-        this.includeGlobs = Set.copyOf(includeGlobs);
-        this.allowedExtensions = ofNullable(allowedExtensions).map(Set::copyOf).orElse(null);
-        this.excludeGlobs = ofNullable(excludeGlobs).map(Set::copyOf).orElse(null);
-        this.maxDepth = maxDepth;
-        this.onlyFiles = onlyFiles;
-        this.followLinks = followLinks;
+            @Nullable Integer maxDepth,
+            @Nullable Boolean onlyFiles,
+            @Nullable Boolean followLinks) {
+        this.baseDir = ofNullable(baseDir).orElse(Path.of("."));
+        this.includeGlobs = ofNullable(includeGlobs).map(Set::copyOf).orElse(Set.of());
+        this.allowedExtensions = ofNullable(allowedExtensions).map(Set::copyOf).orElse(Set.of());
+        this.excludeGlobs = ofNullable(excludeGlobs).map(Set::copyOf).orElse(Set.of());
+        this.maxDepth = ofNullable(maxDepth).filter(depth -> depth >= 0).orElse(Integer.MAX_VALUE);
+        this.onlyFiles = ofNullable(onlyFiles).orElse(true);
+        this.followLinks = ofNullable(followLinks).orElse(true);
     }
 
     /**
      * Convert config to FileVisitOption set.
      */
-    public Set<FileVisitOption> visitOptions() {
-        return followLinks ? EnumSet.of(FileVisitOption.FOLLOW_LINKS) : Collections.emptySet();
+    public Set<FileVisitOption> getVisitOptions() {
+        return followLinks ? EnumSet.of(FileVisitOption.FOLLOW_LINKS) : Set.of();
     }
 
     @Override
@@ -100,18 +91,26 @@ public class PathQuery {
         if (!(o instanceof PathQuery)) {
             return false;
         }
+
         PathQuery pathQuery = (PathQuery) o;
         return maxDepth == pathQuery.maxDepth
                 && onlyFiles == pathQuery.onlyFiles
                 && followLinks == pathQuery.followLinks
-                && Objects.equals(baseDir, pathQuery.baseDir)
-                && Objects.equals(includeGlobs, pathQuery.includeGlobs)
-                && Objects.equals(allowedExtensions, pathQuery.allowedExtensions)
-                && Objects.equals(excludeGlobs, pathQuery.excludeGlobs);
+                && baseDir.equals(pathQuery.baseDir)
+                && includeGlobs.equals(pathQuery.includeGlobs)
+                && allowedExtensions.equals(pathQuery.allowedExtensions)
+                && excludeGlobs.equals(pathQuery.excludeGlobs);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(baseDir, includeGlobs, allowedExtensions, excludeGlobs, maxDepth, onlyFiles, followLinks);
+        int result = baseDir.hashCode();
+        result = 31 * result + includeGlobs.hashCode();
+        result = 31 * result + allowedExtensions.hashCode();
+        result = 31 * result + excludeGlobs.hashCode();
+        result = 31 * result + maxDepth;
+        result = 31 * result + Boolean.hashCode(onlyFiles);
+        result = 31 * result + Boolean.hashCode(followLinks);
+        return result;
     }
 }
