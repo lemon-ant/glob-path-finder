@@ -1,7 +1,6 @@
 package io.github.lemon_ant.globpathfinder;
 
 import static io.github.lemon_ant.globpathfinder.FileMatchingUtils.computeBaseToPattern;
-import static io.github.lemon_ant.globpathfinder.FileMatchingUtils.normalizeBaseDir;
 import static io.github.lemon_ant.globpathfinder.StringUtils.processNormalizedStrings;
 
 import java.io.IOException;
@@ -28,22 +27,23 @@ import org.apache.commons.lang3.StringUtils;
 public class GlobPathFinder {
 
     @NonNull
-    public static Stream<Path> findPaths(@NonNull PathQuery query) {
-        Path normalizedBaseDir = normalizeBaseDir(query.getBaseDir());
-        Map<Path, Set<PathMatcher>> baseToPatterns = computeBaseToPattern(normalizedBaseDir, query.getIncludeGlobs());
-        Set<String> normalizedExtensions =
-                processNormalizedStrings(query.getAllowedExtensions(), extension -> extension.toLowerCase(Locale.ROOT));
+    public static Stream<Path> findPaths(@NonNull PathQuery pathQuery) {
+        Path normalizedBaseDir = pathQuery.getBaseDir().toAbsolutePath().normalize();
+        Map<Path, Set<PathMatcher>> baseToPatterns =
+                computeBaseToPattern(normalizedBaseDir, pathQuery.getIncludeGlobs());
+        Set<String> normalizedExtensions = processNormalizedStrings(
+                pathQuery.getAllowedExtensions(), extension -> extension.toLowerCase(Locale.ROOT));
         Predicate<Path> extensionFilter = normalizedExtensions.isEmpty()
                 ? path -> true
                 : path -> normalizedExtensions.contains(
                         StringUtils.lowerCase(FilenameUtils.getExtension(path.toString())));
         Set<PathMatcher> excludeMatchers = processNormalizedStrings(
-                query.getExcludeGlobs(), pattern -> FileSystems.getDefault().getPathMatcher("glob:" + pattern));
+                pathQuery.getExcludeGlobs(), pattern -> FileSystems.getDefault().getPathMatcher("glob:" + pattern));
         Predicate<Path> excludeFilter = excludeMatchers.isEmpty()
                 ? path -> true
                 : path -> excludeMatchers.stream().noneMatch(matcher -> matcher.matches(path));
         BiPredicate<Path, BasicFileAttributes> regularFileFilter =
-                query.isOnlyFiles() ? (path, attrs) -> attrs.isRegularFile() : (path, attrs) -> true;
+                pathQuery.isOnlyFiles() ? (path, attrs) -> attrs.isRegularFile() : (path, attrs) -> true;
 
         Stream<Entry<Path, Set<PathMatcher>>> baseDirs = baseToPatterns.entrySet().parallelStream();
 
@@ -55,9 +55,9 @@ public class GlobPathFinder {
                         // Open inner stream; do NOT try-with-resources (would close too early).
                         Stream<Path> foundPaths = Files.find(
                                 basePath,
-                                query.getMaxDepth(),
+                                pathQuery.getMaxDepth(),
                                 regularFileFilter,
-                                query.visitOptions().toArray(new FileVisitOption[0]));
+                                pathQuery.getVisitOptions().toArray(new FileVisitOption[0]));
 
                         return foundPaths
                                 .filter(extensionFilter)
