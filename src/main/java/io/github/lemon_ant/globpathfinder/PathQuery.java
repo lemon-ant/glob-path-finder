@@ -6,6 +6,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.file.FileVisitOption;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.Set;
 import lombok.Builder;
@@ -13,60 +14,146 @@ import lombok.NonNull;
 import lombok.Value;
 
 /**
- * Immutable query describing how to search for paths.
+ * PathQuery — immutable configuration object for {@code GlobPathFinder.findPaths(PathQuery)}.
+ *
+ * <p><strong>Purpose:</strong> describe base directory, include/exclude glob filters, optional
+ * extension filtering, depth/onlyFiles flags and traversal options in a relaxed, developer-friendly form.
+ * All nullable inputs are normalized to safe defaults by the builder-ctor, so callers can omit fields.</p>
+ *
+ * <h2>Semantics</h2>
+ * <ul>
+ *   <li><b>baseDir</b> — starting directory. If {@code null} it is normalized to current directory
+ *       via {@code Path.of(".").toAbsolutePath().normalize()}.</li>
+ *   <li><b>includeGlobs</b> — inclusion patterns (glob). Each pattern is split into a fixed base (until
+ *       the first wildcard) and a tail. Empty tail (e.g. {@code "src"} or {@code "src/"}) means
+ *       <i>match-all under that base</i>. Multiple patterns are grouped by extracted base.</li>
+ *   <li><b>excludeGlobs</b> — exclusion patterns applied to <i>absolute</i> paths by design.</li>
+ *   <li><b>allowedExtensions</b> — optional case-insensitive extension filter (without dots).
+ *       Empty set disables this filter.</li>
+ *   <li><b>onlyFiles</b> — return only regular files when {@code true}; otherwise files and directories.</li>
+ *   <li><b>maxDepth</b> — maximum depth; negative values are treated as unlimited.</li>
+ *   <li><b>followLinks</b> — when {@code true}, {@code FileVisitOption.FOLLOW_LINKS} is added to effective options.</li>
+ *   <li><b>visitOptions</b> — additional {@code FileVisitOption}s combined by {@link #effectiveVisitOptions()}.</li>
+ * </ul>
+ *
+ * <h2>Relaxed defaults</h2>
+ * <ul>
+ *   <li>{@code baseDir == null} → {@code Path.of(".")}</li>
+ *   <li>{@code includeGlobs/allowedExtensions/excludeGlobs == null} → {@code Set.of()}</li>
+ *   <li>{@code maxDepth == null || maxDepth < 0} → unlimited ({@code Integer.MAX_VALUE})</li>
+ *   <li>{@code onlyFiles == null} → {@code true}</li>
+ *   <li>{@code followLinks == null} → {@code true}</li>
+ *   <li>{@code visitOptions == null} → {@code EnumSet.noneOf(FileVisitOption.class)}</li>
+ * </ul>
+ *
+ * <h2>Examples</h2>
+ * <pre>{@code
+ * // 1) Java sources under 'src', excluding tests:
+ * PathQuery q1 = PathQuery.builder()
+ *     .baseDir(Paths.get("."))
+ *     .includeGlobs(Set.of("src/**\/*.java"))
+ *     .excludeGlobs(Set.of("**\/test/**"))
+ *     .allowedExtensions(Set.of("java"))
+ *     .onlyFiles(true)
+ *     .maxDepth(Integer.MAX_VALUE)
+ *     .followLinks(false)
+ *     .build();
+ *
+ * // 2) Plain directory include becomes match-all under that base:
+ * PathQuery q2 = PathQuery.builder()
+ *     .includeGlobs(Set.of("src")) // empty tail ⇒ MATCH_ALL under <base>/src
+ *     .build();
+ * }</pre>
+ *
+ * <p>Immutability: collections are defensively copied; getters return unmodifiable views.</p>
+ * <p>Stream safety: the underlying {@code Files.find(...)} stream used by the finder is closed via {@code onClose}.</p>
  */
 @Value
 @SuppressFBWarnings("EI_EXPOSE_REP2")
 public class PathQuery {
 
     /**
-     * Base directory to start from. Defaults to current working directory.
+     * Starting directory for traversal.
+     * If null or omitted in the builder, it becomes Path.of(".") in the constructor.
      */
     @NonNull
     Path baseDir;
 
-    /**
-     * Include glob patterns (required, at least one).
+    /** TODO
+     * Include glob patterns.
+     * Normalization rules performed in the constructor:
+     * - If null (or omitted), becomes an empty Set.
+     * Behavioral notes (applied downstream in GlobPathFinder):
+     * - A plain directory without wildcards (e.g., "src" or "src/") is treated as MATCH_ALL under that extracted base.
+     * - If the resulting include set is empty after trimming, grouping logic falls back to { baseDir -> empty matcher Set },
+     *   where an empty matcher Set denotes MATCH_ALL under the base directory.
      */
     @NonNull
     @SuppressFBWarnings("EI_EXPOSE_REP")
     Set<String> includeGlobs;
 
     /**
-     * Optional set of allowed file extensions (case-insensitive, without dots).
+     * Optional whitelist of file extensions without dots, case-insensitive.
+     * Normalization rules performed in the constructor:
+     * - If the input collection is null or omitted, this field becomes an empty Set, otherwise it is defensively
+     *   copied to unmodifiable Set.
+     * Behavioral notes:
+     * - An empty Set disables the extension filter entirely.
      */
     @NonNull
     @SuppressFBWarnings("EI_EXPOSE_REP")
     Set<String> allowedExtensions;
 
     /**
-     * Optional set of exclude glob patterns.
+     * Optional exclude glob patterns.
+     * Normalization rules performed in the constructor:
+     * - If the input collection is null or omitted, this field becomes an empty Set, otherwise it is defensively
+     *   copied to unmodifiable Set.
+     * Behavioral notes:
+     * - An empty Set disables exclude filtering.
      */
     @NonNull
     @SuppressFBWarnings("EI_EXPOSE_REP")
     Set<String> excludeGlobs;
 
     /**
-     * Maximum depth to traverse. Defaults to unlimited.
+     * Maximum depth to traverse. If null or omitted or negative in the builder, becomes Integer.MAX_VALUE (unlimited).
      */
     int maxDepth;
 
     /**
-     * Whether to match only regular files (true) or everything (false).
+     * Whether to match only regular files (true) or everything (false). If null or omitted in the builder,
+     * defaults to true (only regular files are returned).
      */
     boolean onlyFiles;
 
     /**
-     * Whether to follow symbolic links.
+     * Whether to follow symbolic links. If null or omitted in the builder, defaults to true (symbolic links are
+     * followed).
      */
     boolean followLinks;
 
+    /**
+     * Builder-backed constructor. Normalizes nullable inputs to safe defaults.
+     *
+     * @param baseDir           Starting directory. If null or omitted in the PathQuery builder, becomes the current
+     *                          working directory Path.of(".").
+     * @param includeGlobs      Include glob patterns. If null or omitted, becomes an empty Set, otherwise defensively
+     *                          copied to unmodifiable Set.
+     * @param allowedExtensions Allowed file extensions without dots, case-insensitive. If null or omitted, becomes an
+     *                          empty Set, otherwise defensively copied to unmodifiable Set.
+     * @param excludeGlobs      Exclude glob patterns. If null or omitted, becomes an empty Set, otherwise defensively
+     *                          copied to unmodifiable Set.
+     * @param maxDepth          Maximum depth. If null or omitted or negative, becomes Integer.MAX_VALUE (unlimited).
+     * @param onlyFiles         If null or omitted, defaults to true (only regular files are returned).
+     * @param followLinks       If null or omitted, defaults to true (symbolic links are followed).
+     */
     @Builder(toBuilder = true)
     private PathQuery(
             @Nullable Path baseDir,
-            @Nullable Set<String> includeGlobs,
-            @Nullable Set<String> allowedExtensions,
-            @Nullable Set<String> excludeGlobs,
+            @Nullable Collection<String> includeGlobs,
+            @Nullable Collection<String> allowedExtensions,
+            @Nullable Collection<String> excludeGlobs,
             @Nullable Integer maxDepth,
             @Nullable Boolean onlyFiles,
             @Nullable Boolean followLinks) {
