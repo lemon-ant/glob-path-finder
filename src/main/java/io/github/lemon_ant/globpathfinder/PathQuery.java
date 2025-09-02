@@ -24,7 +24,7 @@ import lombok.Value;
  * <ul>
  *   <li><b>baseDir</b> — starting directory. If {@code null} it is initialized by default with current directory
  *       via {@code Path.of(".")}.</li>
- *   <li><b>includeGlobs</b> — inclusion glob-patterns.
+ *   <li><b>includeGlobs</b> — inclusion glob-patterns.</li>
  *   <li><b>excludeGlobs</b> — exclusion patterns applied to found paths.</li>
  *   <li><b>allowedExtensions</b> — optional case-insensitive extension filter provided without dots.
  *       Empty set disables this filter.</li>
@@ -38,12 +38,12 @@ import lombok.Value;
  *
  * <h2>Relaxed defaults</h2>
  * <ul>
- *   <li>{@code baseDir == null} or omitted → {@code Path.of(".")}</li>
+ *   <li>{@code baseDir == null} or omitted → {@code Path.of(".")}.</li>
  *   <li>{@code includeGlobs == null} or omitted → {@code Set.of()}. An empty set means all files under the base
  *       directory are selected.</li>
- *   <li>{@code allowedExtensions/excludeGlobs == null} → {@code Set.of()}. Empty set disables the filters</li>
- *   <li>{@code maxDepth == null || maxDepth < 0} or omitted → unlimited ({@code Integer.MAX_VALUE})</li>
- *   <li>{@code onlyFiles == null}  or omitted → {@code true}</li>
+ *   <li>{@code allowedExtensions/excludeGlobs == null} → {@code Set.of()}. Empty set disables the filters.</li>
+ *   <li>{@code maxDepth == null || maxDepth < 0} or omitted → unlimited ({@code Integer.MAX_VALUE}).</li>
+ *   <li>{@code onlyFiles == null}  or omitted → {@code true}.</li>
  *   <li>{@code followLinks == null} or omitted → {@code true}.</li>
  * </ul>
  *
