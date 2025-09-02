@@ -24,6 +24,8 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 
 @UtilityClass
+/* <p>Stream safety: the underlying {@code Files.find(...)} stream used by the finder is closed via {@code onClose}.</p>
+ */
 public class GlobPathFinder {
 
     @NonNull

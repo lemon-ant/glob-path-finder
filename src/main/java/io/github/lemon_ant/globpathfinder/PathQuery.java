@@ -17,33 +17,34 @@ import lombok.Value;
  * PathQuery — immutable configuration object for {@code GlobPathFinder.findPaths(PathQuery)}.
  *
  * <p><strong>Purpose:</strong> describe base directory, include/exclude glob filters, optional
- * extension filtering, depth/onlyFiles flags and traversal options in a relaxed, developer-friendly form.
- * All nullable inputs are normalized to safe defaults by the builder-ctor, so callers can omit fields.</p>
+ * extension filtering, depth and onlyFiles flags in a relaxed, developer-friendly form.
+ * All nullable inputs are normalized to safe defaults by the builder-constructor, so callers can omit fields.</p>
  *
  * <h2>Semantics</h2>
  * <ul>
- *   <li><b>baseDir</b> — starting directory. If {@code null} it is normalized to current directory
- *       via {@code Path.of(".").toAbsolutePath().normalize()}.</li>
- *   <li><b>includeGlobs</b> — inclusion patterns (glob). Each pattern is split into a fixed base (until
- *       the first wildcard) and a tail. Empty tail (e.g. {@code "src"} or {@code "src/"}) means
- *       <i>match-all under that base</i>. Multiple patterns are grouped by extracted base.</li>
- *   <li><b>excludeGlobs</b> — exclusion patterns applied to <i>absolute</i> paths by design.</li>
- *   <li><b>allowedExtensions</b> — optional case-insensitive extension filter (without dots).
+ *   <li><b>baseDir</b> — starting directory. If {@code null} it is initialized by default with current directory
+ *       via {@code Path.of(".")}.</li>
+ *   <li><b>includeGlobs</b> — inclusion glob-patterns.
+ *   <li><b>excludeGlobs</b> — exclusion patterns applied to found paths.</li>
+ *   <li><b>allowedExtensions</b> — optional case-insensitive extension filter provided without dots.
  *       Empty set disables this filter.</li>
  *   <li><b>onlyFiles</b> — return only regular files when {@code true}; otherwise files and directories.</li>
- *   <li><b>maxDepth</b> — maximum depth; negative values are treated as unlimited.</li>
- *   <li><b>followLinks</b> — when {@code true}, {@code FileVisitOption.FOLLOW_LINKS} is added to effective options.</li>
- *   <li><b>visitOptions</b> — additional {@code FileVisitOption}s combined by {@link #effectiveVisitOptions()}.</li>
+ *   <li><b>maxDepth</b> — maximum depth; negative or omitted value is treated as unlimited.</li>
+ *   <li><b>followLinks</b> — handling of symbolic links: when {@code true}, traversal resolves the link and visits the
+ *       target (a link to a directory is descended into; a link to a file is treated as that file for filters such as
+ *       {@code onlyFiles} and extensions). Link cycles are detected and skipped; dangling links are not resolved. When
+ *       {@code false}, links are visited as link entries only and are never traversed.</li>
  * </ul>
  *
  * <h2>Relaxed defaults</h2>
  * <ul>
- *   <li>{@code baseDir == null} → {@code Path.of(".")}</li>
- *   <li>{@code includeGlobs/allowedExtensions/excludeGlobs == null} → {@code Set.of()}</li>
- *   <li>{@code maxDepth == null || maxDepth < 0} → unlimited ({@code Integer.MAX_VALUE})</li>
- *   <li>{@code onlyFiles == null} → {@code true}</li>
- *   <li>{@code followLinks == null} → {@code true}</li>
- *   <li>{@code visitOptions == null} → {@code EnumSet.noneOf(FileVisitOption.class)}</li>
+ *   <li>{@code baseDir == null} or omitted → {@code Path.of(".")}</li>
+ *   <li>{@code includeGlobs == null} or omitted → {@code Set.of()}. An empty set means all files under the base
+ *       directory are selected.</li>
+ *   <li>{@code allowedExtensions/excludeGlobs == null} → {@code Set.of()}. Empty set disables the filters</li>
+ *   <li>{@code maxDepth == null || maxDepth < 0} or omitted → unlimited ({@code Integer.MAX_VALUE})</li>
+ *   <li>{@code onlyFiles == null}  or omitted → {@code true}</li>
+ *   <li>{@code followLinks == null} or omitted → {@code true}.</li>
  * </ul>
  *
  * <h2>Examples</h2>
@@ -51,11 +52,10 @@ import lombok.Value;
  * // 1) Java sources under 'src', excluding tests:
  * PathQuery q1 = PathQuery.builder()
  *     .baseDir(Paths.get("."))
- *     .includeGlobs(Set.of("src/**\/*.java"))
- *     .excludeGlobs(Set.of("**\/test/**"))
+ *     .includeGlobs(Set.of("src/**"))
+ *     .excludeGlobs(Set.of("**" + "/test/**"))
  *     .allowedExtensions(Set.of("java"))
  *     .onlyFiles(true)
- *     .maxDepth(Integer.MAX_VALUE)
  *     .followLinks(false)
  *     .build();
  *
@@ -66,7 +66,6 @@ import lombok.Value;
  * }</pre>
  *
  * <p>Immutability: collections are defensively copied; getters return unmodifiable views.</p>
- * <p>Stream safety: the underlying {@code Files.find(...)} stream used by the finder is closed via {@code onClose}.</p>
  */
 @Value
 @SuppressFBWarnings("EI_EXPOSE_REP2")
@@ -84,8 +83,8 @@ public class PathQuery {
      * Normalization rules performed in the constructor:
      * - If the input collection is null or omitted, this field becomes an empty Set, otherwise it is defensively
      *   copied to unmodifiable Set.
-     * Behavioral notes:
-     * - An empty Set
+     * Behavior in the finder:
+     * - An empty include set is interpreted as "match all under baseDir".
      */
     @NonNull
     @SuppressFBWarnings("EI_EXPOSE_REP")
@@ -138,7 +137,7 @@ public class PathQuery {
      * @param baseDir           Starting directory. If null or omitted in the PathQuery builder, becomes the current
      *                          working directory Path.of(".").
      * @param includeGlobs      Include glob patterns. If null or omitted, becomes an empty Set, otherwise defensively
-     *                          copied to unmodifiable Set.
+     *                          copied to unmodifiable Set. An empty include set means "match all under baseDir".
      * @param allowedExtensions Allowed file extensions without dots, case-insensitive. If null or omitted, becomes an
      *                          empty Set (disable filter), otherwise defensively copied to unmodifiable Set.
      * @param excludeGlobs      Exclude glob patterns. If null or omitted, becomes an empty Set (disable filter),
