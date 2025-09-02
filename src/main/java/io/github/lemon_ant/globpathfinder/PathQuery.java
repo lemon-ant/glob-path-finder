@@ -79,14 +79,13 @@ public class PathQuery {
     @NonNull
     Path baseDir;
 
-    /** TODO
+    /**
      * Include glob patterns.
      * Normalization rules performed in the constructor:
-     * - If null (or omitted), becomes an empty Set.
-     * Behavioral notes (applied downstream in GlobPathFinder):
-     * - A plain directory without wildcards (e.g., "src" or "src/") is treated as MATCH_ALL under that extracted base.
-     * - If the resulting include set is empty after trimming, grouping logic falls back to { baseDir -> empty matcher Set },
-     *   where an empty matcher Set denotes MATCH_ALL under the base directory.
+     * - If the input collection is null or omitted, this field becomes an empty Set, otherwise it is defensively
+     *   copied to unmodifiable Set.
+     * Behavioral notes:
+     * - An empty Set
      */
     @NonNull
     @SuppressFBWarnings("EI_EXPOSE_REP")
@@ -141,9 +140,9 @@ public class PathQuery {
      * @param includeGlobs      Include glob patterns. If null or omitted, becomes an empty Set, otherwise defensively
      *                          copied to unmodifiable Set.
      * @param allowedExtensions Allowed file extensions without dots, case-insensitive. If null or omitted, becomes an
-     *                          empty Set, otherwise defensively copied to unmodifiable Set.
-     * @param excludeGlobs      Exclude glob patterns. If null or omitted, becomes an empty Set, otherwise defensively
-     *                          copied to unmodifiable Set.
+     *                          empty Set (disable filter), otherwise defensively copied to unmodifiable Set.
+     * @param excludeGlobs      Exclude glob patterns. If null or omitted, becomes an empty Set (disable filter),
+     *                          otherwise defensively copied to unmodifiable Set.
      * @param maxDepth          Maximum depth. If null or omitted or negative, becomes Integer.MAX_VALUE (unlimited).
      * @param onlyFiles         If null or omitted, defaults to true (only regular files are returned).
      * @param followLinks       If null or omitted, defaults to true (symbolic links are followed).
@@ -167,7 +166,12 @@ public class PathQuery {
     }
 
     /**
-     * Convert config to FileVisitOption set.
+     * Computes the visit options derived from this configuration.
+     * Current behavior:
+     * - If {@code followLinks} is true, returns {@code EnumSet.of(FileVisitOption.FOLLOW_LINKS)}.
+     * - Otherwise, returns {@code Set.of()} - no options.
+     *
+     * @return a Set of FileVisitOption reflecting the {@code followLinks} flag only
      */
     public Set<FileVisitOption> getVisitOptions() {
         return followLinks ? EnumSet.of(FileVisitOption.FOLLOW_LINKS) : Set.of();
