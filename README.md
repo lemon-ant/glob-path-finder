@@ -71,10 +71,26 @@ try (Stream<Path> paths = GlobPathFinder.findPaths(query)) {
 
 ---
 
+## 🌟 Support
+
+I’m an open-source developer who enjoys building useful and reliable tools for the community 🛠️.
+
+Every bit of support is a strong encouragement 🌱. It shows me that these projects matter and gives me the motivation
+to keep improving, writing better documentation, and adding new features.
+
+Even a small contribution (like a cup of coffee ☕) lifts my spirits and keeps the projects moving forward 🙌.
+
+If you like this project, please consider:
+
+- ⭐ starring the repo — it helps visibility.
+- ☕ [Buying me a coffee](https://buymeacoffee.com/antonlem) — even $5 keeps me coding with extra caffeine.
+- 💖 [GitHub Sponsors](https://github.com/sponsors/antonlem).
+
+---
+
 ## 📖 Documentation
 
 - [Javadoc (latest)](https://javadoc.io/doc/io.github.lemon-ant/glob-path-finder)
-- [Wiki](https://github.com/lemon-ant/glob-path-finder/wiki) — extended usage, Windows quirks, and advanced patterns.
 
 ---
 
@@ -100,16 +116,6 @@ If you discover any security issue, please see [SECURITY.md](SECURITY.md).
 
 - [ ] v1.1 — Performance tests and possible improvements
 - [ ] v2.0 — Async API with reactive streams
-
----
-
-## 🌟 Support
-
-If you like this project, please consider:
-
-- ⭐ starring the repo — it helps visibility.
-- ☕ [Buying me a coffee](https://buymeacoffee.com/lemonant) — even $5 keeps me coding with extra caffeine.
-- 💖 [GitHub Sponsors](https://github.com/sponsors/lemon-ant).
 
 ---
 
