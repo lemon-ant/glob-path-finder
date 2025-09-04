@@ -71,7 +71,7 @@ try (Stream<Path> paths = GlobPathFinder.findPaths(query)) {
 
 ---
 
-## 🌟 Support
+## ⭐ Ways to support this project
 
 I’m an open-source developer who enjoys building useful and reliable tools for the community 🛠️.
 
@@ -84,7 +84,7 @@ If you like this project, please consider:
 
 - ⭐ starring the repo — it helps visibility.
 - ☕ [Buying me a coffee](https://buymeacoffee.com/antonlem) — even $5 keeps me coding with extra caffeine.
-- 💖 [GitHub Sponsors](https://github.com/sponsors/antonlem).
+- 💖 [GitHub Sponsors](https://github.com/sponsors/AntonLem) — recurring sponsorship directly through GitHub to support ongoing development.
 
 ---
 
