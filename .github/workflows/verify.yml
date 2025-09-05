@@ -1,13 +1,11 @@
-name: LemonAnt PR Verify
+name: PR Verify
 
 on:
   pull_request:
     branches: [ main ]
-    paths:
-      - '**.java'
-      - '**/pom.xml'
-      - '**/src/**/resources/**'
-      - '.github/workflows/*.yml'
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref }} # Per PR branch
@@ -21,13 +19,36 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # important for a correct diff in PR
 
-      - name: Set up Java 21
+      - name: Detect relevant changes
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            code:
+              - '**/*.java'
+              - '**/pom.xml'
+              - '**/src/**/resources/**'
+              - '.github/workflows/*.yml'
+
+      # No-op: if there was not code changes, then return the green status without project building
+      - name: No build needed (no code changes)
+        if: steps.changes.outputs.code != 'true'
+        run: |
+          echo "No Java/Maven/resource/workflow changes detected. Skipping build."
+          echo "✅ Verify passed (no-op)."
+
+      # Real building and test if there were code changes
+      - name: Set up Temurin JDK 21
+        if: steps.changes.outputs.code == 'true'
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
           cache: maven
 
-      - name: Build project and verify
+      - name: Build & test
+        if: steps.changes.outputs.code == 'true'
         run: mvn -B -ntp clean verify -Dci=true
