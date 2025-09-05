@@ -29,5 +29,5 @@ jobs:
           java-version: '21'
           cache: maven
 
-      - name: Build and verify
+      - name: Build project and verify
         run: mvn -B -ntp clean verify -Dci=true
