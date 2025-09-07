@@ -128,8 +128,10 @@ public class GlobPathFinder {
                                 regularFileFilter,
                                 pathQuery.getVisitOptions().toArray(new FileVisitOption[0]));
 
+                        Stream<Path> safeFoundPaths = IoShieldingStreams.wrapPathStream(foundPaths, basePath);
+
                         // Apply filters in this order: extensions → include matchers → excludes.
-                        return foundPaths
+                        return safeFoundPaths
                                 .peek(path -> log.debug("Found {}", path))
                                 .filter(extensionFilter)
                                 .peek(path -> log.debug("Passed extension filter {}", path))
@@ -144,7 +146,7 @@ public class GlobPathFinder {
                                 .peek(path -> log.debug("Passed exclude absolute filter {}", path))
 
                                 // Ensure resource cleanup when the OUTER stream is closed.
-                                .onClose(foundPaths::close);
+                                .onClose(safeFoundPaths::close);
 
                     } catch (IOException e) {
                         // Failure to even open the traversal for this base (e.g., basePath not readable).
