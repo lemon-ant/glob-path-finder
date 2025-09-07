@@ -1,6 +1,7 @@
 package io.github.lemon_ant.globpathfinder;
 
 import static io.github.lemon_ant.globpathfinder.FileMatchingUtils.computeBaseToPattern;
+import static io.github.lemon_ant.globpathfinder.FileMatchingUtils.partitionAbsoluteAndRelative;
 import static io.github.lemon_ant.globpathfinder.StringUtils.processNormalizedStrings;
 
 import java.io.IOException;
@@ -11,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -20,8 +22,10 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 import lombok.NonNull;
 import lombok.experimental.UtilityClass;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * GlobPathFinder — service that traverses the file system and applies include/exclude rules.
@@ -53,7 +57,9 @@ import org.apache.commons.lang3.StringUtils;
  *   <li>IO errors are wrapped into {@link java.io.UncheckedIOException}.</li>
  * </ul>
  */
+@Slf4j
 @UtilityClass
+@SuppressWarnings("PMD.GuardLogStatement")
 public class GlobPathFinder {
 
     /**
@@ -61,7 +67,7 @@ public class GlobPathFinder {
      *
      * @param pathQuery configuration (base, include/exclude, extensions, depth, onlyFiles)
      * @return a stream of absolute, normalized and <b>unique</b> paths that satisfy the filters;
-     *         the caller is responsible for closing the returned stream
+     * the caller is responsible for closing the returned stream
      * @throws UncheckedIOException on IO errors during traversal
      */
     @NonNull
@@ -82,13 +88,26 @@ public class GlobPathFinder {
                 : path -> normalizedExtensions.contains(
                         StringUtils.lowerCase(FilenameUtils.getExtension(path.toString())));
 
-        // Compile exclude globs to PathMatcher (glob:...) and evaluate against ABSOLUTE paths.
-        Set<PathMatcher> excludeMatchers = processNormalizedStrings(
-                pathQuery.getExcludeGlobs(), pattern -> FileSystems.getDefault().getPathMatcher("glob:" + pattern));
+        Pair<List<String>, List<String>> absoluteAndRelativeExcludes =
+                partitionAbsoluteAndRelative(pathQuery.getExcludeGlobs());
 
-        Predicate<Path> excludeFilter = excludeMatchers.isEmpty()
+        // Compile exclude globs to PathMatcher (glob:...) and evaluate against ABSOLUTE paths.
+        Set<PathMatcher> absoluteExcludeMatchers =
+                processNormalizedStrings(absoluteAndRelativeExcludes.getLeft(), pattern -> FileSystems.getDefault()
+                        .getPathMatcher("glob:" + pattern));
+
+        // Compile exclude globs to PathMatcher (glob:...) and evaluate against RELATIVE paths.
+        Set<PathMatcher> relativeExcludeMatchers =
+                processNormalizedStrings(absoluteAndRelativeExcludes.getRight(), pattern -> FileSystems.getDefault()
+                        .getPathMatcher("glob:" + pattern));
+
+        Predicate<Path> absoluteExcludeFilter = absoluteExcludeMatchers.isEmpty()
                 ? path -> true
-                : path -> excludeMatchers.stream().noneMatch(matcher -> matcher.matches(path));
+                : path -> absoluteExcludeMatchers.stream().noneMatch(matcher -> matcher.matches(path));
+
+        Predicate<Path> relativeExcludeFilter = relativeExcludeMatchers.isEmpty()
+                ? path -> true
+                : path -> relativeExcludeMatchers.stream().noneMatch(matcher -> matcher.matches(path));
 
         // Only regular files when onlyFiles=true; otherwise accept any file type.
         BiPredicate<Path, BasicFileAttributes> regularFileFilter =
@@ -111,14 +130,30 @@ public class GlobPathFinder {
 
                         // Apply filters in this order: extensions → include matchers → excludes.
                         return foundPaths
+                                .peek(path -> log.debug("Found {}", path))
                                 .filter(extensionFilter)
+                                .peek(path -> log.debug("Passed extension filter {}", path))
+                                .map(basePath::relativize)
                                 .filter(path -> FileMatchingUtils.isMatchedToPatterns(path, pathMatchers))
-                                .filter(excludeFilter)
+                                .peek(path -> log.debug("Passed include filter {}", path))
+                                .filter(relativeExcludeFilter)
+                                .peek(path -> log.debug("Passed exclude relative filter {}", path))
+                                .map(path ->
+                                        basePath.resolve(path).toAbsolutePath().normalize())
+                                .filter(absoluteExcludeFilter)
+                                .peek(path -> log.debug("Passed exclude absolute filter {}", path))
+
                                 // Ensure resource cleanup when the OUTER stream is closed.
                                 .onClose(foundPaths::close);
 
                     } catch (IOException e) {
-                        throw new UncheckedIOException(e);
+                        // Failure to even open the traversal for this base (e.g., basePath not readable).
+                        log.warn(
+                                "Failed to start scanning base '{}'. Skipping this base.\nCause: {}",
+                                basePath,
+                                e.getMessage(),
+                                e);
+                        return Stream.empty();
                     }
                 })
                 // Downstream stays parallel-friendly; order does not matter for the result.

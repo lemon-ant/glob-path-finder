@@ -71,7 +71,7 @@ class GlobPathFinderTest {
 
         PathQuery q = PathQuery.builder()
                 .baseDir(tmp.resolve("src"))
-                .includeGlobs(Set.of("**/*"))
+                .includeGlobs(Set.of("**"))
                 .allowedExtensions(Set.of("java"))
                 .build();
 
@@ -92,7 +92,7 @@ class GlobPathFinderTest {
         PathQuery q = PathQuery.builder()
                 .baseDir(tmp.resolve("src"))
                 .includeGlobs(Set.of("**/*.java"))
-                .excludeGlobs(Set.of("**/gen/**", "**/impl/**"))
+                .excludeGlobs(Set.of("gen/**", "**/impl/**"))
                 .build();
 
         // when
@@ -111,7 +111,7 @@ class GlobPathFinderTest {
 
         PathQuery q = PathQuery.builder()
                 .baseDir(tmp.resolve("src"))
-                .includeGlobs(Set.of("**/*.java"))
+                .includeGlobs(Set.of("**.java"))
                 .maxDepth(1) // only src/* level
                 .build();
 
@@ -169,7 +169,7 @@ class GlobPathFinderTest {
         createFile("abs/One.java");
         createFile("abs/two/Two.java");
 
-        String absPattern = absBase.toAbsolutePath().toString().replace('\\', '/') + "/**/*.java";
+        String absPattern = absBase.toAbsolutePath().toString().replace('\\', '/') + "**.java";
 
         PathQuery q = PathQuery.builder()
                 .baseDir(tmp) // baseDir is tmp, but include has an absolute glob
@@ -188,7 +188,7 @@ class GlobPathFinderTest {
         // given
         createFile("z/A.java");
         PathQuery q = PathQuery.builder()
-                .baseDir(tmp.resolve("z"))
+                .baseDir(tmp)
                 .includeGlobs(Set.of("**/*.java"))
                 .build();
 
@@ -206,7 +206,7 @@ class GlobPathFinderTest {
 
         PathQuery q = PathQuery.builder()
                 .baseDir(baseDir)
-                .includeGlobs(Set.of("**/*.java", "**/F.java")) // only one real file
+                .includeGlobs(Set.of("**/*.java", "F.java")) // only one real file
                 .allowedExtensions(Set.of("java"))
                 .build();
 

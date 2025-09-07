@@ -82,7 +82,7 @@ Even a small contribution (like a cup of coffee ☕) lifts my spirits and keeps 
 
 If you like this project, please consider:
 
-- ⭐ starring the repo — it helps visibility.
+- ⭐ Star the repository — it helps visibility.
 - ☕ [Buying me a coffee](https://buymeacoffee.com/antonlem) — even $5 keeps me coding with extra caffeine.
 - 💖 [GitHub Sponsors](https://github.com/sponsors/AntonLem) — recurring sponsorship directly through GitHub to support ongoing development.
 
@@ -91,6 +91,13 @@ If you like this project, please consider:
 ## 📖 Documentation
 
 - [Javadoc (latest)](https://javadoc.io/doc/io.github.lemon-ant/glob-path-finder)
+
+---
+
+## Wiki
+
+Additional documentation is available in the [project Wiki](../../wiki).
+If you run into questions about how glob patterns behave in Java NIO, the Wiki already contains a dedicated article with examples and explanations.
 
 ---
 

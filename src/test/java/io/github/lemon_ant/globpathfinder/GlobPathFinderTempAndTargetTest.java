@@ -16,8 +16,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Simple, portable test that uses TWO parallel ABSOLUTE include globs:
- *  - one under the JUnit-provided temp directory,
- *  - one under the project's "target" directory.
+ * - one under the JUnit-provided temp directory,
+ * - one under the project's "target" directory.
  * Both are guaranteed (or conditionally assumed) to be writable in typical Maven builds.
  * We confirm both absolute includes work simultaneously.
  */
@@ -45,7 +45,7 @@ class GlobPathFinderTempAndTargetTest {
 
         // Build absolute include globs (normalize separators to forward slashes for globbing)
         String absoluteTempInclude =
-                tempJavaBaseDirectory.toAbsolutePath().toString().replace('\\', '/') + "/**/*.java";
+                tempJavaBaseDirectory.toAbsolutePath().toString().replace('\\', '/') + "/**.java";
         String absoluteTargetInclude =
                 targetSandboxDirectory.toAbsolutePath().toString().replace('\\', '/') + "/**/*.md";
 

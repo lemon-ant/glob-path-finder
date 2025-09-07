@@ -7,9 +7,13 @@ import java.io.File;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.NonNull;
 import lombok.experimental.UtilityClass;
@@ -19,6 +23,7 @@ import org.apache.commons.lang3.tuple.Pair;
 @UtilityClass
 class FileMatchingUtils {
     private static final PathMatcher MATCH_ALL = FileSystems.getDefault().getPathMatcher("glob:**");
+    private static final Pattern WINDOWS_DRIVE_PATTERN = Pattern.compile("^[a-zA-Z]:[/\\\\].*");
 
     static boolean isMatchedToPatterns(@NonNull Path pathToMatch, @NonNull Set<PathMatcher> pathMatchers) {
         return pathMatchers.isEmpty() || pathMatchers.stream().anyMatch(matcher -> matcher.matches(pathToMatch));
@@ -104,6 +109,42 @@ class FileMatchingUtils {
             patternBuilder.append('/');
         }
         return patternBuilder.toString();
+    }
+
+    static Pair<List<String>, List<String>> partitionAbsoluteAndRelative(Collection<String> patterns) {
+        List<String> absolute = new ArrayList<>();
+        List<String> relative = new ArrayList<>();
+
+        for (String pattern : patterns) {
+            if (isAbsoluteGlob(pattern)) {
+                absolute.add(pattern);
+            } else {
+                relative.add(pattern);
+            }
+        }
+        return Pair.of(absolute, relative);
+    }
+
+    private static boolean isAbsoluteGlob(String globPattern) {
+        if (globPattern == null || globPattern.isEmpty()) {
+            return false;
+        }
+
+        // Normalize separators
+        String normalized = globPattern.replace('\\', '/');
+
+        // Unix-like absolute
+        if (normalized.startsWith("/")) {
+            return true;
+        }
+
+        // Windows drive letter absolute (e.g., C:/, D:\)
+        if (WINDOWS_DRIVE_PATTERN.matcher(globPattern).matches()) {
+            return true;
+        }
+
+        // Windows UNC path (\\server\share)
+        return globPattern.startsWith("\\\\") || globPattern.startsWith("//");
     }
 
     private static boolean isWildcardSegment(String segment) {
