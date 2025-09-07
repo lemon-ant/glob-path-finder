@@ -13,6 +13,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
@@ -23,6 +24,7 @@ import org.junit.jupiter.api.io.TempDir;
  * Focus: absolute excludes, "include == exclude" emptiness, no-match includes,
  * single-file absolute include, Windows backslashes, symlink traversal (including cycle).
  */
+@Slf4j
 class GlobPathFinderAdditionalScenariosTest {
 
     @TempDir
@@ -186,6 +188,7 @@ class GlobPathFinderAdditionalScenariosTest {
 
     @Test
     void followLinks_true_findsThroughSymlink_posixOnly() throws Exception {
+        log.debug("-------- Start:  followLinks_true_findsThroughSymlink_posixOnly ---------");
         // Run only on POSIX
         assumeTrue(
                 Files.getFileAttributeView(tempDir, PosixFileAttributeView.class) != null,
@@ -223,6 +226,8 @@ class GlobPathFinderAdditionalScenariosTest {
                     })
                     .collect(Collectors.toSet());
         }
+
+        log.debug("-------- Assert:  followLinks_true_findsThroughSymlink_posixOnly ---------");
 
         // Assert
         assertThat(result).contains(testFile.toRealPath());

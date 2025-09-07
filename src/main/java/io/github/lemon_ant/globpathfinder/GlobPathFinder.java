@@ -149,6 +149,7 @@ public class GlobPathFinder {
                                 .onClose(safeFoundPaths::close);
 
                     } catch (IOException e) {
+                        // TODO Move to IoShieldingStream
                         // Failure to even open the traversal for this base (e.g., basePath not readable).
                         log.warn(
                                 "Failed to start scanning base '{}'. Skipping this base.\nCause: {}",
