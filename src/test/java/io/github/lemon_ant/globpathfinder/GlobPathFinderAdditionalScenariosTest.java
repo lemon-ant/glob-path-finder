@@ -191,21 +191,17 @@ class GlobPathFinderAdditionalScenariosTest {
                 Files.getFileAttributeView(tempDir, PosixFileAttributeView.class) != null,
                 "POSIX attributes not supported; skipping test.");
 
-        // On CI (e.g., GitHub Actions) symlink traversal can be restricted; skip to avoid flakiness
-        boolean isCi = Boolean.getBoolean("ci") || "true".equalsIgnoreCase(System.getenv("CI"));
-        assumeTrue(!isCi, "Skipping symlink traversal on CI");
-
         // Arrange: link -> real/src ; expect to find real/src/Main.java
-        Path real = Files.createDirectories(tempDir.resolve("real/src"));
-        Path main = writeFile(real.resolve("Main.java"), "class Main {}");
-        Path link = tempDir.resolve("link");
+        Path realPath = Files.createDirectories(tempDir.resolve("real/src"));
+        Path testFile = writeFile(realPath.resolve("Main.java"), "class Main {}");
+        Path linkPath = tempDir.resolve("link");
         try {
-            Files.createSymbolicLink(link, real);
+            Files.createSymbolicLink(linkPath, realPath);
         } catch (Exception e) {
             assumeTrue(false, "Symlink creation not permitted: " + e.getMessage());
         }
 
-        String include = absGlob(link, "/**/*.java");
+        String include = absGlob(linkPath, "/**/*.java");
 
         PathQuery query = PathQuery.builder()
                 .baseDir(tempDir)
@@ -229,7 +225,7 @@ class GlobPathFinderAdditionalScenariosTest {
         }
 
         // Assert
-        assertThat(result).contains(main.toRealPath());
+        assertThat(result).contains(testFile.toRealPath());
     }
 
     @Test
