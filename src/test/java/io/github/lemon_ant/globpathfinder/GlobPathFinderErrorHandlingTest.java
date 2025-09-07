@@ -37,8 +37,8 @@ class GlobPathFinderErrorHandlingTest {
     Path tempDir;
 
     // Helper: attach in-memory appender to the class logger used by GlobPathFinder
-    private ListAppender<ILoggingEvent> attachListAppender() {
-        Logger logger = (Logger) LoggerFactory.getLogger(GlobPathFinder.class);
+    private ListAppender<ILoggingEvent> attachListAppender(Class<?> loggerClass) {
+        Logger logger = (Logger) LoggerFactory.getLogger(loggerClass);
         ListAppender<ILoggingEvent> appender = new ListAppender<>();
         appender.start();
         logger.addAppender(appender);
@@ -51,7 +51,7 @@ class GlobPathFinderErrorHandlingTest {
     void findPaths_baseDoesNotExist_shouldWarnAndReturnEmpty() {
         // given
         Path nonExistingBase = tempDir.resolve("does-not-exist");
-        ListAppender<ILoggingEvent> appender = attachListAppender();
+        ListAppender<ILoggingEvent> appender = attachListAppender(GlobPathFinder.class);
 
         PathQuery query = PathQuery.builder()
                 .baseDir(nonExistingBase)
@@ -107,7 +107,7 @@ class GlobPathFinderErrorHandlingTest {
         Files.setPosixFilePermissions(deniedDir, Set.of());
 
         // Attach in-memory appender to capture WARN
-        ListAppender<ILoggingEvent> appender = attachListAppender();
+        ListAppender<ILoggingEvent> appender = attachListAppender(IoShieldingStream.class);
 
         PathQuery query = PathQuery.builder()
                 .baseDir(base)
