@@ -128,7 +128,7 @@ public class GlobPathFinder {
                                 regularFileFilter,
                                 pathQuery.getVisitOptions().toArray(new FileVisitOption[0]));
 
-                        Stream<Path> safeFoundPaths = IoShieldingStreams.wrapPathStream(foundPaths, basePath);
+                        Stream<Path> safeFoundPaths = IoShieldingStream.wrapPathStream(foundPaths, basePath);
 
                         // Apply filters in this order: extensions → include matchers → excludes.
                         return safeFoundPaths

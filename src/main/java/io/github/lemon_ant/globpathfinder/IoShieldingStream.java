@@ -41,7 +41,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @UtilityClass
 @SuppressWarnings("PMD.GuardLogStatement")
-class IoShieldingStreams {
+class IoShieldingStream {
 
     /**
      * Wrap a {@code Stream<Path>} so that late {@link java.io.UncheckedIOException} are logged
