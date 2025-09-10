@@ -4,9 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
-import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.read.ListAppender;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -241,7 +239,7 @@ class GlobPathFinderAdditionalScenariosTest {
                 "POSIX attributes not supported; skipping test.");
 
         // Attach ListAppender specifically to IoShieldingStream logger (not root)
-       // ListAppender<ILoggingEvent> appender = LogHelper.attachListAppender(IoShieldingStream.class);
+        // ListAppender<ILoggingEvent> appender = LogHelper.attachListAppender(IoShieldingStream.class);
         // given
         Path loopDir = Files.createDirectories(tempDir.resolve("loop"));
         Path javaFile = writeFile(loopDir.resolve("Loop.java"), "class Loop {}");
@@ -273,7 +271,7 @@ class GlobPathFinderAdditionalScenariosTest {
         // We do NOT require any particular payload result; traversal may be cut short by the shield.
         // The only hard guarantee here is: no crash and a WARN is logged by IoShieldingStream.
         List<ILoggingEvent> warnEvents = List.of();
-             //   appender.list.stream().filter(ev -> ev.getLevel() == Level.WARN).collect(Collectors.toList());
+        //   appender.list.stream().filter(ev -> ev.getLevel() == Level.WARN).collect(Collectors.toList());
 
         assertThat(warnEvents)
                 .as("Expected a WARN from IoShieldingStream about a filesystem loop")
