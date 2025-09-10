@@ -188,7 +188,6 @@ class GlobPathFinderAdditionalScenariosTest {
 
     @Test
     void followLinks_true_findsThroughSymlink_posixOnly() throws Exception {
-        log.debug("-------- Start:  followLinks_true_findsThroughSymlink_posixOnly ---------");
         // Run only on POSIX
         assumeTrue(
                 Files.getFileAttributeView(tempDir, PosixFileAttributeView.class) != null,
@@ -227,8 +226,6 @@ class GlobPathFinderAdditionalScenariosTest {
                     .collect(Collectors.toSet());
         }
 
-        log.debug("-------- Assert:  followLinks_true_findsThroughSymlink_posixOnly ---------");
-
         // Assert
         assertThat(result).contains(testFile.toRealPath());
     }
@@ -251,7 +248,7 @@ class GlobPathFinderAdditionalScenariosTest {
             assumeTrue(false, "Symlink creation not permitted: " + e.getMessage());
         }
 
-        String include = absGlob(loopDir, "/**/*.java");
+        String include = absGlob(loopDir, "**.java");
 
         PathQuery query = PathQuery.builder()
                 .baseDir(tempDir)
