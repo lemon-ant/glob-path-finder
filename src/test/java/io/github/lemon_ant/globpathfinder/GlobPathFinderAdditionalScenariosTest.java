@@ -233,6 +233,7 @@ class GlobPathFinderAdditionalScenariosTest {
     @Test
     void cyclicSymlink_doesNotLoopOrCrash_posixOnly() throws Exception {
         // Only run on POSIX
+        log.info("------- cyclicSymlink_doesNotLoopOrCrash_posixOnly started");
         assumeTrue(
                 Files.getFileAttributeView(tempDir, PosixFileAttributeView.class) != null,
                 "POSIX attributes not supported; skipping test.");
@@ -268,5 +269,7 @@ class GlobPathFinderAdditionalScenariosTest {
 
         // then: at minimum, the direct file should be present; duplicates are eliminated by the pipeline
         assertThat(result.get()).contains(javaFile.toAbsolutePath().normalize());
+
+        log.info("------- cyclicSymlink_doesNotLoopOrCrash_posixOnly ended");
     }
 }
