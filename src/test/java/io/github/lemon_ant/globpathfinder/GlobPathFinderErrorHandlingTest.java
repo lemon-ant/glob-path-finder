@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import java.io.IOException;
@@ -22,7 +21,6 @@ import java.util.stream.Stream;
 import org.assertj.core.api.Condition;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.slf4j.LoggerFactory;
 
 /**
  * Integration-style tests that exercise GlobPathFinder against real filesystem conditions:
@@ -36,22 +34,12 @@ class GlobPathFinderErrorHandlingTest {
     @TempDir
     Path tempDir;
 
-    // Helper: attach in-memory appender to the class logger used by GlobPathFinder
-    private ListAppender<ILoggingEvent> attachListAppender(Class<?> loggerClass) {
-        Logger logger = (Logger) LoggerFactory.getLogger(loggerClass);
-        ListAppender<ILoggingEvent> appender = new ListAppender<>();
-        appender.start();
-        logger.addAppender(appender);
-        return appender;
-    }
-
     // --- Test 1: base path does not exist ---
-
     @Test
     void findPaths_baseDoesNotExist_shouldWarnAndReturnEmpty() {
         // given
         Path nonExistingBase = tempDir.resolve("does-not-exist");
-        ListAppender<ILoggingEvent> appender = attachListAppender(GlobPathFinder.class);
+        ListAppender<ILoggingEvent> appender = LogHelper.attachListAppender(GlobPathFinder.class);
 
         PathQuery query = PathQuery.builder()
                 .baseDir(nonExistingBase)
@@ -82,7 +70,6 @@ class GlobPathFinderErrorHandlingTest {
     }
 
     // --- Test 2: unreadable subdirectory causes iteration-time failures (POSIX-only) ---
-
     @Test
     void findPaths_unreadableSubdirectory_shouldWarnAndStillReturnOtherFiles_posixOnly() throws IOException {
         // Run only on POSIX where chmod(000) is available
@@ -107,7 +94,7 @@ class GlobPathFinderErrorHandlingTest {
         Files.setPosixFilePermissions(deniedDir, Set.of());
 
         // Attach in-memory appender to capture WARN
-        ListAppender<ILoggingEvent> appender = attachListAppender(IoShieldingStream.class);
+        ListAppender<ILoggingEvent> appender = LogHelper.attachListAppender(IoShieldingStream.class);
 
         PathQuery query = PathQuery.builder()
                 .baseDir(base)
