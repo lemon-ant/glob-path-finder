@@ -233,6 +233,7 @@ class GlobPathFinderAdditionalScenariosTest {
 
     @Test
     void cyclicSymlink_doesNotLoopOrCrash_posixOnly() throws Exception {
+        log.info("----- cyclicSymlink_doesNotLoopOrCrash_posixOnly started");
         // Only run on POSIX
         assumeTrue(
                 Files.getFileAttributeView(tempDir, PosixFileAttributeView.class) != null,
@@ -282,5 +283,7 @@ class GlobPathFinderAdditionalScenariosTest {
                     assertThat(ev.getThrowableProxy()).isNotNull();
                     assertThat(ev.getThrowableProxy().getClassName()).contains("FileSystemLoopException");
                 });
+
+        log.info("----- cyclicSymlink_doesNotLoopOrCrash_posixOnly ended");
     }
 }
