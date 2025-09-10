@@ -204,7 +204,7 @@ class GlobPathFinderAdditionalScenariosTest {
             assumeTrue(false, "Symlink creation not permitted: " + e.getMessage());
         }
 
-        String include = absGlob(linkPath, "/**/*.java");
+        String include = absGlob(linkPath, "**.java");
 
         PathQuery query = PathQuery.builder()
                 .baseDir(tempDir)
