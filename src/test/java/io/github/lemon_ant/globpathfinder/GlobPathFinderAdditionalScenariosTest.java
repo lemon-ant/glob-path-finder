@@ -241,7 +241,7 @@ class GlobPathFinderAdditionalScenariosTest {
                 "POSIX attributes not supported; skipping test.");
 
         // Attach ListAppender specifically to GlobPathFinder logger (not root)
-        ListAppender<ILoggingEvent> appender = LogHelper.attachListAppender(GlobPathFinder.class);
+        ListAppender<ILoggingEvent> appender = LogHelper.attachListAppender(IoShieldingStream.class);
         // given
         Path loopDir = Files.createDirectories(tempDir.resolve("loop"));
         Path javaFile = writeFile(loopDir.resolve("Loop.java"), "class Loop {}");
