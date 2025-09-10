@@ -264,9 +264,7 @@ class GlobPathFinderAdditionalScenariosTest {
                 .build();
 
         // when
-        assertThatNoException().isThrownBy(() -> {
-            GlobPathFinder.findPaths(query);
-        });
+        GlobPathFinder.findPaths(query);
 
         // then
         // We do NOT require any particular payload result; traversal may be cut short by the shield.
