@@ -4,7 +4,7 @@
     <!-- You can control levels via Maven:
          mvn -DROOT_LOG_LEVEL=INFO -DGPF_LOG_LEVEL=TRACE test -->
     <property name="ROOT_LOG_LEVEL" value="${ROOT_LOG_LEVEL:-WARN}"/>
-    <property name="GPF_LOG_LEVEL"   value="${GPF_LOG_LEVEL:-DEBUG}"/>
+    <property name="GPF_LOG_LEVEL" value="${GPF_LOG_LEVEL:-DEBUG}"/>
 
     <!-- Console appender -->
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
