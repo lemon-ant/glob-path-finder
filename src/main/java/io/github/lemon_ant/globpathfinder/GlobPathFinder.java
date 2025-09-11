@@ -114,7 +114,8 @@ public class GlobPathFinder {
                 pathQuery.isOnlyFiles() ? (path, attrs) -> attrs.isRegularFile() : (path, attrs) -> true;
 
         // Scan each grouped base in parallel.
-        Stream<Entry<Path, Set<PathMatcher>>> baseDirs = baseToPatterns.entrySet().parallelStream();
+        Stream<Entry<Path, Set<PathMatcher>>> baseDirs = baseToPatterns.entrySet().parallelStream()
+                .peek(pathSetEntry -> log.debug("Starting processing base dir {}", pathSetEntry));
 
         return baseDirs.flatMap(globalEntry -> {
                     Path basePath = globalEntry.getKey();

@@ -94,7 +94,7 @@ class GlobPathFinderErrorHandlingTest {
         Files.setPosixFilePermissions(deniedDir, Set.of());
 
         // Attach in-memory appender to capture WARN
-        // ListAppender<ILoggingEvent> appender = LogHelper.attachListAppender(IoShieldingStream.class);
+        ListAppender<ILoggingEvent> appender = LogHelper.attachListAppender(IoShieldingStream.class);
 
         PathQuery query = PathQuery.builder()
                 .baseDir(base)
@@ -118,7 +118,7 @@ class GlobPathFinderErrorHandlingTest {
                         && e.getFormattedMessage().toLowerCase(Locale.ROOT).contains("i/o")
                         && e.getFormattedMessage().toLowerCase(Locale.ROOT).contains("traversal"),
                 "WARN mentioning I/O during traversal");
-        // assertThat(appender.list).anySatisfy(le -> assertThat(le).is(warnDuringTraversal));
+        assertThat(appender.list).anySatisfy(le -> assertThat(le).is(warnDuringTraversal));
 
         // And nothing from denied/ leaked into the result
         Path deniedAbs = deniedDir.toAbsolutePath().normalize();
