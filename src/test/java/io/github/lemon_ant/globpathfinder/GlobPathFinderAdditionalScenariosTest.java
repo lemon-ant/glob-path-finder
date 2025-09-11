@@ -281,7 +281,7 @@ class GlobPathFinderAdditionalScenariosTest {
                     assertThat(message).contains("I/O during traversal of", "FileSystemLoopException", "Stopping");
                     // Throwable presence and type hint (FileSystemLoopException)
                     assertThat(ev.getThrowableProxy()).isNotNull();
-                    // assertThat(ev.getThrowableProxy().getClassName()).contains("FileSystemLoopException");
+                    assertThat(ev.getThrowableProxy().getClassName()).contains("FileSystemLoopException");
                 });
     }
 }
