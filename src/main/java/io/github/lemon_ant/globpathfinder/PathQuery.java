@@ -82,7 +82,7 @@ public class PathQuery {
      * Include glob patterns.
      * Normalization rules performed in the constructor:
      * - If the input collection is null or omitted, this field becomes an empty Set, otherwise it is defensively
-     * copied to unmodifiable Set.
+     *   copied to unmodifiable Set.
      * Behavior in the finder:
      * - An empty include set is interpreted as "match all under baseDir".
      */
@@ -94,7 +94,7 @@ public class PathQuery {
      * Optional whitelist of file extensions without dots, case-insensitive.
      * Normalization rules performed in the constructor:
      * - If the input collection is null or omitted, this field becomes an empty Set, otherwise it is defensively
-     * copied to unmodifiable Set.
+     *   copied to unmodifiable Set.
      * Behavioral notes:
      * - An empty Set disables the extension filter entirely.
      */
@@ -106,7 +106,7 @@ public class PathQuery {
      * Optional exclude glob patterns.
      * Normalization rules performed in the constructor:
      * - If the input collection is null or omitted, this field becomes an empty Set, otherwise it is defensively
-     * copied to unmodifiable Set.
+     *   copied to unmodifiable Set.
      * Behavioral notes:
      * - An empty Set disables exclude filtering.
      */

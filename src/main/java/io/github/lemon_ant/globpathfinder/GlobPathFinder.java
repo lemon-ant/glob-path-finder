@@ -59,7 +59,6 @@ import org.apache.commons.lang3.tuple.Pair;
  */
 @Slf4j
 @UtilityClass
-@SuppressWarnings("PMD.GuardLogStatement")
 public class GlobPathFinder {
 
     /**
@@ -67,7 +66,7 @@ public class GlobPathFinder {
      *
      * @param pathQuery configuration (base, include/exclude, extensions, depth, onlyFiles)
      * @return a stream of absolute, normalized and <b>unique</b> paths that satisfy the filters;
-     * the caller is responsible for closing the returned stream
+     *         the caller is responsible for closing the returned stream
      * @throws UncheckedIOException on IO errors during traversal
      */
     @NonNull
@@ -151,11 +150,7 @@ public class GlobPathFinder {
                     } catch (IOException e) {
                         // TODO Move to IoShieldingStream
                         // Failure to even open the traversal for this base (e.g., basePath not readable).
-                        log.warn(
-                                "Failed to start scanning base '{}'. Skipping this base.\nCause: {}",
-                                basePath,
-                                e.getMessage(),
-                                e);
+                        log.warn("Failed to start scanning base '{}'. Skipping this base.", basePath, e);
                         return Stream.empty();
                     }
                 })

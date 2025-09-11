@@ -126,25 +126,12 @@ class FileMatchingUtils {
     }
 
     private static boolean isAbsoluteGlob(String globPattern) {
-        if (globPattern == null || globPattern.isEmpty()) {
-            return false;
-        }
-
         // Normalize separators
         String normalized = globPattern.replace('\\', '/');
 
-        // Unix-like absolute
-        if (normalized.startsWith("/")) {
-            return true;
-        }
-
-        // Windows drive letter absolute (e.g., C:/, D:\)
-        if (WINDOWS_DRIVE_PATTERN.matcher(globPattern).matches()) {
-            return true;
-        }
-
-        // Windows UNC path (\\server\share)
-        return globPattern.startsWith("\\\\") || globPattern.startsWith("//");
+        // Unix-like absolute OR Windows drive letter absolute (e.g., C:/, D:\)
+        return normalized.startsWith("/")
+                || WINDOWS_DRIVE_PATTERN.matcher(globPattern).matches();
     }
 
     private static boolean isWildcardSegment(String segment) {
