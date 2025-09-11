@@ -244,10 +244,12 @@ class GlobPathFinderAdditionalScenariosTest {
         // given
         Path loopDir = Files.createDirectories(tempDir.resolve("loop"));
         Path javaFile = writeFile(loopDir.resolve("Loop.java"), "class Loop {}");
+        log.debug("Created file {}", javaFile);
         Path backSymlink = loopDir.resolve("back");
         try {
             // backSymlink -> loopDir (creates a cycle)
-            Files.createSymbolicLink(backSymlink, loopDir);
+            Path createdSymlink = Files.createSymbolicLink(backSymlink, loopDir);
+            log.debug("Created Symlink {}", createdSymlink);
         } catch (Exception e) {
             // Symlinks might be forbidden in the environment; skip gracefully
             assumeTrue(false, "Symlink creation not permitted: " + e.getMessage());
@@ -264,6 +266,7 @@ class GlobPathFinderAdditionalScenariosTest {
                 .build();
 
         // when
+        log.debug("----- Starting GlobPathFinder.findPaths(query); {}", query);
         GlobPathFinder.findPaths(query);
 
         // then
