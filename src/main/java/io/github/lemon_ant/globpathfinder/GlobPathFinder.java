@@ -72,6 +72,7 @@ public class GlobPathFinder {
      */
     @NonNull
     public static Stream<Path> findPaths(@NonNull PathQuery pathQuery) {
+        log.debug("Starting processing PathQuery {}", pathQuery);
         // Normalize base to absolute before traversal.
         Path normalizedBaseDir = pathQuery.getBaseDir().toAbsolutePath().normalize();
 
