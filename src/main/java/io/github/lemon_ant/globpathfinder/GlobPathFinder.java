@@ -114,6 +114,8 @@ public class GlobPathFinder {
         BiPredicate<Path, BasicFileAttributes> regularFileFilter =
                 pathQuery.isOnlyFiles() ? (path, attrs) -> attrs.isRegularFile() : (path, attrs) -> true;
 
+        log.debug("Prepared for streaming {}", baseToPatterns);
+
         // Scan each grouped base in parallel.
         Stream<Entry<Path, Set<PathMatcher>>> baseDirs = baseToPatterns.entrySet().parallelStream()
                 .peek(pathSetEntry -> log.debug("Starting processing base dir {}", pathSetEntry));
