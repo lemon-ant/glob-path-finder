@@ -235,7 +235,6 @@ class GlobPathFinderAdditionalScenariosTest {
 
     @Test
     void cyclicSymlink_doesNotLoopOrCrash_posixOnly() throws Exception {
-        log.info("----- cyclicSymlink_doesNotLoopOrCrash_posixOnly started");
         // Only run on POSIX
         assumeTrue(
                 Files.getFileAttributeView(tempDir, PosixFileAttributeView.class) != null,
@@ -247,12 +246,10 @@ class GlobPathFinderAdditionalScenariosTest {
         // given
         Path loopDir = Files.createDirectories(tempDir.resolve("loop"));
         Path javaFile = writeFile(loopDir.resolve("Loop.java"), "class Loop {}");
-        log.debug("Created file {}", javaFile);
         Path backSymlink = loopDir.resolve("back");
         try {
             // backSymlink -> loopDir (creates a cycle)
             Path createdSymlink = Files.createSymbolicLink(backSymlink, loopDir);
-            log.debug("Created Symlink {}", createdSymlink);
         } catch (Exception e) {
             // Symlinks might be forbidden in the environment; skip gracefully
             assumeTrue(false, "Symlink creation not permitted: " + e.getMessage());
@@ -269,7 +266,6 @@ class GlobPathFinderAdditionalScenariosTest {
                 .build();
 
         // when
-        log.debug("----- Starting GlobPathFinder.findPaths(query); {}", query);
         long count = GlobPathFinder.findPaths(query).count();
 
         // then
@@ -282,12 +278,10 @@ class GlobPathFinderAdditionalScenariosTest {
                 .as("Expected a WARN from IoShieldingStream about a filesystem loop")
                 .anySatisfy(ev -> {
                     String message = ev.getFormattedMessage();
-                    assertThat(message).contains("I/O during traversal of");
+                    assertThat(message).contains("I/O during traversal of", "FileSystemLoopException", "Stopping");
                     // Throwable presence and type hint (FileSystemLoopException)
                     assertThat(ev.getThrowableProxy()).isNotNull();
-                    assertThat(ev.getThrowableProxy().getClassName()).contains("FileSystemLoopException");
+                    // assertThat(ev.getThrowableProxy().getClassName()).contains("FileSystemLoopException");
                 });
-
-        log.info("----- cyclicSymlink_doesNotLoopOrCrash_posixOnly ended");
     }
 }
