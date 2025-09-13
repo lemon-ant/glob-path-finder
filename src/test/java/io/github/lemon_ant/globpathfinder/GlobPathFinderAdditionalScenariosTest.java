@@ -241,7 +241,7 @@ class GlobPathFinderAdditionalScenariosTest {
                 "POSIX attributes not supported; skipping test.");
 
         // Attach ListAppender specifically to IoShieldingStream logger (not root)
-        ListAppender<ILoggingEvent> appender = LogHelper.attachListAppender(IoShieldingStream.class);
+        ListAppender<ILoggingEvent> appender = LogHelper.attachListAppender(IoTolerantPathStream.class);
 
         // given
         Path loopDir = Files.createDirectories(tempDir.resolve("loop"));

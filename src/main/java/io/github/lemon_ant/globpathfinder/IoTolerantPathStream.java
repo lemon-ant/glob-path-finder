@@ -41,7 +41,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @UtilityClass
 @SuppressWarnings("PMD.GuardLogStatement")
-class IoShieldingStream {
+class IoTolerantPathStream {
 
     /**
      * Wrap a {@code Stream<Path>} so that late {@link java.io.UncheckedIOException} are logged
@@ -57,10 +57,10 @@ class IoShieldingStream {
      * @param basePath     context for logging; typically the scanned base directory
      * @return a shielded stream that logs and suppresses late {@code UncheckedIOException}
      */
-    static Stream<Path> wrapPathStream(Stream<Path> sourceStream, Path basePath) {
+    static Stream<Path> wrap(Stream<Path> sourceStream, Path basePath) {
         boolean isParallel = sourceStream.isParallel();
         Spliterator<Path> sourceSpliterator = sourceStream.spliterator();
-        Spliterator<Path> shielded = shieldingSpliterator(sourceSpliterator, basePath);
+        Spliterator<Path> shielded = createIoTolerantSpliterator(sourceSpliterator, basePath);
 
         return StreamSupport.stream(shielded, isParallel).onClose(sourceStream::close);
     }
@@ -80,7 +80,7 @@ class IoShieldingStream {
      * @param basePath base-path context for logging
      * @return shielding spliterator
      */
-    private static Spliterator<Path> shieldingSpliterator(Spliterator<Path> source, Path basePath) {
+    private static Spliterator<Path> createIoTolerantSpliterator(Spliterator<Path> source, Path basePath) {
         return new Spliterator<>() {
             @Override
             public boolean tryAdvance(Consumer<? super Path> action) {
@@ -113,7 +113,7 @@ class IoShieldingStream {
             @Override
             public Spliterator<Path> trySplit() {
                 Spliterator<Path> split = source.trySplit();
-                return (split == null) ? null : shieldingSpliterator(split, basePath);
+                return (split == null) ? null : createIoTolerantSpliterator(split, basePath);
             }
 
             @Override

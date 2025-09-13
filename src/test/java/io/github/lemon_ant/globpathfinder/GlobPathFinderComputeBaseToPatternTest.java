@@ -1,6 +1,6 @@
 package io.github.lemon_ant.globpathfinder;
 
-import static io.github.lemon_ant.globpathfinder.FileMatchingUtils.computeBaseToPattern;
+import static io.github.lemon_ant.globpathfinder.FileMatchingUtils.computeBaseToIncludeMatchers;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.file.Path;
@@ -28,7 +28,7 @@ class GlobPathFinderComputeBaseToPatternTest {
 
         // when
         Map<Path, Set<java.nio.file.PathMatcher>> baseToMatchers =
-                computeBaseToPattern(normalizedBaseDir, includeGlobPatterns);
+                computeBaseToIncludeMatchers(normalizedBaseDir, includeGlobPatterns);
 
         // then
         // Same fallback branch as above
@@ -53,7 +53,7 @@ class GlobPathFinderComputeBaseToPatternTest {
 
         // when
         Map<Path, Set<java.nio.file.PathMatcher>> baseToMatchers =
-                computeBaseToPattern(normalizedBaseDir, includeGlobPatterns);
+                computeBaseToIncludeMatchers(normalizedBaseDir, includeGlobPatterns);
 
         // then
         Path extractedGroupedBase = normalizedBaseDir.resolve("src").normalize();

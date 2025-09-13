@@ -30,7 +30,8 @@ class FileMatchingUtils {
     }
 
     @NonNull
-    static Map<Path, Set<PathMatcher>> computeBaseToPattern(@NonNull Path baseDir, @NonNull Set<String> includeGlobs) {
+    static Map<Path, Set<PathMatcher>> computeBaseToIncludeMatchers(
+            @NonNull Path baseDir, @NonNull Set<String> includeGlobs) {
         Map<Path, Set<PathMatcher>> result = includeGlobs.stream()
                 .map(StringUtils::trimToNull)
                 .filter(Objects::nonNull)
