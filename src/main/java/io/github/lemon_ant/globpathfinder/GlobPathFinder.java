@@ -1,6 +1,6 @@
 package io.github.lemon_ant.globpathfinder;
 
-import static io.github.lemon_ant.globpathfinder.FileMatchingUtils.computeBaseToPattern;
+import static io.github.lemon_ant.globpathfinder.FileMatchingUtils.computeBaseToIncludeMatchers;
 import static io.github.lemon_ant.globpathfinder.FileMatchingUtils.partitionAbsoluteAndRelative;
 import static io.github.lemon_ant.globpathfinder.StringUtils.processNormalizedStrings;
 
@@ -46,8 +46,6 @@ import org.apache.commons.lang3.tuple.Pair;
  */
 @Slf4j
 @UtilityClass
-@SuppressWarnings("PMD.CognitiveComplexity")
-// TODO Simplify method
 public class GlobPathFinder {
 
     /**
@@ -60,21 +58,51 @@ public class GlobPathFinder {
      */
     @NonNull
     public static Stream<Path> findPaths(@NonNull PathQuery pathQuery) {
-        // Normalize base to absolute before traversal.
+        // 1) Normalize inputs and precompute matchers/sets (no I/O here).
         Path normalizedBaseDir = pathQuery.getBaseDir().toAbsolutePath().normalize();
 
         // Group include globs by extracted base; empty matcher set for a base denotes MATCH_ALL under that base.
-        Map<Path, Set<PathMatcher>> baseToPatterns =
-                computeBaseToPattern(normalizedBaseDir, pathQuery.getIncludeGlobs());
+        Map<Path, Set<PathMatcher>> baseToIncludeMatchers =
+                computeBaseToIncludeMatchers(normalizedBaseDir, pathQuery.getIncludeGlobs());
 
         // ===== Build processing pipeline BEFORE any stream is created =====
 
         // Extensions (case-insensitive); if empty, there will be NO extension step in the pipeline.
-        Set<String> normalizedExtensions = processNormalizedStrings(
-                pathQuery.getAllowedExtensions(), extension -> extension.toLowerCase(Locale.ROOT));
+        Set<String> normalizedExtensions = buildNormalizedExtensions(pathQuery);
         boolean hasAllowedExtensions = !normalizedExtensions.isEmpty();
 
         // Excludes: split into absolute vs relative; if a set is empty, there will be NO respective step.
+        Pair<Set<PathMatcher>, Set<PathMatcher>> absoluteAndRelativeExcludeMatchers = compileExcludeMatchers(pathQuery);
+        Set<PathMatcher> absoluteExcludeMatchers = absoluteAndRelativeExcludeMatchers.getLeft();
+        Set<PathMatcher> relativeExcludeMatchers = absoluteAndRelativeExcludeMatchers.getRight();
+
+        BiPredicate<Path, BasicFileAttributes> fileTypeFilter = buildFileTypeFilter(pathQuery.isOnlyFiles());
+        boolean isDebugEnabled = log.isDebugEnabled();
+
+        // 2) Compose global pipeline once (base-agnostic).
+        Function<Stream<Path>, Stream<Path>> globalPipeline = buildGlobalPipeline(
+                normalizedExtensions, hasAllowedExtensions, absoluteExcludeMatchers, isDebugEnabled);
+
+        // 3) Compose per-base pipeline factory (adds relative-phase only when needed for that base).
+        Function<Entry<Path, Set<PathMatcher>>, Function<Stream<Path>, Stream<Path>>> perBasePipelineFactory =
+                buildPerBasePipelineFactory(relativeExcludeMatchers, isDebugEnabled);
+
+        // 4) Start traversal: each base is scanned in parallel; I/O is isolated inside scanBase(...) with shielding.
+        return baseToIncludeMatchers.entrySet().parallelStream()
+                .flatMap(entry -> scanBaseDir(entry, pathQuery, globalPipeline, perBasePipelineFactory, fileTypeFilter))
+                // Keep downstream parallel-friendly; order is irrelevant.
+                .unordered()
+                .distinct();
+    }
+
+    /** Build lower-cased extension set; empty set disables the extension filter. */
+    private static Set<String> buildNormalizedExtensions(PathQuery pathQuery) {
+        return processNormalizedStrings(
+                pathQuery.getAllowedExtensions(), extension -> extension.toLowerCase(Locale.ROOT));
+    }
+
+    /** Split excludes to absolute/relative and compile to PathMatcher(glob:...). */
+    private static Pair<Set<PathMatcher>, Set<PathMatcher>> compileExcludeMatchers(PathQuery pathQuery) {
         Pair<List<String>, List<String>> absoluteAndRelativeExcludes =
                 partitionAbsoluteAndRelative(pathQuery.getExcludeGlobs());
 
@@ -88,16 +116,25 @@ public class GlobPathFinder {
                 processNormalizedStrings(absoluteAndRelativeExcludes.getRight(), pattern -> FileSystems.getDefault()
                         .getPathMatcher("glob:" + pattern));
 
-        boolean hasAbsoluteExcludes = !absoluteExcludeMatchers.isEmpty();
-        boolean hasRelativeExcludes = !relativeExcludeMatchers.isEmpty();
+        return Pair.of(absoluteExcludeMatchers, relativeExcludeMatchers);
+    }
 
-        // File attribute filter is part of Files.find(...) — not a stream operator.
-        BiPredicate<Path, BasicFileAttributes> regularFileFilter =
-                pathQuery.isOnlyFiles() ? (path, attrs) -> attrs.isRegularFile() : (path, attrs) -> true;
+    /** Files.find(...) predicate: either regular files only or pass-through. This is not a stream operator.*/
+    private static BiPredicate<Path, BasicFileAttributes> buildFileTypeFilter(boolean onlyFiles) {
+        return onlyFiles ? (path, attrs) -> attrs.isRegularFile() : (path, attrs) -> true;
+    }
 
-        boolean isDebugEnabled = log.isDebugEnabled();
-
-        // ---- Global pipeline (base-agnostic) built ONCE, without pass-through predicates ----
+    /**
+     * Compose the global (base-agnostic) pipeline that:
+     * - optionally logs raw discoveries,
+     * - optionally filters by extension,
+     * - optionally filters by absolute excludes.
+     */
+    private static Function<Stream<Path>, Stream<Path>> buildGlobalPipeline(
+            Set<String> normalizedExtensions,
+            boolean hasAllowedExtensions,
+            Set<PathMatcher> absoluteExcludeMatchers,
+            boolean isDebugEnabled) {
         // We compose steps only when they are needed. No "path -> true" fallbacks.
         Function<Stream<Path>, Stream<Path>> globalPipeline = Function.identity();
 
@@ -109,7 +146,7 @@ public class GlobPathFinder {
         // Extensions filter
         if (hasAllowedExtensions) {
             globalPipeline = globalPipeline.andThen(pathStream -> pathStream.filter(path -> {
-                // Compute extension lazily only when this step exists
+                // Compute extension lazily only when this step exists.
                 String extension = StringUtils.lowerCase(FilenameUtils.getExtension(path.toString()));
                 return normalizedExtensions.contains(extension);
             }));
@@ -120,7 +157,7 @@ public class GlobPathFinder {
         }
 
         // Absolute excludes
-        if (hasAbsoluteExcludes) {
+        if (!absoluteExcludeMatchers.isEmpty()) {
             globalPipeline = globalPipeline.andThen(pathStream ->
                     pathStream.filter(path -> absoluteExcludeMatchers.stream().noneMatch(m -> m.matches(path))));
             if (isDebugEnabled) {
@@ -129,80 +166,86 @@ public class GlobPathFinder {
             }
         }
 
-        // ---- Per-base factory: adds relative phase only when really needed for that base ----
-        // If a base has include matchers OR we have relative excludes at all — we need a relative phase.
-        Function<Entry<Path, Set<PathMatcher>>, Function<Stream<Path>, Stream<Path>>> perBasePipelineFactory =
-                entry -> {
-                    Path basePath = entry.getKey();
-                    Set<PathMatcher> includeMatchersForBase = entry.getValue();
-                    boolean hasIncludesForBase = !includeMatchersForBase.isEmpty();
-                    boolean needsRelativePhase = hasIncludesForBase || hasRelativeExcludes;
+        return globalPipeline;
+    }
 
-                    if (!needsRelativePhase) {
-                        // Nothing base-specific to add
-                        return Function.identity();
-                    }
+    /**
+     * Factory that builds a per-base pipeline. It adds a “relative phase”
+     * (relativize → per-base include → relative excludes) only if needed for that specific base.
+     */
+    private static Function<Entry<Path, Set<PathMatcher>>, Function<Stream<Path>, Stream<Path>>>
+            buildPerBasePipelineFactory(Set<PathMatcher> relativeExcludeMatchers, boolean isDebugEnabled) {
+        return entry -> {
+            Path basePath = entry.getKey();
+            Set<PathMatcher> includeMatchersForBase = entry.getValue();
+            boolean hasIncludesForBase = !includeMatchersForBase.isEmpty();
+            boolean hasRelativeExcludes = !relativeExcludeMatchers.isEmpty();
 
-                    // 1) relativize
-                    Function<Stream<Path>, Stream<Path>> perBaseDirPipeline =
-                            pathStream -> pathStream.map(basePath::relativize);
+            if (!(hasIncludesForBase || hasRelativeExcludes)) {
+                return Function.identity();
+            }
 
-                    // 2) include (only if present for this base)
-                    if (hasIncludesForBase) {
-                        perBaseDirPipeline = perBaseDirPipeline.andThen(pathStream -> pathStream.filter(
-                                relPath -> FileMatchingUtils.isMatchedToPatterns(relPath, includeMatchersForBase)));
-                        if (isDebugEnabled) {
-                            perBaseDirPipeline = perBaseDirPipeline.andThen(
-                                    pathStream -> pathStream.peek(path -> log.debug("Passed include filter {}", path)));
-                        }
-                    }
+            // 1) relativize
+            Function<Stream<Path>, Stream<Path>> perBaseDirPipeline =
+                    pathStream -> pathStream.map(basePath::relativize);
 
-                    // 3) relative excludes (only if configured at all)
-                    if (hasRelativeExcludes) {
-                        perBaseDirPipeline = perBaseDirPipeline.andThen(pathStream -> pathStream.filter(
-                                relPath -> relativeExcludeMatchers.stream().noneMatch(m -> m.matches(relPath))));
-                        if (isDebugEnabled) {
-                            perBaseDirPipeline = perBaseDirPipeline.andThen(pathStream ->
-                                    pathStream.peek(path -> log.debug("Passed exclude relative filter {}", path)));
-                        }
-                    }
+            // 2) include (only if present for this base)
+            if (hasIncludesForBase) {
+                perBaseDirPipeline = perBaseDirPipeline.andThen(pathStream -> pathStream.filter(
+                        relPath -> FileMatchingUtils.isMatchedToPatterns(relPath, includeMatchersForBase)));
+                if (isDebugEnabled) {
+                    perBaseDirPipeline = perBaseDirPipeline.andThen(
+                            pathStream -> pathStream.peek(path -> log.debug("Passed include filter {}", path)));
+                }
+            }
 
-                    // 4) return to absolute, normalized
-                    perBaseDirPipeline = perBaseDirPipeline.andThen(pathStream -> pathStream.map(relPath ->
-                            basePath.resolve(relPath).toAbsolutePath().normalize()));
+            // 3) relative excludes (only if configured at all)
+            if (hasRelativeExcludes) {
+                perBaseDirPipeline = perBaseDirPipeline.andThen(pathStream -> pathStream.filter(
+                        relPath -> relativeExcludeMatchers.stream().noneMatch(m -> m.matches(relPath))));
+                if (isDebugEnabled) {
+                    perBaseDirPipeline = perBaseDirPipeline.andThen(pathStream ->
+                            pathStream.peek(path -> log.debug("Passed exclude relative filter {}", path)));
+                }
+            }
 
-                    return perBaseDirPipeline;
-                };
+            // 4) return to absolute, normalized
+            perBaseDirPipeline = perBaseDirPipeline.andThen(pathStream -> pathStream.map(
+                    relPath -> basePath.resolve(relPath).toAbsolutePath().normalize()));
+            return perBaseDirPipeline;
+        };
+    }
 
-        // ===== Streams start here =====
+    /**
+     * Shielded base scan:
+     * - starts Files.find(...) with configured depth and options,
+     * - wraps with IoShieldingStream to swallow late UncheckedIOExceptions per-branch,
+     * - applies global + per-base pipelines,
+     * - ensures the inner stream is closed when the resulting stream is closed.
+     */
+    private static Stream<Path> scanBaseDir(
+            Entry<Path, Set<PathMatcher>> baseEntry,
+            PathQuery pathQuery,
+            Function<Stream<Path>, Stream<Path>> globalPipeline,
+            Function<Entry<Path, Set<PathMatcher>>, Function<Stream<Path>, Stream<Path>>> perBasePipelineFactory,
+            BiPredicate<Path, BasicFileAttributes> fileTypeFilter) {
+        Path basePath = baseEntry.getKey();
+        try {
+            Stream<Path> foundPaths = Files.find(
+                    basePath,
+                    pathQuery.getMaxDepth(),
+                    fileTypeFilter,
+                    pathQuery.getVisitOptions().toArray(new FileVisitOption[0]));
 
-        Stream<Entry<Path, Set<PathMatcher>>> baseDirs = baseToPatterns.entrySet().parallelStream();
+            Stream<Path> shieldedPaths = IoTolerantPathStream.wrap(foundPaths, basePath);
+            Function<Stream<Path>, Stream<Path>> perBasePipeline = perBasePipelineFactory.apply(baseEntry);
 
-        Function<Stream<Path>, Stream<Path>> finalGlobalPipeline = globalPipeline;
-        return baseDirs.flatMap(entry -> {
-                    Path basePath = entry.getKey();
-                    try {
-                        Stream<Path> foundPaths = Files.find(
-                                basePath,
-                                pathQuery.getMaxDepth(),
-                                regularFileFilter,
-                                pathQuery.getVisitOptions().toArray(new FileVisitOption[0]));
-
-                        Stream<Path> safeFoundPaths = IoShieldingStream.wrapPathStream(foundPaths, basePath);
-
-                        // Build per-base fragment (cheap, no IO), then apply:
-                        Function<Stream<Path>, Stream<Path>> perBasePipeline = perBasePipelineFactory.apply(entry);
-                        return perBasePipeline
-                                .apply(finalGlobalPipeline.apply(safeFoundPaths))
-                                .onClose(safeFoundPaths::close);
-                    } catch (IOException e) {
-                        // TODO Move to IoShieldingStream
-                        log.warn("Failed to start scanning base '{}'. Skipping this base.", basePath, e);
-                        return Stream.empty();
-                    }
-                })
-                // Keep downstream parallel-friendly; order is irrelevant.
-                .unordered()
-                .distinct();
+            return perBasePipeline.apply(globalPipeline.apply(shieldedPaths)).onClose(shieldedPaths::close);
+        } catch (IOException startFailure) {
+            // TODO Move to IoShieldingStream
+            // Early failure when creating the stream (not during iteration) — log and skip this base.
+            log.warn("Failed to start scanning base '{}'. Skipping this base.", basePath, startFailure);
+            return Stream.empty();
+        }
     }
 }

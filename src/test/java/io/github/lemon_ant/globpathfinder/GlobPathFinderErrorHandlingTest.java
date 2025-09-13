@@ -94,7 +94,7 @@ class GlobPathFinderErrorHandlingTest {
         Files.setPosixFilePermissions(deniedDir, Set.of());
 
         // Attach in-memory appender to capture WARN
-        ListAppender<ILoggingEvent> appender = LogHelper.attachListAppender(IoShieldingStream.class);
+        ListAppender<ILoggingEvent> appender = LogHelper.attachListAppender(IoTolerantPathStream.class);
 
         PathQuery query = PathQuery.builder()
                 .baseDir(base)
