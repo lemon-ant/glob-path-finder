@@ -58,6 +58,9 @@ public class GlobPathFinder {
      */
     @NonNull
     public static Stream<Path> findPaths(@NonNull PathQuery pathQuery) {
+        // DEBUG: entrypoint info
+        log.debug("findPaths: starting with query {}", pathQuery);
+
         // 1) Normalize inputs and precompute matchers/sets (no I/O here).
         Path normalizedBaseDir = pathQuery.getBaseDir().toAbsolutePath().normalize();
 
@@ -77,22 +80,28 @@ public class GlobPathFinder {
         Set<PathMatcher> relativeExcludeMatchers = absoluteAndRelativeExcludeMatchers.getRight();
 
         BiPredicate<Path, BasicFileAttributes> fileTypeFilter = buildFileTypeFilter(pathQuery.isOnlyFiles());
-        boolean isDebugEnabled = log.isDebugEnabled();
 
         // 2) Compose global pipeline once (base-agnostic).
-        Function<Stream<Path>, Stream<Path>> globalPipeline = buildGlobalPipeline(
-                normalizedExtensions, hasAllowedExtensions, absoluteExcludeMatchers, isDebugEnabled);
+        Function<Stream<Path>, Stream<Path>> globalPipeline =
+                buildGlobalPipeline(normalizedExtensions, hasAllowedExtensions, absoluteExcludeMatchers);
 
         // 3) Compose per-base pipeline factory (adds relative-phase only when needed for that base).
         Function<Entry<Path, Set<PathMatcher>>, Function<Stream<Path>, Stream<Path>>> perBasePipelineFactory =
-                buildPerBasePipelineFactory(relativeExcludeMatchers, isDebugEnabled);
+                buildPerBasePipelineFactory(relativeExcludeMatchers);
 
         // 4) Start traversal: each base is scanned in parallel; I/O is isolated inside scanBase(...) with shielding.
-        return baseToIncludeMatchers.entrySet().parallelStream()
+        Stream<Path> resultPathStream = baseToIncludeMatchers.entrySet().parallelStream()
                 .flatMap(entry -> scanBaseDir(entry, pathQuery, globalPipeline, perBasePipelineFactory, fileTypeFilter))
                 // Keep downstream parallel-friendly; order is irrelevant.
                 .unordered()
                 .distinct();
+        if (log.isDebugEnabled()) {
+            // DEBUG: final emission (after all filters)
+            resultPathStream = resultPathStream.peek(path -> {
+                log.debug("Emitting {}", path);
+            });
+        }
+        return resultPathStream;
     }
 
     /** Build lower-cased extension set; empty set disables the extension filter. */
@@ -131,16 +140,13 @@ public class GlobPathFinder {
      * - optionally filters by absolute excludes.
      */
     private static Function<Stream<Path>, Stream<Path>> buildGlobalPipeline(
-            Set<String> normalizedExtensions,
-            boolean hasAllowedExtensions,
-            Set<PathMatcher> absoluteExcludeMatchers,
-            boolean isDebugEnabled) {
+            Set<String> normalizedExtensions, boolean hasAllowedExtensions, Set<PathMatcher> absoluteExcludeMatchers) {
         // We compose steps only when they are needed. No "path -> true" fallbacks.
         Function<Stream<Path>, Stream<Path>> globalPipeline = Function.identity();
 
         // Debug peek on the raw discoveries
-        if (isDebugEnabled) {
-            globalPipeline = globalPipeline.andThen(pathStream -> pathStream.peek(path -> log.debug("Found {}", path)));
+        if (log.isTraceEnabled()) {
+            globalPipeline = globalPipeline.andThen(pathStream -> pathStream.peek(path -> log.trace("Found {}", path)));
         }
 
         // Extensions filter
@@ -150,9 +156,9 @@ public class GlobPathFinder {
                 String extension = StringUtils.lowerCase(FilenameUtils.getExtension(path.toString()));
                 return normalizedExtensions.contains(extension);
             }));
-            if (isDebugEnabled) {
+            if (log.isTraceEnabled()) {
                 globalPipeline = globalPipeline.andThen(
-                        pathStream -> pathStream.peek(path -> log.debug("Passed extension filter {}", path)));
+                        pathStream -> pathStream.peek(path -> log.trace("Passed extension filter {}", path)));
             }
         }
 
@@ -160,9 +166,9 @@ public class GlobPathFinder {
         if (!absoluteExcludeMatchers.isEmpty()) {
             globalPipeline = globalPipeline.andThen(pathStream ->
                     pathStream.filter(path -> absoluteExcludeMatchers.stream().noneMatch(m -> m.matches(path))));
-            if (isDebugEnabled) {
+            if (log.isTraceEnabled()) {
                 globalPipeline = globalPipeline.andThen(
-                        pathStream -> pathStream.peek(path -> log.debug("Passed exclude absolute filter {}", path)));
+                        pathStream -> pathStream.peek(path -> log.trace("Passed exclude absolute filter {}", path)));
             }
         }
 
@@ -174,7 +180,7 @@ public class GlobPathFinder {
      * (relativize → per-base include → relative excludes) only if needed for that specific base.
      */
     private static Function<Entry<Path, Set<PathMatcher>>, Function<Stream<Path>, Stream<Path>>>
-            buildPerBasePipelineFactory(Set<PathMatcher> relativeExcludeMatchers, boolean isDebugEnabled) {
+            buildPerBasePipelineFactory(Set<PathMatcher> relativeExcludeMatchers) {
         return entry -> {
             Path basePath = entry.getKey();
             Set<PathMatcher> includeMatchersForBase = entry.getValue();
@@ -193,9 +199,9 @@ public class GlobPathFinder {
             if (hasIncludesForBase) {
                 perBaseDirPipeline = perBaseDirPipeline.andThen(pathStream -> pathStream.filter(
                         relPath -> FileMatchingUtils.isMatchedToPatterns(relPath, includeMatchersForBase)));
-                if (isDebugEnabled) {
+                if (log.isTraceEnabled()) {
                     perBaseDirPipeline = perBaseDirPipeline.andThen(
-                            pathStream -> pathStream.peek(path -> log.debug("Passed include filter {}", path)));
+                            pathStream -> pathStream.peek(path -> log.trace("Passed include filter {}", path)));
                 }
             }
 
@@ -203,9 +209,9 @@ public class GlobPathFinder {
             if (hasRelativeExcludes) {
                 perBaseDirPipeline = perBaseDirPipeline.andThen(pathStream -> pathStream.filter(
                         relPath -> relativeExcludeMatchers.stream().noneMatch(m -> m.matches(relPath))));
-                if (isDebugEnabled) {
+                if (log.isTraceEnabled()) {
                     perBaseDirPipeline = perBaseDirPipeline.andThen(pathStream ->
-                            pathStream.peek(path -> log.debug("Passed exclude relative filter {}", path)));
+                            pathStream.peek(path -> log.trace("Passed exclude relative filter {}", path)));
                 }
             }
 
@@ -219,7 +225,7 @@ public class GlobPathFinder {
     /**
      * Shielded base scan:
      * - starts Files.find(...) with configured depth and options,
-     * - wraps with IoShieldingStream to swallow late UncheckedIOExceptions per-branch,
+     * - wraps with IoTolerantPathStream to swallow late UncheckedIOExceptions per-branch,
      * - applies global + per-base pipelines,
      * - ensures the inner stream is closed when the resulting stream is closed.
      */
