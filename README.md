@@ -1,6 +1,6 @@
 # GlobPathFinder
 
-[![Build](https://github.com/lemon-ant/glob-path-finder/actions/workflows/verify.yml/badge.svg)](https://github.com/lemon-ant/glob-path-finder/actions/workflows/verify.yml)
+[![Compatibility](https://github.com/lemon-ant/glob-path-finder/actions/workflows/compatibility.yml/badge.svg)](https://github.com/lemon-ant/glob-path-finder/actions/workflows/compatibility.yml)
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.lemon-ant/glob-path-finder.svg)](https://search.maven.org/artifact/io.github.lemon-ant/glob-path-finder)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Coverage](https://img.shields.io/codecov/c/github/lemon-ant/glob-path-finder)](https://codecov.io/gh/lemon-ant/glob-path-finder)
