@@ -103,6 +103,7 @@ class GlobPathFinderErrorHandlingTest {
                 .onlyFiles(true)
                 .maxDepth(Integer.MAX_VALUE)
                 .followLinks(true)
+                .failFastOnError(false)
                 .build();
 
         // Act: iterate the stream (shield should suppress late I/O errors)
