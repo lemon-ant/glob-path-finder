@@ -34,6 +34,8 @@ import lombok.Value;
  *       target (a link to a directory is descended into; a link to a file is treated as that file for filters such as
  *       {@code onlyFiles} and extensions). Link cycles are detected and skipped; dangling links are not resolved. When
  *       {@code false}, links are visited as link entries only and are never traversed.</li>
+ *   <li><b>failFastOnError</b> — error-handling behavior during traversal:
+ *       {@code true} ⇒ fail-fast on the first late I/O error; {@code false} ⇒ shield errors and continue.</li>
  * </ul>
  *
  * <h2>Relaxed defaults</h2>
@@ -45,6 +47,7 @@ import lombok.Value;
  *   <li>{@code maxDepth == null || maxDepth < 0} or omitted → unlimited ({@code Integer.MAX_VALUE}).</li>
  *   <li>{@code onlyFiles == null}  or omitted → {@code true}.</li>
  *   <li>{@code followLinks == null} or omitted → {@code true}.</li>
+ *   <li>{@code failFastOnError == null} or omitted → {@code true} (fail-fast).</li>
  * </ul>
  *
  * <h2>Examples</h2>
@@ -73,11 +76,15 @@ public class PathQuery {
 
     /**
      * Optional whitelist of file extensions without dots, case-insensitive.
-     * Normalization rules performed in the constructor:
-     * - If the input collection is null or omitted, this field becomes an empty Set, otherwise it is defensively
-     *   copied to unmodifiable Set.
+     * <br/>Normalization rules performed in the constructor:
+     * <ul>
+     *   <li>If the input collection is {@code null} or omitted, this field becomes an empty Set,</li>
+     *   <li>otherwise it is defensively copied to an unmodifiable Set.</li>
+     * </ul>
      * Behavioral notes:
-     * - An empty Set disables the extension filter entirely.
+     * <ul>
+     *   <li>An empty Set disables the extension filter entirely.</li>
+     * </ul>
      */
     @NonNull
     @SuppressFBWarnings("EI_EXPOSE_REP")
@@ -92,11 +99,15 @@ public class PathQuery {
 
     /**
      * Optional exclude glob patterns.
-     * Normalization rules performed in the constructor:
-     * - If the input collection is null or omitted, this field becomes an empty Set, otherwise it is defensively
-     *   copied to unmodifiable Set.
+     * <br/>Normalization rules performed in the constructor:
+     * <ul>
+     *   <li>If the input collection is {@code null} or omitted, this field becomes an empty Set,</li>
+     *   <li>otherwise it is defensively copied to an unmodifiable Set.</li>
+     * </ul>
      * Behavioral notes:
-     * - An empty Set disables exclude filtering.
+     * <ul>
+     *   <li>An empty Set disables exclude filtering.</li>
+     * </ul>
      */
     @NonNull
     @SuppressFBWarnings("EI_EXPOSE_REP")
@@ -122,11 +133,15 @@ public class PathQuery {
 
     /**
      * Include glob patterns.
-     * Normalization rules performed in the constructor:
-     * - If the input collection is null or omitted, this field becomes an empty Set, otherwise it is defensively
-     *   copied to unmodifiable Set.
+     * <br/>Normalization rules performed in the constructor:
+     * <ul>
+     *   <li>If the input collection is {@code null} or omitted, this field becomes an empty Set,</li>
+     *   <li>otherwise it is defensively copied to an unmodifiable Set.</li>
+     * </ul>
      * Behavior in the finder:
-     * - An empty include set is interpreted as "match all under baseDir".
+     * <ul>
+     *   <li>An empty include set is interpreted as "match all under baseDir".</li>
+     * </ul>
      */
     @NonNull
     @SuppressFBWarnings("EI_EXPOSE_REP")
@@ -199,9 +214,11 @@ public class PathQuery {
 
     /**
      * Computes the visit options derived from this configuration.
-     * Current behavior:
-     * - If {@code followLinks} is true, returns {@code EnumSet.of(FileVisitOption.FOLLOW_LINKS)}.
-     * - Otherwise, returns {@code Set.of()} - no options.
+     * <br/>Current behavior:
+     * <ul>
+     *   <li>If {@code followLinks} is true, returns {@code EnumSet.of(FileVisitOption.FOLLOW_LINKS)}.</li>
+     *   <li>Otherwise, returns {@code Set.of()} — no options.</li>
+     * </ul>
      *
      * @return a Set of FileVisitOption reflecting the {@code followLinks} flag only
      */
