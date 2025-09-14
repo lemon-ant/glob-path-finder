@@ -233,11 +233,15 @@ public class GlobPathFinder {
     }
 
     /**
-     * Shielded base scan:
-     * - starts Files.find(...) with configured depth and options,
-     * - wraps with IoTolerantPathStream to swallow late UncheckedIOExceptions per-branch,
-     * - applies global + per-base pipelines,
-     * - ensures the inner stream is closed when the resulting stream is closed.
+     * Base scan that:
+     * <ul>
+     *   <li>starts {@code Files.find(...)} with configured depth and options,</li>
+     *   <li><b>conditionally</b> wraps with {@code IoTolerantPathStream}:
+     *       shielded (log+swallow) when {@code failFastOnError == false};
+     *       pass-through (rethrow) when {@code failFastOnError == true},</li>
+     *   <li>applies global + per-base pipelines,</li>
+     *   <li>ensures the inner stream is closed when the resulting stream is closed.</li>
+     * </ul>
      */
     private static Stream<Path> scanBaseDir(
             Entry<Path, Set<PathMatcher>> baseEntry,
@@ -253,13 +257,16 @@ public class GlobPathFinder {
                     fileTypeFilter,
                     pathQuery.getVisitOptions().toArray(new FileVisitOption[0]));
 
-            Stream<Path> shieldedPaths = IoTolerantPathStream.wrap(foundPaths, basePath);
+            // If fail-fast is enabled, do NOT shield: let UncheckedIOException bubble up.
+            // Otherwise wrap to log+swallow and cut only the current branch.
+            Stream<Path> shieldedPaths =
+                    pathQuery.isFailFastOnError() ? foundPaths : IoTolerantPathStream.wrap(foundPaths, basePath);
+
             Function<Stream<Path>, Stream<Path>> perBasePipeline = perBasePipelineFactory.apply(baseEntry);
 
             return perBasePipeline.apply(globalPipeline.apply(shieldedPaths)).onClose(shieldedPaths::close);
         } catch (IOException startFailure) {
-            // TODO Move to IoShieldingStream
-            // Early failure when creating the stream (not during iteration) — log and skip this base.
+            // Early failure when creating the stream (not during iteration).
             if (pathQuery.isFailFastOnError()) {
                 throw new UncheckedIOException(
                         MessageFormatter.format(FAILED_TO_START_SCANNING_BASE, basePath)
