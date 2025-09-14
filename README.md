@@ -1,6 +1,6 @@
 # GlobPathFinder
 
-[![Build](https://github.com/lemon-ant/glob-path-finder/actions/workflows/verify.yml/badge.svg)](https://github.com/lemon-ant/glob-path-finder/actions/workflows/verify.yml)
+[![Compatibility](https://github.com/lemon-ant/glob-path-finder/actions/workflows/publish-02-compat-test.yml/badge.svg)](https://github.com/lemon-ant/glob-path-finder/actions/workflows/publish-02-compat-test.yml)
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.lemon-ant/glob-path-finder.svg)](https://search.maven.org/artifact/io.github.lemon-ant/glob-path-finder)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Coverage](https://img.shields.io/codecov/c/github/lemon-ant/glob-path-finder)](https://codecov.io/gh/lemon-ant/glob-path-finder)
@@ -18,6 +18,9 @@
 - Option to select only files or include directories.
 - Parallel traversal for multiple bases.
 - Unique normalized absolute paths as the result.
+- **Convenient and flexible interface** — results are fully configurable via `PathQuery`.
+- **Optimized performance** — dynamic pipeline construction ensures no unnecessary operations are executed.
+- **Professional logging and trace/debug support** — designed for developers to analyze and troubleshoot traversal.
 
 ---
 
@@ -60,14 +63,29 @@ PathQuery query = PathQuery.builder()
     .includeGlobs(Set.of("src/**"))
     .excludeGlobs(Set.of("**/test/**"))
     .allowedExtensions(Set.of("java"))
-    .onlyFiles(true) // You can omit it, it's true by default
-    .followLinks(false)
+    .onlyFiles(true)        // default is true
+    .followLinks(false)     // disable symlink following
+    .failFastOnError(false) // shielded mode: errors are logged as WARN, traversal continues
     .build();
 
 try (Stream<Path> paths = GlobPathFinder.findPaths(query)) {
     List<Path> javaFiles = paths.toList();
 }
 ```
+
+---
+
+## ⚡ Performance and Logging
+
+GlobPathFinder is built with efficiency in mind:
+
+- Dynamic pipeline construction ensures that only the necessary filters and matchers are applied.
+- No redundant operations — traversal and filtering remain lightweight even for large trees.
+- Professional logging with SLF4J integration:
+    - `trace` for deep traversal inspection
+    - `debug` for emitted paths and filtering steps
+
+This makes the library not only fast, but also developer-friendly for debugging and analysis.
 
 ---
 
