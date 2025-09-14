@@ -24,16 +24,6 @@ class FileMatchingUtilsTest {
     }
 
     @Test
-    void composePattern_withoutTrailingSlash_buildsSlashSeparated() throws Exception {
-        String[] pathSegments = {"a", "b", "*.txt"};
-
-        String result = ReflectiveMethodInvoker.invokePrivateStatic(
-                FileMatchingUtils.class, "composePattern", 1, pathSegments, false);
-
-        assertThat(result).isEqualTo("b/*.txt");
-    }
-
-    @Test
     void composePattern_withTrailingSlash_appendsSlashAtEnd() throws Exception {
         String[] pathSegments = {"a", "b"};
 
@@ -43,23 +33,14 @@ class FileMatchingUtilsTest {
         assertThat(result).isEqualTo("a/b/");
     }
 
-    // ---------- isWildcardSegment ----------
-    @ParameterizedTest
-    @ValueSource(strings = {"*", "?.txt", "file{1,2}.log", "a[b]"})
-    void isWildcardSegment_containsMeta_returnsTrue(String segment) throws Exception {
-        Boolean result =
-                ReflectiveMethodInvoker.invokePrivateStatic(FileMatchingUtils.class, "isWildcardSegment", segment);
+    @Test
+    void composePattern_withoutTrailingSlash_buildsSlashSeparated() throws Exception {
+        String[] pathSegments = {"a", "b", "*.txt"};
 
-        assertThat(result).isTrue();
-    }
+        String result = ReflectiveMethodInvoker.invokePrivateStatic(
+                FileMatchingUtils.class, "composePattern", 1, pathSegments, false);
 
-    @ParameterizedTest
-    @ValueSource(strings = {"abc", "logs", "2025"})
-    void isWildcardSegment_plain_returnsFalse(String segment) throws Exception {
-        Boolean result =
-                ReflectiveMethodInvoker.invokePrivateStatic(FileMatchingUtils.class, "isWildcardSegment", segment);
-
-        assertThat(result).isFalse();
+        assertThat(result).isEqualTo("b/*.txt");
     }
 
     // ---------- extractBaseAndPattern ----------
@@ -79,6 +60,20 @@ class FileMatchingUtilsTest {
     }
 
     @Test
+    void extractBaseAndPattern_backslashesAreNormalized() throws Exception {
+        Path defaultBaseDirectory = Path.of(".").toAbsolutePath().normalize();
+        String globExpression = "src\\**\\*.java";
+
+        Pair<Path, PathMatcher> resultPair = ReflectiveMethodInvoker.invokePrivateStatic(
+                FileMatchingUtils.class, "extractBaseAndPattern", defaultBaseDirectory, globExpression);
+
+        assertThat(resultPair.getLeft().toString()).endsWith(Paths.get("src").toString());
+        PathMatcher matcher = resultPair.getRight();
+        assertThat(matcher.matches(Paths.get("main/src/java/A.java"))).isTrue();
+        assertThat(matcher.matches(Paths.get("main/src/kotlin/B.kt"))).isFalse();
+    }
+
+    @Test
     void extractBaseAndPattern_relativeBase_usesDefaultBase() throws Exception {
         Path defaultBaseDirectory =
                 Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath().normalize();
@@ -91,35 +86,6 @@ class FileMatchingUtilsTest {
         PathMatcher matcher = resultPair.getRight();
         assertThat(matcher.matches(Paths.get("main/src/java/A.java"))).isTrue();
         assertThat(matcher.matches(Paths.get("main/src/kotlin/A.kt"))).isFalse();
-    }
-
-    @Test
-    void extractBaseAndPattern_trailingSlash_emptyPattern_yieldsMatchAllMatcher() throws Exception {
-        Path basePath = Path.of("/opt/data");
-        Path defaultBaseDirectory = basePath.toAbsolutePath();
-        String globExpression = "/opt/data/";
-
-        Pair<Path, PathMatcher> resultPair = ReflectiveMethodInvoker.invokePrivateStatic(
-                FileMatchingUtils.class, "extractBaseAndPattern", defaultBaseDirectory, globExpression);
-
-        assertThat(resultPair.getLeft().toString()).endsWith(basePath.toString());
-        PathMatcher matcher = resultPair.getRight();
-        assertThat(matcher.matches(Paths.get("anything"))).isTrue();
-        assertThat(matcher.matches(Paths.get("sub/dir/file"))).isTrue();
-    }
-
-    @Test
-    void extractBaseAndPattern_backslashesAreNormalized() throws Exception {
-        Path defaultBaseDirectory = Path.of(".").toAbsolutePath().normalize();
-        String globExpression = "src\\**\\*.java";
-
-        Pair<Path, PathMatcher> resultPair = ReflectiveMethodInvoker.invokePrivateStatic(
-                FileMatchingUtils.class, "extractBaseAndPattern", defaultBaseDirectory, globExpression);
-
-        assertThat(resultPair.getLeft().toString()).endsWith(Paths.get("src").toString());
-        PathMatcher matcher = resultPair.getRight();
-        assertThat(matcher.matches(Paths.get("main/src/java/A.java"))).isTrue();
-        assertThat(matcher.matches(Paths.get("main/src/kotlin/B.kt"))).isFalse();
     }
 
     // ---------- extra coverage ----------
@@ -148,5 +114,39 @@ class FileMatchingUtilsTest {
         assertThat(resultPair.getLeft()).isEqualTo(defaultBaseDirectory);
         PathMatcher matcher = resultPair.getRight();
         assertThat(matcher.matches(Paths.get("anything"))).isTrue();
+    }
+
+    @Test
+    void extractBaseAndPattern_trailingSlash_emptyPattern_yieldsMatchAllMatcher() throws Exception {
+        Path basePath = Path.of("/opt/data");
+        Path defaultBaseDirectory = basePath.toAbsolutePath();
+        String globExpression = "/opt/data/";
+
+        Pair<Path, PathMatcher> resultPair = ReflectiveMethodInvoker.invokePrivateStatic(
+                FileMatchingUtils.class, "extractBaseAndPattern", defaultBaseDirectory, globExpression);
+
+        assertThat(resultPair.getLeft().toString()).endsWith(basePath.toString());
+        PathMatcher matcher = resultPair.getRight();
+        assertThat(matcher.matches(Paths.get("anything"))).isTrue();
+        assertThat(matcher.matches(Paths.get("sub/dir/file"))).isTrue();
+    }
+
+    // ---------- isWildcardSegment ----------
+    @ParameterizedTest
+    @ValueSource(strings = {"*", "?.txt", "file{1,2}.log", "a[b]"})
+    void isWildcardSegment_containsMeta_returnsTrue(String segment) throws Exception {
+        Boolean result =
+                ReflectiveMethodInvoker.invokePrivateStatic(FileMatchingUtils.class, "isWildcardSegment", segment);
+
+        assertThat(result).isTrue();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"abc", "logs", "2025"})
+    void isWildcardSegment_plain_returnsFalse(String segment) throws Exception {
+        Boolean result =
+                ReflectiveMethodInvoker.invokePrivateStatic(FileMatchingUtils.class, "isWildcardSegment", segment);
+
+        assertThat(result).isFalse();
     }
 }

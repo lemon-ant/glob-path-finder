@@ -51,6 +51,25 @@ class GlobPatternValidationTest {
 
     // ---------------------- Positive cases (must NOT throw) ------------------
 
+    @ParameterizedTest(name = "malformedGlobProvider[{index}] -> ''{0}'' should throw")
+    @MethodSource("malformedGlobProvider")
+    void validateGlobOrThrow_malformedGlob_shouldThrowIAE(String badGlob) {
+        assertThatThrownBy(() -> validateGlobOrThrow(badGlob))
+                .as("Pattern should be rejected: %s", badGlob)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(badGlob);
+    }
+
+    @ParameterizedTest(name = "validButWeirdGlobProvider[{index}] -> ''{0}'' should be accepted")
+    @MethodSource("validButWeirdGlobProvider")
+    void validateGlobOrThrow_validButWeirdGlob_shouldNotThrow(String weirdButValid) {
+        assertThatCode(() -> validateGlobOrThrow(weirdButValid))
+                .as("Pattern should be accepted: %s", weirdButValid)
+                .doesNotThrowAnyException();
+    }
+
+    // ---------------------- Helper ----------------------
+
     /**
      * Validates a glob pattern by asking the default FS provider to compile a PathMatcher.
      * Throws IllegalArgumentException on any syntax problem with a clear message.
@@ -63,24 +82,5 @@ class GlobPatternValidationTest {
             // Normalize to IAE with the original cause and pattern echoed for clarity.
             throw new IllegalArgumentException("Invalid glob syntax: '" + pattern + "': " + e.getMessage(), e);
         }
-    }
-
-    @ParameterizedTest(name = "malformedGlobProvider[{index}] -> ''{0}'' should throw")
-    @MethodSource("malformedGlobProvider")
-    void validateGlobOrThrow_malformedGlob_shouldThrowIAE(String badGlob) {
-        assertThatThrownBy(() -> validateGlobOrThrow(badGlob))
-                .as("Pattern should be rejected: %s", badGlob)
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining(badGlob);
-    }
-
-    // ---------------------- Helper ----------------------
-
-    @ParameterizedTest(name = "validButWeirdGlobProvider[{index}] -> ''{0}'' should be accepted")
-    @MethodSource("validButWeirdGlobProvider")
-    void validateGlobOrThrow_validButWeirdGlob_shouldNotThrow(String weirdButValid) {
-        assertThatCode(() -> validateGlobOrThrow(weirdButValid))
-                .as("Pattern should be accepted: %s", weirdButValid)
-                .doesNotThrowAnyException();
     }
 }

@@ -26,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.slf4j.helpers.MessageFormatter;
 
 /**
  * GlobPathFinder — service that traverses the file system and applies include/exclude rules.
@@ -47,6 +48,9 @@ import org.apache.commons.lang3.tuple.Pair;
 @Slf4j
 @UtilityClass
 public class GlobPathFinder {
+
+    public static final String FAILED_TO_START_SCANNING_BASE =
+            "Failed to start scanning base '{}'. Skipping this base.";
 
     /**
      * Find paths according to the provided {@link PathQuery}.
@@ -104,31 +108,9 @@ public class GlobPathFinder {
         return resultPathStream;
     }
 
-    /** Build lower-cased extension set; empty set disables the extension filter. */
-    private static Set<String> buildNormalizedExtensions(PathQuery pathQuery) {
-        return processNormalizedStrings(
-                pathQuery.getAllowedExtensions(), extension -> extension.toLowerCase(Locale.ROOT));
-    }
-
-    /** Split excludes to absolute/relative and compile to PathMatcher(glob:...). */
-    private static Pair<Set<PathMatcher>, Set<PathMatcher>> compileExcludeMatchers(PathQuery pathQuery) {
-        Pair<List<String>, List<String>> absoluteAndRelativeExcludes =
-                partitionAbsoluteAndRelative(pathQuery.getExcludeGlobs());
-
-        // Compile exclude globs to PathMatcher (glob:...) and evaluate against ABSOLUTE paths.
-        Set<PathMatcher> absoluteExcludeMatchers =
-                processNormalizedStrings(absoluteAndRelativeExcludes.getLeft(), pattern -> FileSystems.getDefault()
-                        .getPathMatcher("glob:" + pattern));
-
-        // Compile exclude globs to PathMatcher (glob:...) and evaluate against RELATIVE paths.
-        Set<PathMatcher> relativeExcludeMatchers =
-                processNormalizedStrings(absoluteAndRelativeExcludes.getRight(), pattern -> FileSystems.getDefault()
-                        .getPathMatcher("glob:" + pattern));
-
-        return Pair.of(absoluteExcludeMatchers, relativeExcludeMatchers);
-    }
-
-    /** Files.find(...) predicate: either regular files only or pass-through. This is not a stream operator.*/
+    /**
+     * Files.find(...) predicate: either regular files only or pass-through. This is not a stream operator.
+     */
     private static BiPredicate<Path, BasicFileAttributes> buildFileTypeFilter(boolean onlyFiles) {
         return onlyFiles ? (path, attrs) -> attrs.isRegularFile() : (path, attrs) -> true;
     }
@@ -173,6 +155,14 @@ public class GlobPathFinder {
         }
 
         return globalPipeline;
+    }
+
+    /**
+     * Build lower-cased extension set; empty set disables the extension filter.
+     */
+    private static Set<String> buildNormalizedExtensions(PathQuery pathQuery) {
+        return processNormalizedStrings(
+                pathQuery.getAllowedExtensions(), extension -> extension.toLowerCase(Locale.ROOT));
     }
 
     /**
@@ -223,11 +213,35 @@ public class GlobPathFinder {
     }
 
     /**
-     * Shielded base scan:
-     * - starts Files.find(...) with configured depth and options,
-     * - wraps with IoTolerantPathStream to swallow late UncheckedIOExceptions per-branch,
-     * - applies global + per-base pipelines,
-     * - ensures the inner stream is closed when the resulting stream is closed.
+     * Split excludes to absolute/relative and compile to PathMatcher(glob:...).
+     */
+    private static Pair<Set<PathMatcher>, Set<PathMatcher>> compileExcludeMatchers(PathQuery pathQuery) {
+        Pair<List<String>, List<String>> absoluteAndRelativeExcludes =
+                partitionAbsoluteAndRelative(pathQuery.getExcludeGlobs());
+
+        // Compile exclude globs to PathMatcher (glob:...) and evaluate against ABSOLUTE paths.
+        Set<PathMatcher> absoluteExcludeMatchers =
+                processNormalizedStrings(absoluteAndRelativeExcludes.getLeft(), pattern -> FileSystems.getDefault()
+                        .getPathMatcher("glob:" + pattern));
+
+        // Compile exclude globs to PathMatcher (glob:...) and evaluate against RELATIVE paths.
+        Set<PathMatcher> relativeExcludeMatchers =
+                processNormalizedStrings(absoluteAndRelativeExcludes.getRight(), pattern -> FileSystems.getDefault()
+                        .getPathMatcher("glob:" + pattern));
+
+        return Pair.of(absoluteExcludeMatchers, relativeExcludeMatchers);
+    }
+
+    /**
+     * Base scan that:
+     * <ul>
+     *   <li>starts {@code Files.find(...)} with configured depth and options,</li>
+     *   <li><b>conditionally</b> wraps with {@code IoTolerantPathStream}:
+     *       shielded (log+swallow) when {@code failFastOnError == false};
+     *       pass-through (rethrow) when {@code failFastOnError == true},</li>
+     *   <li>applies global + per-base pipelines,</li>
+     *   <li>ensures the inner stream is closed when the resulting stream is closed.</li>
+     * </ul>
      */
     private static Stream<Path> scanBaseDir(
             Entry<Path, Set<PathMatcher>> baseEntry,
@@ -243,14 +257,23 @@ public class GlobPathFinder {
                     fileTypeFilter,
                     pathQuery.getVisitOptions().toArray(new FileVisitOption[0]));
 
-            Stream<Path> shieldedPaths = IoTolerantPathStream.wrap(foundPaths, basePath);
+            // If fail-fast is enabled, do NOT shield: let UncheckedIOException bubble up.
+            // Otherwise wrap to log+swallow and cut only the current branch.
+            Stream<Path> shieldedPaths =
+                    pathQuery.isFailFastOnError() ? foundPaths : IoTolerantPathStream.wrap(foundPaths, basePath);
+
             Function<Stream<Path>, Stream<Path>> perBasePipeline = perBasePipelineFactory.apply(baseEntry);
 
             return perBasePipeline.apply(globalPipeline.apply(shieldedPaths)).onClose(shieldedPaths::close);
         } catch (IOException startFailure) {
-            // TODO Move to IoShieldingStream
-            // Early failure when creating the stream (not during iteration) — log and skip this base.
-            log.warn("Failed to start scanning base '{}'. Skipping this base.", basePath, startFailure);
+            // Early failure when creating the stream (not during iteration).
+            if (pathQuery.isFailFastOnError()) {
+                throw new UncheckedIOException(
+                        MessageFormatter.format(FAILED_TO_START_SCANNING_BASE, basePath)
+                                .getMessage(),
+                        startFailure);
+            }
+            log.warn(FAILED_TO_START_SCANNING_BASE, basePath, startFailure);
             return Stream.empty();
         }
     }

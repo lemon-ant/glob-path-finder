@@ -28,30 +28,6 @@ class PathQueryTest {
     }
 
     @Test
-    void getVisitOptions_followLinksTrue_shouldContainFollowLinks() {
-        // given
-        PathQuery pathQuery = PathQuery.builder().followLinks(true).build();
-
-        // when
-        Set<FileVisitOption> opts = pathQuery.getVisitOptions();
-
-        // then
-        assertThat(opts).isEqualTo(EnumSet.of(FileVisitOption.FOLLOW_LINKS));
-    }
-
-    @Test
-    void getVisitOptions_followLinksFalse_shouldBeEmpty() {
-        // given
-        PathQuery pathQuery = PathQuery.builder().followLinks(false).build();
-
-        // when
-        Set<FileVisitOption> opts = pathQuery.getVisitOptions();
-
-        // then
-        assertThat(opts).isEmpty();
-    }
-
-    @Test
     void collections_areDefensivelyCopied_shouldNotReflectExternalMutation() {
         // given
         Set<String> includes = new HashSet<>(Set.of("**/*.java", "**/*.md"));
@@ -73,6 +49,64 @@ class PathQueryTest {
         assertThat(pathQuery.getIncludeGlobs()).containsExactlyInAnyOrder("**/*.java", "**/*.md");
         assertThat(pathQuery.getAllowedExtensions()).containsExactlyInAnyOrder("java", "md");
         assertThat(pathQuery.getExcludeGlobs()).containsExactlyInAnyOrder("**/generated/**");
+    }
+
+    @Test
+    void equalsHashCode_contract_basicShouldWork() {
+        // given
+        PathQuery a1 = PathQuery.builder()
+                .baseDir(Path.of("."))
+                .includeGlobs(Set.of("**/*.java"))
+                .allowedExtensions(Set.of("java"))
+                .excludeGlobs(Set.of("**/gen/**"))
+                .maxDepth(7)
+                .onlyFiles(true)
+                .followLinks(false)
+                .build();
+
+        PathQuery a2 = PathQuery.builder()
+                .baseDir(Path.of("."))
+                .includeGlobs(Set.of("**/*.java"))
+                .allowedExtensions(Set.of("java"))
+                .excludeGlobs(Set.of("**/gen/**"))
+                .maxDepth(7)
+                .onlyFiles(true)
+                .followLinks(false)
+                .build();
+
+        PathQuery b = PathQuery.builder()
+                .baseDir(Path.of("src"))
+                .includeGlobs(Set.of("**/*"))
+                .build();
+
+        // then
+        assertThat(a1).isEqualTo(a2);
+        assertThat(a1.hashCode()).isEqualTo(a2.hashCode());
+        assertThat(a1).isNotEqualTo(b);
+    }
+
+    @Test
+    void getVisitOptions_followLinksFalse_shouldBeEmpty() {
+        // given
+        PathQuery pathQuery = PathQuery.builder().followLinks(false).build();
+
+        // when
+        Set<FileVisitOption> opts = pathQuery.getVisitOptions();
+
+        // then
+        assertThat(opts).isEmpty();
+    }
+
+    @Test
+    void getVisitOptions_followLinksTrue_shouldContainFollowLinks() {
+        // given
+        PathQuery pathQuery = PathQuery.builder().followLinks(true).build();
+
+        // when
+        Set<FileVisitOption> opts = pathQuery.getVisitOptions();
+
+        // then
+        assertThat(opts).isEqualTo(EnumSet.of(FileVisitOption.FOLLOW_LINKS));
     }
 
     @Test
@@ -136,39 +170,5 @@ class PathQueryTest {
         assertThat(tweaked.getMaxDepth()).isEqualTo(10);
         assertThat(tweaked.isOnlyFiles()).isTrue();
         assertThat(tweaked.isFollowLinks()).isFalse();
-    }
-
-    @Test
-    void equalsHashCode_contract_basicShouldWork() {
-        // given
-        PathQuery a1 = PathQuery.builder()
-                .baseDir(Path.of("."))
-                .includeGlobs(Set.of("**/*.java"))
-                .allowedExtensions(Set.of("java"))
-                .excludeGlobs(Set.of("**/gen/**"))
-                .maxDepth(7)
-                .onlyFiles(true)
-                .followLinks(false)
-                .build();
-
-        PathQuery a2 = PathQuery.builder()
-                .baseDir(Path.of("."))
-                .includeGlobs(Set.of("**/*.java"))
-                .allowedExtensions(Set.of("java"))
-                .excludeGlobs(Set.of("**/gen/**"))
-                .maxDepth(7)
-                .onlyFiles(true)
-                .followLinks(false)
-                .build();
-
-        PathQuery b = PathQuery.builder()
-                .baseDir(Path.of("src"))
-                .includeGlobs(Set.of("**/*"))
-                .build();
-
-        // then
-        assertThat(a1).isEqualTo(a2);
-        assertThat(a1.hashCode()).isEqualTo(a2.hashCode());
-        assertThat(a1).isNotEqualTo(b);
     }
 }

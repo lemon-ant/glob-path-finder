@@ -25,10 +25,6 @@ class FileMatchingUtils {
     private static final PathMatcher MATCH_ALL = FileSystems.getDefault().getPathMatcher("glob:**");
     private static final Pattern WINDOWS_DRIVE_PATTERN = Pattern.compile("^[a-zA-Z]:[/\\\\].*");
 
-    static boolean isMatchedToPatterns(@NonNull Path pathToMatch, @NonNull Set<PathMatcher> pathMatchers) {
-        return pathMatchers.isEmpty() || pathMatchers.stream().anyMatch(matcher -> matcher.matches(pathToMatch));
-    }
-
     @NonNull
     static Map<Path, Set<PathMatcher>> computeBaseToIncludeMatchers(
             @NonNull Path baseDir, @NonNull Set<String> includeGlobs) {
@@ -45,6 +41,42 @@ class FileMatchingUtils {
             return result;
         }
         return Map.of(baseDir, Set.of());
+    }
+
+    static boolean isMatchedToPatterns(@NonNull Path pathToMatch, @NonNull Set<PathMatcher> pathMatchers) {
+        return pathMatchers.isEmpty() || pathMatchers.stream().anyMatch(matcher -> matcher.matches(pathToMatch));
+    }
+
+    static Pair<List<String>, List<String>> partitionAbsoluteAndRelative(Collection<String> patterns) {
+        List<String> absolute = new ArrayList<>();
+        List<String> relative = new ArrayList<>();
+
+        for (String pattern : patterns) {
+            if (isAbsoluteGlob(pattern)) {
+                absolute.add(pattern);
+            } else {
+                relative.add(pattern);
+            }
+        }
+        return Pair.of(absolute, relative);
+    }
+
+    @Nullable
+    private static String composePattern(int startSegment, String[] segments, boolean addTrailSlash) {
+        if (startSegment == segments.length) {
+            return null;
+        }
+        StringBuilder patternBuilder = new StringBuilder();
+        for (int j = startSegment; j < segments.length; j++) {
+            if (patternBuilder.length() > 0) {
+                patternBuilder.append('/');
+            }
+            patternBuilder.append(segments[j]);
+        }
+        if (addTrailSlash) {
+            patternBuilder.append('/');
+        }
+        return patternBuilder.toString();
     }
 
     @NonNull
@@ -92,38 +124,6 @@ class FileMatchingUtils {
                 ofNullable(pattern)
                         .map(ptr -> FileSystems.getDefault().getPathMatcher("glob:" + ptr))
                         .orElse(MATCH_ALL));
-    }
-
-    @Nullable
-    private static String composePattern(int startSegment, String[] segments, boolean addTrailSlash) {
-        if (startSegment == segments.length) {
-            return null;
-        }
-        StringBuilder patternBuilder = new StringBuilder();
-        for (int j = startSegment; j < segments.length; j++) {
-            if (patternBuilder.length() > 0) {
-                patternBuilder.append('/');
-            }
-            patternBuilder.append(segments[j]);
-        }
-        if (addTrailSlash) {
-            patternBuilder.append('/');
-        }
-        return patternBuilder.toString();
-    }
-
-    static Pair<List<String>, List<String>> partitionAbsoluteAndRelative(Collection<String> patterns) {
-        List<String> absolute = new ArrayList<>();
-        List<String> relative = new ArrayList<>();
-
-        for (String pattern : patterns) {
-            if (isAbsoluteGlob(pattern)) {
-                absolute.add(pattern);
-            } else {
-                relative.add(pattern);
-            }
-        }
-        return Pair.of(absolute, relative);
     }
 
     private static boolean isAbsoluteGlob(String globPattern) {

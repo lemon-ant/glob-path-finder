@@ -83,17 +83,13 @@ class IoTolerantPathStream {
     private static Spliterator<Path> createIoTolerantSpliterator(Spliterator<Path> source, Path basePath) {
         return new Spliterator<>() {
             @Override
-            public boolean tryAdvance(Consumer<? super Path> action) {
-                try {
-                    return source.tryAdvance(action);
-                } catch (UncheckedIOException ioe) {
-                    log.warn(
-                            "I/O during traversal of '{}': {}. Skipping the rest of this base.",
-                            basePath,
-                            ioe.getMessage(),
-                            ioe);
-                    return false; // stop this branch
-                }
+            public int characteristics() {
+                return source.characteristics();
+            }
+
+            @Override
+            public long estimateSize() {
+                return source.estimateSize();
             }
 
             @Override
@@ -111,19 +107,23 @@ class IoTolerantPathStream {
             }
 
             @Override
+            public boolean tryAdvance(Consumer<? super Path> action) {
+                try {
+                    return source.tryAdvance(action);
+                } catch (UncheckedIOException ioe) {
+                    log.warn(
+                            "I/O during traversal of '{}': {}. Skipping the rest of this base.",
+                            basePath,
+                            ioe.getMessage(),
+                            ioe);
+                    return false; // stop this branch
+                }
+            }
+
+            @Override
             public Spliterator<Path> trySplit() {
                 Spliterator<Path> split = source.trySplit();
                 return (split == null) ? null : createIoTolerantSpliterator(split, basePath);
-            }
-
-            @Override
-            public long estimateSize() {
-                return source.estimateSize();
-            }
-
-            @Override
-            public int characteristics() {
-                return source.characteristics();
             }
         };
     }

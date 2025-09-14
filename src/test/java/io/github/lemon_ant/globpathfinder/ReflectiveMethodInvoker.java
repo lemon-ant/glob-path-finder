@@ -27,33 +27,6 @@ class ReflectiveMethodInvoker {
 
     // ---------- resolution helpers ----------
 
-    private static Method resolveCompatibleDeclaredMethod(Class<?> targetClass, String methodName, Object[] arguments)
-            throws NoSuchMethodException {
-
-        Method[] declaredMethods = targetClass.getDeclaredMethods();
-        for (Method candidateMethod : declaredMethods) {
-            if (!candidateMethod.getName().equals(methodName)) {
-                continue;
-            }
-            Class<?>[] parameterTypes = candidateMethod.getParameterTypes();
-            int argumentCount = (arguments == null) ? 0 : arguments.length;
-            if (parameterTypes.length != argumentCount) {
-                continue;
-            }
-            boolean allParametersCompatible = true;
-            for (int index = 0; index < parameterTypes.length; index++) {
-                if (!isParameterCompatible(parameterTypes[index], arguments[index])) {
-                    allParametersCompatible = false;
-                    break;
-                }
-            }
-            if (allParametersCompatible) {
-                return candidateMethod;
-            }
-        }
-        throw new NoSuchMethodException("No compatible method '" + methodName + "' found in " + targetClass.getName());
-    }
-
     private static Class<?>[] inferExactParameterTypes(Object[] arguments) {
         if (arguments == null || arguments.length == 0) {
             return new Class<?>[0];
@@ -81,6 +54,33 @@ class ReflectiveMethodInvoker {
             return toPrimitiveIfWrapper(argumentClass) == parameterType;
         }
         return parameterType.isAssignableFrom(argumentClass);
+    }
+
+    private static Method resolveCompatibleDeclaredMethod(Class<?> targetClass, String methodName, Object[] arguments)
+            throws NoSuchMethodException {
+
+        Method[] declaredMethods = targetClass.getDeclaredMethods();
+        for (Method candidateMethod : declaredMethods) {
+            if (!candidateMethod.getName().equals(methodName)) {
+                continue;
+            }
+            Class<?>[] parameterTypes = candidateMethod.getParameterTypes();
+            int argumentCount = (arguments == null) ? 0 : arguments.length;
+            if (parameterTypes.length != argumentCount) {
+                continue;
+            }
+            boolean allParametersCompatible = true;
+            for (int index = 0; index < parameterTypes.length; index++) {
+                if (!isParameterCompatible(parameterTypes[index], arguments[index])) {
+                    allParametersCompatible = false;
+                    break;
+                }
+            }
+            if (allParametersCompatible) {
+                return candidateMethod;
+            }
+        }
+        throw new NoSuchMethodException("No compatible method '" + methodName + "' found in " + targetClass.getName());
     }
 
     private static Class<?> toPrimitiveIfWrapper(Class<?> maybeWrapper) {
