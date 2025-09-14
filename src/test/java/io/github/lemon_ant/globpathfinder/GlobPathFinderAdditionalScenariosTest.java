@@ -95,6 +95,7 @@ class GlobPathFinderAdditionalScenariosTest {
                 .onlyFiles(true)
                 .followLinks(true)
                 .maxDepth(Integer.MAX_VALUE)
+                .failFastOnError(false)
                 .build();
 
         // when
