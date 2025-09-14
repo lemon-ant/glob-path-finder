@@ -11,6 +11,19 @@ import org.junit.jupiter.api.Test;
 class StringUtilsTest {
 
     @Test
+    void processNormalizedStrings_whenProcessorNormalizesToSameToken_distinctIsPreserved() {
+        // given
+        List<String> inputStrings = List.of("gamma", "GAMMA", " gamma ");
+        Function<String, String> normalizeToLowerCase = s -> s.trim().toLowerCase();
+
+        // when
+        Set<String> result = StringUtils.processNormalizedStrings(inputStrings, normalizeToLowerCase);
+
+        // then
+        assertThat(result).containsExactly("gamma");
+    }
+
+    @Test
     void processNormalizedStrings_withBlanksAndDuplicates_returnsTrimmedProcessedUniqueUnmodifiableSet() {
         // given: mixed strings (leading/trailing spaces, blanks, duplicates)
         List<String> inputStrings = List.of(" alpha ", "  ", "", "\t", "beta", "alpha");
@@ -26,19 +39,6 @@ class StringUtilsTest {
         assertThatThrownBy(() -> result.add("GAMMA"))
                 .as("Result must be unmodifiable")
                 .isInstanceOf(UnsupportedOperationException.class);
-    }
-
-    @Test
-    void processNormalizedStrings_whenProcessorNormalizesToSameToken_distinctIsPreserved() {
-        // given
-        List<String> inputStrings = List.of("gamma", "GAMMA", " gamma ");
-        Function<String, String> normalizeToLowerCase = s -> s.trim().toLowerCase();
-
-        // when
-        Set<String> result = StringUtils.processNormalizedStrings(inputStrings, normalizeToLowerCase);
-
-        // then
-        assertThat(result).containsExactly("gamma");
     }
 
     @Test

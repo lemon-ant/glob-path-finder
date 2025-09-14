@@ -47,6 +47,7 @@ class GlobPathFinderErrorHandlingTest {
                 .onlyFiles(true)
                 .maxDepth(Integer.MAX_VALUE)
                 .followLinks(true)
+                .failFastOnError(false)
                 .build();
 
         // when

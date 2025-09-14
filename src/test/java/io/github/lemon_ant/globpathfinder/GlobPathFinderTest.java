@@ -20,29 +20,6 @@ class GlobPathFinderTest {
 
     // --- helpers -------------------------------------------------------------
 
-    private Path createDir(String rel) throws IOException {
-        Path p = tmp.resolve(rel);
-        Files.createDirectories(p);
-        return p;
-    }
-
-    private Path createFile(String rel) throws IOException {
-        Path p = tmp.resolve(rel);
-        Files.createDirectories(p.getParent());
-        return Files.createFile(p);
-    }
-
-    private Set<String> collectToRelStringSet(Stream<Path> s, Path base) {
-        // Compare results as paths relative to tmp for stability across OS/roots.
-        try (s) {
-            return s.map(path -> base.relativize(path).normalize().toString())
-                    .map(path -> path.replace('\\', '/'))
-                    .collect(Collectors.toUnmodifiableSet());
-        }
-    }
-
-    // --- tests ---------------------------------------------------------------
-
     @Test
     void findPaths_basicInclude_shouldReturnMatchingFiles() throws Exception {
         // given
@@ -60,26 +37,6 @@ class GlobPathFinderTest {
 
         // then
         assertThat(result).containsExactlyInAnyOrder("a/Main.java", "b/c/Nested.java");
-    }
-
-    @Test
-    void findPaths_extensionsFilter_shouldApplyCaseInsensitiveMatch() throws Exception {
-        // given
-        createFile("src/A.JAVA");
-        createFile("src/B.java");
-        createFile("src/C.txt");
-
-        PathQuery q = PathQuery.builder()
-                .baseDir(tmp.resolve("src"))
-                .includeGlobs(Set.of("**"))
-                .allowedExtensions(Set.of("java"))
-                .build();
-
-        // when
-        Set<String> result = collectToRelStringSet(GlobPathFinder.findPaths(q), tmp.resolve("src"));
-
-        // then
-        assertThat(result).containsExactlyInAnyOrder("A.JAVA", "B.java");
     }
 
     @Test
@@ -103,6 +60,28 @@ class GlobPathFinderTest {
     }
 
     @Test
+    void findPaths_extensionsFilter_shouldApplyCaseInsensitiveMatch() throws Exception {
+        // given
+        createFile("src/A.JAVA");
+        createFile("src/B.java");
+        createFile("src/C.txt");
+
+        PathQuery q = PathQuery.builder()
+                .baseDir(tmp.resolve("src"))
+                .includeGlobs(Set.of("**"))
+                .allowedExtensions(Set.of("java"))
+                .build();
+
+        // when
+        Set<String> result = collectToRelStringSet(GlobPathFinder.findPaths(q), tmp.resolve("src"));
+
+        // then
+        assertThat(result).containsExactlyInAnyOrder("A.JAVA", "B.java");
+    }
+
+    // --- tests ---------------------------------------------------------------
+
+    @Test
     void findPaths_maxDepth_shouldLimitTraversal() throws Exception {
         // given
         createFile("src/L0.java");
@@ -120,6 +99,25 @@ class GlobPathFinderTest {
 
         // then
         assertThat(result).containsExactlyInAnyOrder("L0.java");
+    }
+
+    @Test
+    void findPaths_multipleIncludes_shouldDeduplicateResults() throws Exception {
+        // given
+        createFile("m/src/A.java");
+        createFile("m/test/A.java");
+
+        PathQuery q = PathQuery.builder()
+                .baseDir(tmp.resolve("m"))
+                .includeGlobs(Set.of("**/*.java", "src/**/*.java"))
+                .build();
+
+        // when
+        Set<String> result = collectToRelStringSet(GlobPathFinder.findPaths(q), tmp.resolve("m"));
+
+        // then
+        // No duplicates even if matched by both patterns.
+        assertThat(result).containsExactlyInAnyOrder("src/A.java", "test/A.java");
     }
 
     @Test
@@ -144,25 +142,6 @@ class GlobPathFinderTest {
     }
 
     @Test
-    void findPaths_multipleIncludes_shouldDeduplicateResults() throws Exception {
-        // given
-        createFile("m/src/A.java");
-        createFile("m/test/A.java");
-
-        PathQuery q = PathQuery.builder()
-                .baseDir(tmp.resolve("m"))
-                .includeGlobs(Set.of("**/*.java", "src/**/*.java"))
-                .build();
-
-        // when
-        Set<String> result = collectToRelStringSet(GlobPathFinder.findPaths(q), tmp.resolve("m"));
-
-        // then
-        // No duplicates even if matched by both patterns.
-        assertThat(result).containsExactlyInAnyOrder("src/A.java", "test/A.java");
-    }
-
-    @Test
     void findPaths_relativeAndAbsolutePatterns_shouldBothWork() throws Exception {
         // given
         Path absBase = createDir("abs");
@@ -181,21 +160,6 @@ class GlobPathFinderTest {
 
         // then
         assertThat(result).containsExactlyInAnyOrder("abs/One.java", "abs/two/Two.java");
-    }
-
-    @Test
-    void findPaths_streamMustBeClosed_shouldWorkWithTryWithResources() throws Exception {
-        // given
-        createFile("z/A.java");
-        PathQuery q = PathQuery.builder()
-                .baseDir(tmp)
-                .includeGlobs(Set.of("**/*.java"))
-                .build();
-
-        // when / then (no exceptions and results available)
-        try (Stream<Path> s = GlobPathFinder.findPaths(q)) {
-            assertThat(s.collect(Collectors.toSet())).hasSize(1);
-        }
     }
 
     @Test
@@ -219,5 +183,41 @@ class GlobPathFinderTest {
         // then
         // Each returned path should equal the file's real absolute path.
         assertThat(actualPaths).containsExactly(expectedFile.toAbsolutePath());
+    }
+
+    @Test
+    void findPaths_streamMustBeClosed_shouldWorkWithTryWithResources() throws Exception {
+        // given
+        createFile("z/A.java");
+        PathQuery q = PathQuery.builder()
+                .baseDir(tmp)
+                .includeGlobs(Set.of("**/*.java"))
+                .build();
+
+        // when / then (no exceptions and results available)
+        try (Stream<Path> s = GlobPathFinder.findPaths(q)) {
+            assertThat(s.collect(Collectors.toSet())).hasSize(1);
+        }
+    }
+
+    private Set<String> collectToRelStringSet(Stream<Path> s, Path base) {
+        // Compare results as paths relative to tmp for stability across OS/roots.
+        try (s) {
+            return s.map(path -> base.relativize(path).normalize().toString())
+                    .map(path -> path.replace('\\', '/'))
+                    .collect(Collectors.toUnmodifiableSet());
+        }
+    }
+
+    private Path createDir(String rel) throws IOException {
+        Path p = tmp.resolve(rel);
+        Files.createDirectories(p);
+        return p;
+    }
+
+    private Path createFile(String rel) throws IOException {
+        Path p = tmp.resolve(rel);
+        Files.createDirectories(p.getParent());
+        return Files.createFile(p);
     }
 }

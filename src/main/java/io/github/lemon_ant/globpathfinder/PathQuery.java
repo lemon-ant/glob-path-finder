@@ -72,25 +72,6 @@ import lombok.Value;
 public class PathQuery {
 
     /**
-     * Starting directory for traversal.
-     * If null or omitted in the builder, it becomes Path.of(".") in the constructor.
-     */
-    @NonNull
-    Path baseDir;
-
-    /**
-     * Include glob patterns.
-     * Normalization rules performed in the constructor:
-     * - If the input collection is null or omitted, this field becomes an empty Set, otherwise it is defensively
-     *   copied to unmodifiable Set.
-     * Behavior in the finder:
-     * - An empty include set is interpreted as "match all under baseDir".
-     */
-    @NonNull
-    @SuppressFBWarnings("EI_EXPOSE_REP")
-    Set<String> includeGlobs;
-
-    /**
      * Optional whitelist of file extensions without dots, case-insensitive.
      * Normalization rules performed in the constructor:
      * - If the input collection is null or omitted, this field becomes an empty Set, otherwise it is defensively
@@ -101,6 +82,13 @@ public class PathQuery {
     @NonNull
     @SuppressFBWarnings("EI_EXPOSE_REP")
     Set<String> allowedExtensions;
+
+    /**
+     * Starting directory for traversal.
+     * If null or omitted in the builder, it becomes Path.of(".") in the constructor.
+     */
+    @NonNull
+    Path baseDir;
 
     /**
      * Optional exclude glob patterns.
@@ -115,6 +103,36 @@ public class PathQuery {
     Set<String> excludeGlobs;
 
     /**
+     * Error-handling strategy flag.
+     * <ul>
+     *   <li>When {@code true}, traversal is fail-fast: the first late I/O error
+     *       (e.g. AccessDeniedException, UncheckedIOException) immediately throws and aborts the entire pipeline.</li>
+     *   <li>When {@code false}, traversal is shielded: errors are logged at WARN level
+     *       and only the current branch is cut, the rest of the pipeline continues.</li>
+     * </ul>
+     * If null or omitted in the builder, defaults to {@code true} (fail-fast).
+     */
+    boolean failFastOnError;
+
+    /**
+     * Whether to follow symbolic links. If null or omitted in the builder, defaults to true (symbolic links are
+     * followed).
+     */
+    boolean followLinks;
+
+    /**
+     * Include glob patterns.
+     * Normalization rules performed in the constructor:
+     * - If the input collection is null or omitted, this field becomes an empty Set, otherwise it is defensively
+     *   copied to unmodifiable Set.
+     * Behavior in the finder:
+     * - An empty include set is interpreted as "match all under baseDir".
+     */
+    @NonNull
+    @SuppressFBWarnings("EI_EXPOSE_REP")
+    Set<String> includeGlobs;
+
+    /**
      * Maximum depth to traverse. If null or omitted or negative in the builder, becomes Integer.MAX_VALUE (unlimited).
      */
     int maxDepth;
@@ -124,12 +142,6 @@ public class PathQuery {
      * defaults to true (only regular files are returned).
      */
     boolean onlyFiles;
-
-    /**
-     * Whether to follow symbolic links. If null or omitted in the builder, defaults to true (symbolic links are
-     * followed).
-     */
-    boolean followLinks;
 
     /**
      * Builder-backed constructor. Normalizes nullable inputs to safe defaults.
@@ -145,6 +157,9 @@ public class PathQuery {
      * @param maxDepth          Maximum depth. If null or omitted or negative, becomes Integer.MAX_VALUE (unlimited).
      * @param onlyFiles         If null or omitted, defaults to true (only regular files are returned).
      * @param followLinks       If null or omitted, defaults to true (symbolic links are followed).
+     * @param failFastOnError   Error-handling strategy. If null or omitted, defaults to true (fail-fast).
+     *                          true ⇒ abort immediately on first I/O error,
+     *                          false ⇒ shield errors, log a warning, and continue traversal.
      */
     @Builder(toBuilder = true)
     private PathQuery(
@@ -154,7 +169,8 @@ public class PathQuery {
             @Nullable Collection<String> excludeGlobs,
             @Nullable Integer maxDepth,
             @Nullable Boolean onlyFiles,
-            @Nullable Boolean followLinks) {
+            @Nullable Boolean followLinks,
+            @Nullable Boolean failFastOnError) {
         this.baseDir = ofNullable(baseDir).orElse(Path.of("."));
         this.includeGlobs = ofNullable(includeGlobs).map(Set::copyOf).orElse(Set.of());
         this.allowedExtensions = ofNullable(allowedExtensions).map(Set::copyOf).orElse(Set.of());
@@ -162,18 +178,7 @@ public class PathQuery {
         this.maxDepth = ofNullable(maxDepth).filter(depth -> depth >= 0).orElse(Integer.MAX_VALUE);
         this.onlyFiles = ofNullable(onlyFiles).orElse(true);
         this.followLinks = ofNullable(followLinks).orElse(true);
-    }
-
-    /**
-     * Computes the visit options derived from this configuration.
-     * Current behavior:
-     * - If {@code followLinks} is true, returns {@code EnumSet.of(FileVisitOption.FOLLOW_LINKS)}.
-     * - Otherwise, returns {@code Set.of()} - no options.
-     *
-     * @return a Set of FileVisitOption reflecting the {@code followLinks} flag only
-     */
-    public Set<FileVisitOption> getVisitOptions() {
-        return followLinks ? EnumSet.of(FileVisitOption.FOLLOW_LINKS) : Set.of();
+        this.failFastOnError = ofNullable(failFastOnError).orElse(true);
     }
 
     @Override
@@ -190,6 +195,18 @@ public class PathQuery {
                 && includeGlobs.equals(pathQuery.includeGlobs)
                 && allowedExtensions.equals(pathQuery.allowedExtensions)
                 && excludeGlobs.equals(pathQuery.excludeGlobs);
+    }
+
+    /**
+     * Computes the visit options derived from this configuration.
+     * Current behavior:
+     * - If {@code followLinks} is true, returns {@code EnumSet.of(FileVisitOption.FOLLOW_LINKS)}.
+     * - Otherwise, returns {@code Set.of()} - no options.
+     *
+     * @return a Set of FileVisitOption reflecting the {@code followLinks} flag only
+     */
+    public Set<FileVisitOption> getVisitOptions() {
+        return followLinks ? EnumSet.of(FileVisitOption.FOLLOW_LINKS) : Set.of();
     }
 
     @Override

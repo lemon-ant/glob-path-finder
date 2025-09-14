@@ -35,25 +35,6 @@ class GlobPathFinderAdditionalScenariosTest {
 
     // -------------------- helpers --------------------
 
-    private static String absGlob(Path path, String tailGlob) {
-        // Build a portable absolute glob string using forward slashes
-        String prefix = path.toAbsolutePath().normalize().toString().replace('\\', '/');
-        if (!tailGlob.startsWith("/")) tailGlob = "/" + tailGlob;
-        return prefix + tailGlob;
-    }
-
-    private static Set<Path> toAbsoluteNormalizedSet(Stream<Path> stream) {
-        return stream.map(p -> p.toAbsolutePath().normalize()).collect(Collectors.toSet());
-    }
-
-    private static Path writeFile(Path path, String content) throws IOException {
-        Files.createDirectories(path.getParent());
-        Files.writeString(path, content);
-        return path;
-    }
-
-    // -------------------- tests ----------------------
-
     @Test
     void absoluteExclude_filtersOutAbsoluteTargetTree() throws IOException {
         // given
@@ -83,6 +64,104 @@ class GlobPathFinderAdditionalScenariosTest {
                 .contains(src.toAbsolutePath().normalize())
                 .doesNotContain(target.toAbsolutePath().normalize());
     }
+
+    @Test
+    void cyclicSymlink_doesNotLoopOrCrash_posixOnly() throws Exception {
+        // Only run on POSIX
+        assumeTrue(
+                Files.getFileAttributeView(tempDir, PosixFileAttributeView.class) != null,
+                "POSIX attributes not supported; skipping test.");
+
+        // Attach ListAppender specifically to IoShieldingStream logger (not root)
+        ListAppender<ILoggingEvent> appender = LogHelper.attachListAppender(IoTolerantPathStream.class);
+
+        // given
+        Path loopDir = Files.createDirectories(tempDir.resolve("loop"));
+        Path javaFile = writeFile(loopDir.resolve("Loop.java"), "class Loop {}");
+        Path backSymlink = loopDir.resolve("back");
+        try {
+            // backSymlink -> loopDir (creates a cycle)
+            Path createdSymlink = Files.createSymbolicLink(backSymlink, loopDir);
+        } catch (Exception e) {
+            // Symlinks might be forbidden in the environment; skip gracefully
+            assumeTrue(false, "Symlink creation not permitted: " + e.getMessage());
+        }
+
+        String include = absGlob(loopDir, "**.java");
+
+        PathQuery query = PathQuery.builder()
+                .baseDir(tempDir)
+                .includeGlobs(Set.of(include))
+                .onlyFiles(true)
+                .followLinks(true)
+                .maxDepth(Integer.MAX_VALUE)
+                .build();
+
+        // when
+        long count = GlobPathFinder.findPaths(query).count();
+
+        // then
+        // We do NOT require any particular payload result; traversal may be cut short by the shield.
+        // The only hard guarantee here is: no crash and a WARN is logged by IoShieldingStream.
+        List<ILoggingEvent> warnEvents =
+                appender.list.stream().filter(ev -> ev.getLevel() == Level.WARN).collect(Collectors.toList());
+
+        assertThat(warnEvents)
+                .as("Expected a WARN from IoShieldingStream about a filesystem loop")
+                .anySatisfy(ev -> {
+                    String message = ev.getFormattedMessage();
+                    assertThat(message).contains("I/O during traversal of", "FileSystemLoopException", "Stopping");
+                    // Throwable presence and type hint (FileSystemLoopException)
+                    assertThat(ev.getThrowableProxy()).isNotNull();
+                    assertThat(ev.getThrowableProxy().getCause().getClassName()).contains("FileSystemLoopException");
+                });
+    }
+
+    @Test
+    void followLinks_true_findsThroughSymlink_posixOnly() throws Exception {
+        // Run only on POSIX
+        assumeTrue(
+                Files.getFileAttributeView(tempDir, PosixFileAttributeView.class) != null,
+                "POSIX attributes not supported; skipping test.");
+
+        // Arrange: link -> real/src ; expect to find real/src/Main.java
+        Path realPath = Files.createDirectories(tempDir.resolve("real/src"));
+        Path testFile = writeFile(realPath.resolve("Main.java"), "class Main {}");
+        Path linkPath = tempDir.resolve("link");
+        try {
+            Files.createSymbolicLink(linkPath, realPath);
+        } catch (Exception e) {
+            assumeTrue(false, "Symlink creation not permitted: " + e.getMessage());
+        }
+
+        String include = absGlob(linkPath, "**.java");
+
+        PathQuery query = PathQuery.builder()
+                .baseDir(tempDir)
+                .includeGlobs(Set.of(include))
+                .onlyFiles(true)
+                .followLinks(true)
+                .maxDepth(Integer.MAX_VALUE)
+                .build();
+
+        // Act: compare by real paths because Files.find returns paths via the symlink itself
+        Set<Path> result;
+        try (Stream<Path> s = GlobPathFinder.findPaths(query)) {
+            result = s.map(p -> {
+                        try {
+                            return p.toRealPath();
+                        } catch (IOException e) {
+                            return p.toAbsolutePath().normalize();
+                        }
+                    })
+                    .collect(Collectors.toSet());
+        }
+
+        // Assert
+        assertThat(result).contains(testFile.toRealPath());
+    }
+
+    // -------------------- tests ----------------------
 
     @Test
     void includeAndExcludeSamePattern_yieldsEmpty() throws IOException {
@@ -189,99 +268,20 @@ class GlobPathFinderAdditionalScenariosTest {
         assertThat(result).containsExactly(javaFile.toAbsolutePath().normalize());
     }
 
-    @Test
-    void followLinks_true_findsThroughSymlink_posixOnly() throws Exception {
-        // Run only on POSIX
-        assumeTrue(
-                Files.getFileAttributeView(tempDir, PosixFileAttributeView.class) != null,
-                "POSIX attributes not supported; skipping test.");
-
-        // Arrange: link -> real/src ; expect to find real/src/Main.java
-        Path realPath = Files.createDirectories(tempDir.resolve("real/src"));
-        Path testFile = writeFile(realPath.resolve("Main.java"), "class Main {}");
-        Path linkPath = tempDir.resolve("link");
-        try {
-            Files.createSymbolicLink(linkPath, realPath);
-        } catch (Exception e) {
-            assumeTrue(false, "Symlink creation not permitted: " + e.getMessage());
-        }
-
-        String include = absGlob(linkPath, "**.java");
-
-        PathQuery query = PathQuery.builder()
-                .baseDir(tempDir)
-                .includeGlobs(Set.of(include))
-                .onlyFiles(true)
-                .followLinks(true)
-                .maxDepth(Integer.MAX_VALUE)
-                .build();
-
-        // Act: compare by real paths because Files.find returns paths via the symlink itself
-        Set<Path> result;
-        try (Stream<Path> s = GlobPathFinder.findPaths(query)) {
-            result = s.map(p -> {
-                        try {
-                            return p.toRealPath();
-                        } catch (IOException e) {
-                            return p.toAbsolutePath().normalize();
-                        }
-                    })
-                    .collect(Collectors.toSet());
-        }
-
-        // Assert
-        assertThat(result).contains(testFile.toRealPath());
+    private static String absGlob(Path path, String tailGlob) {
+        // Build a portable absolute glob string using forward slashes
+        String prefix = path.toAbsolutePath().normalize().toString().replace('\\', '/');
+        if (!tailGlob.startsWith("/")) tailGlob = "/" + tailGlob;
+        return prefix + tailGlob;
     }
 
-    @Test
-    void cyclicSymlink_doesNotLoopOrCrash_posixOnly() throws Exception {
-        // Only run on POSIX
-        assumeTrue(
-                Files.getFileAttributeView(tempDir, PosixFileAttributeView.class) != null,
-                "POSIX attributes not supported; skipping test.");
+    private static Set<Path> toAbsoluteNormalizedSet(Stream<Path> stream) {
+        return stream.map(p -> p.toAbsolutePath().normalize()).collect(Collectors.toSet());
+    }
 
-        // Attach ListAppender specifically to IoShieldingStream logger (not root)
-        ListAppender<ILoggingEvent> appender = LogHelper.attachListAppender(IoTolerantPathStream.class);
-
-        // given
-        Path loopDir = Files.createDirectories(tempDir.resolve("loop"));
-        Path javaFile = writeFile(loopDir.resolve("Loop.java"), "class Loop {}");
-        Path backSymlink = loopDir.resolve("back");
-        try {
-            // backSymlink -> loopDir (creates a cycle)
-            Path createdSymlink = Files.createSymbolicLink(backSymlink, loopDir);
-        } catch (Exception e) {
-            // Symlinks might be forbidden in the environment; skip gracefully
-            assumeTrue(false, "Symlink creation not permitted: " + e.getMessage());
-        }
-
-        String include = absGlob(loopDir, "**.java");
-
-        PathQuery query = PathQuery.builder()
-                .baseDir(tempDir)
-                .includeGlobs(Set.of(include))
-                .onlyFiles(true)
-                .followLinks(true)
-                .maxDepth(Integer.MAX_VALUE)
-                .build();
-
-        // when
-        long count = GlobPathFinder.findPaths(query).count();
-
-        // then
-        // We do NOT require any particular payload result; traversal may be cut short by the shield.
-        // The only hard guarantee here is: no crash and a WARN is logged by IoShieldingStream.
-        List<ILoggingEvent> warnEvents =
-                appender.list.stream().filter(ev -> ev.getLevel() == Level.WARN).collect(Collectors.toList());
-
-        assertThat(warnEvents)
-                .as("Expected a WARN from IoShieldingStream about a filesystem loop")
-                .anySatisfy(ev -> {
-                    String message = ev.getFormattedMessage();
-                    assertThat(message).contains("I/O during traversal of", "FileSystemLoopException", "Stopping");
-                    // Throwable presence and type hint (FileSystemLoopException)
-                    assertThat(ev.getThrowableProxy()).isNotNull();
-                    assertThat(ev.getThrowableProxy().getCause().getClassName()).contains("FileSystemLoopException");
-                });
+    private static Path writeFile(Path path, String content) throws IOException {
+        Files.createDirectories(path.getParent());
+        Files.writeString(path, content);
+        return path;
     }
 }
