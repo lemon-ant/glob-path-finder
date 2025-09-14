@@ -63,8 +63,9 @@ PathQuery query = PathQuery.builder()
     .includeGlobs(Set.of("src/**"))
     .excludeGlobs(Set.of("**/test/**"))
     .allowedExtensions(Set.of("java"))
-    .onlyFiles(true) // You can omit it, it's true by default
-    .followLinks(false)
+    .onlyFiles(true)        // default is true
+    .followLinks(false)     // disable symlink following
+    .failFastOnError(false) // shielded mode: errors are logged as WARN, traversal continues
     .build();
 
 try (Stream<Path> paths = GlobPathFinder.findPaths(query)) {
