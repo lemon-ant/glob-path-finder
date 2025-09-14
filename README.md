@@ -18,6 +18,9 @@
 - Option to select only files or include directories.
 - Parallel traversal for multiple bases.
 - Unique normalized absolute paths as the result.
+- **Convenient and flexible interface** — results are fully configurable via `PathQuery`.
+- **Optimized performance** — dynamic pipeline construction ensures no unnecessary operations are executed.
+- **Professional logging and trace/debug support** — designed for developers to analyze and troubleshoot traversal.
 
 ---
 
@@ -68,6 +71,20 @@ try (Stream<Path> paths = GlobPathFinder.findPaths(query)) {
     List<Path> javaFiles = paths.toList();
 }
 ```
+
+---
+
+## ⚡ Performance and Logging
+
+GlobPathFinder is built with efficiency in mind:
+
+- Dynamic pipeline construction ensures that only the necessary filters and matchers are applied.
+- No redundant operations — traversal and filtering remain lightweight even for large trees.
+- Professional logging with SLF4J integration:
+    - `trace` for deep traversal inspection
+    - `debug` for emitted paths and filtering steps
+
+This makes the library not only fast, but also developer-friendly for debugging and analysis.
 
 ---
 
