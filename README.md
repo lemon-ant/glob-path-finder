@@ -139,8 +139,12 @@ If you discover any security issue, please see [SECURITY.md](SECURITY.md).
 
 ## 📅 Roadmap
 
-- [ ] v1.1 — Performance tests and possible improvements
-- [ ] v2.0 — Async API with reactive streams
+- [ ] v1.1 — Performance track: reproducible benchmarks + targeted optimizations
+- [ ] v2.0 — Async API with reactive streams (non-blocking/backpressure-friendly)
+- [ ] Resource streaming beyond local FS (classpath/JAR resources)
+- [ ] Universal source adapters (e.g., HTTP/HTTPS and pluggable providers)
+
+Longer-form future ideas are tracked in [docs/FUTURE_IDEAS.md](docs/FUTURE_IDEAS.md).
 
 ---
 
