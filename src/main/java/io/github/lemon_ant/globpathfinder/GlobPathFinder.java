@@ -95,13 +95,15 @@ public class GlobPathFinder {
 
         // 4) Start traversal:
         //    - bases are scanned in parallel,
-        //    - then we bridge into a splittable parallel stream so downstream work can fan out
-        //      per discovered path even when source spliterators are unsplittable.
+        //    - only bridge a single-base stream into a splittable parallel stream so downstream
+        //      work can fan out without serializing multi-base discovery behind the bridge.
         Stream<Path> discoveredPathStream = baseToIncludeMatchers.entrySet().parallelStream()
                 .flatMap(entry -> scanBaseDir(entry, pathQuery, globalPipeline, perBasePipelineFactory, fileTypeFilter))
-                .unordered();
-        Stream<Path> resultPathStream =
-                ParallelStreamBridge.parallelize(discoveredPathStream).distinct();
+                .unordered()
+                .distinct();
+        Stream<Path> resultPathStream = baseToIncludeMatchers.size() == 1
+                ? ParallelStreamBridge.parallelize(discoveredPathStream)
+                : discoveredPathStream;
         if (log.isDebugEnabled()) {
             // DEBUG: final emission (after all filters)
             resultPathStream = resultPathStream.peek(path -> {

@@ -14,6 +14,7 @@ import java.nio.file.attribute.PosixFileAttributeView;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -58,6 +59,10 @@ class GlobPathFinderAdditionalScenariosTest {
         }
 
         assertThat(count).isEqualTo(2_000L);
+        // Only assert multi-thread fan-out when the common pool actually has more than one worker.
+        assumeTrue(
+                ForkJoinPool.getCommonPoolParallelism() > 1,
+                "Common pool parallelism is 1; parallel-thread assertion would be trivially false");
         assertThat(workerThreads.size())
                 .as("Expected downstream processing to use multiple worker threads for one base directory.")
                 .isGreaterThan(1);
