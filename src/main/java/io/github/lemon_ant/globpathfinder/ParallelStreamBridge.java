@@ -67,7 +67,11 @@ class ParallelStreamBridge {
 
     private static final class SharedPullSpliterator<T> implements Spliterator<T> {
         private final SharedIteratorState<T> state;
-        /** Thread-local batch buffer; drained without holding the lock. */
+        /**
+         * Per-instance batch buffer; drained without holding the lock.
+         * Each {@code trySplit()} creates a new {@code SharedPullSpliterator} instance with its own
+         * batch, so these fields are never shared across threads — only {@code state} is shared.
+         */
         private final List<T> localBatch = new ArrayList<>(BATCH_SIZE);
 
         private int localIndex;
