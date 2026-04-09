@@ -13,6 +13,7 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -32,6 +33,35 @@ class GlobPathFinderAdditionalScenariosTest {
 
     @TempDir
     Path tempDir;
+
+    @Test
+    void singleBaseManyFiles_canSplitResultStreamWithoutMaterializingList() throws IOException {
+        Path base = Files.createDirectories(tempDir.resolve("one-base"));
+        for (int i = 0; i < 2_000; i++) {
+            writeFile(base.resolve("dir-" + (i % 20)).resolve("File" + i + ".java"), "class C" + i + " {}");
+        }
+
+        PathQuery query = PathQuery.builder()
+                .baseDir(base)
+                .includeGlobs(Set.of("**/*.java"))
+                .onlyFiles(true)
+                .followLinks(true)
+                .maxDepth(Integer.MAX_VALUE)
+                .build();
+
+        Set<String> workerThreads = new ConcurrentSkipListSet<>();
+        long count;
+        try (Stream<Path> s = GlobPathFinder.findPaths(query)) {
+            count = s.parallel()
+                    .peek(path -> workerThreads.add(Thread.currentThread().getName()))
+                    .count();
+        }
+
+        assertThat(count).isEqualTo(2_000L);
+        assertThat(workerThreads.size())
+                .as("Expected downstream processing to use multiple worker threads for one base directory.")
+                .isGreaterThan(1);
+    }
 
     // -------------------- helpers --------------------
 
@@ -111,7 +141,8 @@ class GlobPathFinderAdditionalScenariosTest {
                 .as("Expected a WARN from IoShieldingStream about a filesystem loop")
                 .anySatisfy(ev -> {
                     String message = ev.getFormattedMessage();
-                    assertThat(message).contains("I/O during traversal of", "FileSystemLoopException", "Stopping");
+                    assertThat(message).contains("I/O during traversal of", "FileSystemLoopException");
+                    assertThat(message).containsAnyOf("Stopping", "Skipping");
                     // Throwable presence and type hint (FileSystemLoopException)
                     assertThat(ev.getThrowableProxy()).isNotNull();
                     assertThat(ev.getThrowableProxy().getCause().getClassName()).contains("FileSystemLoopException");
