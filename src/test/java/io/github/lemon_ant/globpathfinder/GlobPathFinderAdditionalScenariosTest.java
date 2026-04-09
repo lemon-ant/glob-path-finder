@@ -115,6 +115,49 @@ class GlobPathFinderAdditionalScenariosTest {
                 .isGreaterThan(1);
     }
 
+    @Test
+    void overlappingBases_distinctDeduplicatesFilesAcrossParallelBases() throws IOException {
+        // Scenario: parent dir and its child dir are both used as bases (via absolute includes).
+        // Files under the child dir are discovered by BOTH scans; distinct() must remove duplicates.
+        Path parent = Files.createDirectories(tempDir.resolve("parent"));
+        Path child = Files.createDirectories(parent.resolve("child"));
+        Path sibling = Files.createDirectories(parent.resolve("sibling"));
+
+        // File in sibling (found only by parent scan, not by child scan)
+        writeFile(sibling.resolve("Root.java"), "class Root {}");
+
+        // Many files under child (found by BOTH parent and child scans → duplicates expected)
+        int childFileCount = 500;
+        for (int i = 0; i < childFileCount; i++) {
+            writeFile(child.resolve("sub-" + (i % 10)).resolve("C" + i + ".java"), "class C" + i + " {}");
+        }
+
+        // Absolute includes covering both parent and child → two overlapping base directories
+        PathQuery query = PathQuery.builder()
+                .baseDir(tempDir)
+                .includeGlobs(Set.of(absGlob(parent, "**/*.java"), absGlob(child, "**/*.java")))
+                .onlyFiles(true)
+                .followLinks(true)
+                .maxDepth(Integer.MAX_VALUE)
+                .build();
+
+        List<Path> resultList;
+        try (Stream<Path> s = GlobPathFinder.findPaths(query)) {
+            resultList = s.collect(Collectors.toList());
+        }
+
+        // 1 file in sibling + 500 files in child = 501 unique files total (no duplicates)
+        int expectedUniqueCount = 1 + childFileCount;
+        assertThat(resultList)
+                .as("distinct() should deduplicate files that appear under both parent and child base scans")
+                .hasSize(expectedUniqueCount);
+
+        // Sanity: converting to a Set should not shrink the list (i.e. no duplicates were present)
+        Set<Path> resultSet =
+                resultList.stream().map(p -> p.toAbsolutePath().normalize()).collect(Collectors.toSet());
+        assertThat(resultSet).hasSize(expectedUniqueCount);
+    }
+
     // -------------------- helpers --------------------
 
     @Test
