@@ -1,6 +1,8 @@
 package io.github.lemon_ant.globpathfinder;
 
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Objects;
 import java.util.Spliterator;
 import java.util.Spliterators;
@@ -18,6 +20,11 @@ import lombok.experimental.UtilityClass;
  * created via {@link Spliterator#trySplit()} pull elements from a shared iterator under a small lock.
  * This allows downstream parallel processing per element while keeping memory usage constant.</p>
  *
+ * <p><b>Lock optimization:</b> To reduce contention, each {@code tryAdvance} call pulls a small batch
+ * of elements (up to {@value #BATCH_SIZE}) in a single lock acquisition. The batch is then drained
+ * without holding the lock, so downstream actions run concurrently across worker threads. This means
+ * a thread acquires the lock once per batch rather than once per element.</p>
+ *
  * <p><b>Characteristics:</b> The bridge propagates only characteristics that remain valid after
  * transitioning to a shared-pull spliterator: {@link Spliterator#NONNULL} and {@link Spliterator#DISTINCT}
  * are carried over when present in the source. Encounter order ({@link Spliterator#ORDERED}) and sort
@@ -28,6 +35,9 @@ import lombok.experimental.UtilityClass;
 class ParallelStreamBridge {
 
     private static final int DEFAULT_MAX_SPLITS = 1024;
+
+    /** Number of elements pulled from the shared iterator per lock acquisition. */
+    private static final int BATCH_SIZE = 64;
 
     /** Characteristics safe to propagate: order-independent and element-value-preserving. */
     private static final int SAFE_CHARACTERISTICS = Spliterator.NONNULL | Spliterator.DISTINCT;
@@ -57,6 +67,10 @@ class ParallelStreamBridge {
 
     private static final class SharedPullSpliterator<T> implements Spliterator<T> {
         private final SharedIteratorState<T> state;
+        /** Thread-local batch buffer; drained without holding the lock. */
+        private final List<T> localBatch = new ArrayList<>(BATCH_SIZE);
+
+        private int localIndex;
 
         private SharedPullSpliterator(SharedIteratorState<T> state) {
             this.state = state;
@@ -65,18 +79,27 @@ class ParallelStreamBridge {
         @Override
         public boolean tryAdvance(Consumer<? super T> action) {
             Objects.requireNonNull(action, "action");
-            T nextItem;
+            // Drain any remaining items in the local batch before acquiring the lock.
+            if (localIndex < localBatch.size()) {
+                action.accept(localBatch.get(localIndex++));
+                return true;
+            }
+            // Refill batch under the shared lock.
+            localBatch.clear();
+            localIndex = 0;
             state.lock.lock();
             try {
-                if (!state.iterator.hasNext()) {
-                    return false;
+                for (int i = 0; i < BATCH_SIZE && state.iterator.hasNext(); i++) {
+                    localBatch.add(state.iterator.next());
                 }
-                nextItem = state.iterator.next();
             } finally {
                 state.lock.unlock();
             }
-            // Execute downstream action outside the lock, otherwise expensive user work is serialized.
-            action.accept(nextItem);
+            if (localBatch.isEmpty()) {
+                return false;
+            }
+            // Emit the first element; subsequent elements will be served from the buffer.
+            action.accept(localBatch.get(localIndex++));
             return true;
         }
 

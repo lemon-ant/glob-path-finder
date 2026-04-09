@@ -94,16 +94,15 @@ public class GlobPathFinder {
                 buildPerBasePipelineFactory(relativeExcludeMatchers);
 
         // 4) Start traversal:
-        //    - bases are scanned in parallel,
-        //    - only bridge a single-base stream into a splittable parallel stream so downstream
-        //      work can fan out without serializing multi-base discovery behind the bridge.
+        //    - bases are scanned in parallel via parallelStream(),
+        //    - the bridge is always applied so downstream `.parallel()` can fan out per-path
+        //      regardless of how many bases there are or how files are distributed across them.
+        //      Batch-pull locking keeps overhead low even when multi-base discovery is already parallel.
         Stream<Path> discoveredPathStream = baseToIncludeMatchers.entrySet().parallelStream()
                 .flatMap(entry -> scanBaseDir(entry, pathQuery, globalPipeline, perBasePipelineFactory, fileTypeFilter))
                 .unordered()
                 .distinct();
-        Stream<Path> resultPathStream = baseToIncludeMatchers.size() == 1
-                ? ParallelStreamBridge.parallelize(discoveredPathStream)
-                : discoveredPathStream;
+        Stream<Path> resultPathStream = ParallelStreamBridge.parallelize(discoveredPathStream);
         if (log.isDebugEnabled()) {
             // DEBUG: final emission (after all filters)
             resultPathStream = resultPathStream.peek(path -> {
