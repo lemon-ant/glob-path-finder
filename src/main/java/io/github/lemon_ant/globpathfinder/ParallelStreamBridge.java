@@ -20,7 +20,7 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 class ParallelStreamBridge {
 
-    private static final int DEFAULT_MAX_SPLITS = 64;
+    private static final int DEFAULT_MAX_SPLITS = 1024;
 
     static <T> Stream<T> parallelize(Stream<T> sourceStream) {
         Objects.requireNonNull(sourceStream, "sourceStream");
@@ -81,7 +81,7 @@ class ParallelStreamBridge {
 
         @Override
         public int characteristics() {
-            return 0;
+            return Spliterator.NONNULL;
         }
     }
 }
