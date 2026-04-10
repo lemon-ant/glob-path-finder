@@ -222,6 +222,7 @@ public class PathQuery {
      *
      * @return a Set of FileVisitOption reflecting the {@code followLinks} flag only
      */
+    @NonNull
     public Set<FileVisitOption> getVisitOptions() {
         return followLinks ? EnumSet.of(FileVisitOption.FOLLOW_LINKS) : Set.of();
     }

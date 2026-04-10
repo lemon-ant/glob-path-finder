@@ -18,11 +18,9 @@ class GlobPathFinderTest {
     @TempDir
     Path tmp;
 
-    // --- helpers -------------------------------------------------------------
-
     @Test
-    void findPaths_basicInclude_shouldReturnMatchingFiles() throws Exception {
-        // given
+    void findPaths_basicInclude_returnsMatchingFiles() throws Exception {
+        // Given
         createFile("a/Main.java");
         createFile("a/Util.md");
         createFile("b/c/Nested.java");
@@ -32,16 +30,16 @@ class GlobPathFinderTest {
                 .includeGlobs(Set.of("**/*.java"))
                 .build();
 
-        // when
+        // When
         Set<String> result = collectToRelStringSet(GlobPathFinder.findPaths(q), tmp);
 
-        // then
+        // Then
         assertThat(result).containsExactlyInAnyOrder("a/Main.java", "b/c/Nested.java");
     }
 
     @Test
-    void findPaths_excludeGlobs_shouldExcludeMatchingPaths() throws Exception {
-        // given
+    void findPaths_excludeGlobs_excludesMatchingPaths() throws Exception {
+        // Given
         createFile("src/gen/Generated.java");
         createFile("src/app/App.java");
         createFile("src/app/impl/Impl.java");
@@ -52,16 +50,16 @@ class GlobPathFinderTest {
                 .excludeGlobs(Set.of("gen/**", "**/impl/**"))
                 .build();
 
-        // when
+        // When
         Set<String> result = collectToRelStringSet(GlobPathFinder.findPaths(q), tmp.resolve("src"));
 
-        // then
+        // Then
         assertThat(result).containsExactlyInAnyOrder("app/App.java");
     }
 
     @Test
-    void findPaths_extensionsFilter_shouldApplyCaseInsensitiveMatch() throws Exception {
-        // given
+    void findPaths_extensionsFilter_appliesCaseInsensitiveFilter() throws Exception {
+        // Given
         createFile("src/A.JAVA");
         createFile("src/B.java");
         createFile("src/C.txt");
@@ -72,18 +70,16 @@ class GlobPathFinderTest {
                 .allowedExtensions(Set.of("java"))
                 .build();
 
-        // when
+        // When
         Set<String> result = collectToRelStringSet(GlobPathFinder.findPaths(q), tmp.resolve("src"));
 
-        // then
+        // Then
         assertThat(result).containsExactlyInAnyOrder("A.JAVA", "B.java");
     }
 
-    // --- tests ---------------------------------------------------------------
-
     @Test
-    void findPaths_maxDepth_shouldLimitTraversal() throws Exception {
-        // given
+    void findPaths_maxDepth_limitsTraversal() throws Exception {
+        // Given
         createFile("src/L0.java");
         createFile("src/level1/L1.java");
         createFile("src/level1/level2/L2.java");
@@ -94,16 +90,16 @@ class GlobPathFinderTest {
                 .maxDepth(1) // only src/* level
                 .build();
 
-        // when
+        // When
         Set<String> result = collectToRelStringSet(GlobPathFinder.findPaths(q), tmp.resolve("src"));
 
-        // then
+        // Then
         assertThat(result).containsExactlyInAnyOrder("L0.java");
     }
 
     @Test
-    void findPaths_multipleIncludes_shouldDeduplicateResults() throws Exception {
-        // given
+    void findPaths_multipleIncludes_deduplicatesResults() throws Exception {
+        // Given
         createFile("m/src/A.java");
         createFile("m/test/A.java");
 
@@ -112,17 +108,17 @@ class GlobPathFinderTest {
                 .includeGlobs(Set.of("**/*.java", "src/**/*.java"))
                 .build();
 
-        // when
+        // When
         Set<String> result = collectToRelStringSet(GlobPathFinder.findPaths(q), tmp.resolve("m"));
 
-        // then
+        // Then
         // No duplicates even if matched by both patterns.
         assertThat(result).containsExactlyInAnyOrder("src/A.java", "test/A.java");
     }
 
     @Test
-    void findPaths_onlyFilesFalse_shouldAllowDirectoriesToo() throws Exception {
-        // given
+    void findPaths_onlyFilesFalse_includesDirectories() throws Exception {
+        // Given
         createDir("d1/inner");
         createFile("d1/inner/X.txt");
 
@@ -132,18 +128,18 @@ class GlobPathFinderTest {
                 .onlyFiles(false)
                 .build();
 
-        // when
+        // When
         List<String> all =
                 collectToRelStringSet(GlobPathFinder.findPaths(q), tmp).stream().collect(toUnmodifiableList());
 
-        // then
+        // Then
         // Should contain both the directory and the file somewhere in the results.
         assertThat(all).anyMatch(p -> p.endsWith("d1/inner")).anyMatch(p -> p.endsWith("X.txt"));
     }
 
     @Test
-    void findPaths_relativeAndAbsolutePatterns_shouldBothWork() throws Exception {
-        // given
+    void findPaths_relativeAndAbsolutePatterns_bothMatch() throws Exception {
+        // Given
         Path absBase = createDir("abs");
         createFile("abs/One.java");
         createFile("abs/two/Two.java");
@@ -155,16 +151,16 @@ class GlobPathFinderTest {
                 .includeGlobs(Set.of(absPattern, "**/two/*.java"))
                 .build();
 
-        // when
+        // When
         Set<String> result = collectToRelStringSet(GlobPathFinder.findPaths(q), tmp);
 
-        // then
+        // Then
         assertThat(result).containsExactlyInAnyOrder("abs/One.java", "abs/two/Two.java");
     }
 
     @Test
-    void findPaths_returnsAbsolutePaths_shouldReturnRealAbsolutePaths() throws Exception {
-        // given
+    void findPaths_normalizedBase_returnsAbsolutePaths() throws Exception {
+        // Given
         Path expectedFile = createFile("abscheck/F.java");
         Path baseDir = tmp.resolve("abscheck");
 
@@ -174,27 +170,27 @@ class GlobPathFinderTest {
                 .allowedExtensions(Set.of("java"))
                 .build();
 
-        // when
+        // When
         List<Path> actualPaths;
         try (Stream<Path> foundPaths = GlobPathFinder.findPaths(q)) {
             actualPaths = foundPaths.collect(toUnmodifiableList());
         }
 
-        // then
+        // Then
         // Each returned path should equal the file's real absolute path.
         assertThat(actualPaths).containsExactly(expectedFile.toAbsolutePath());
     }
 
     @Test
-    void findPaths_streamMustBeClosed_shouldWorkWithTryWithResources() throws Exception {
-        // given
+    void findPaths_closedViaResources_completesNormally() throws Exception {
+        // Given
         createFile("z/A.java");
         PathQuery q = PathQuery.builder()
                 .baseDir(tmp)
                 .includeGlobs(Set.of("**/*.java"))
                 .build();
 
-        // when / then (no exceptions and results available)
+        // When / Then (no exceptions and results available)
         try (Stream<Path> s = GlobPathFinder.findPaths(q)) {
             assertThat(s.collect(Collectors.toSet())).hasSize(1);
         }

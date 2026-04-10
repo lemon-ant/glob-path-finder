@@ -34,10 +34,9 @@ class GlobPathFinderErrorHandlingTest {
     @TempDir
     Path tempDir;
 
-    // --- Test 1: base path does not exist ---
     @Test
-    void findPaths_baseDoesNotExist_shouldWarnAndReturnEmpty() {
-        // given
+    void findPaths_nonExistentBase_warnsAndReturnsEmpty() {
+        // Given
         Path nonExistingBase = tempDir.resolve("does-not-exist");
         ListAppender<ILoggingEvent> appender = LogHelper.attachListAppender(GlobPathFinder.class);
 
@@ -50,7 +49,7 @@ class GlobPathFinderErrorHandlingTest {
                 .failFastOnError(false)
                 .build();
 
-        // when
+        // When
         AtomicReference<List<Path>> result = new AtomicReference<>();
         assertThatNoException().isThrownBy(() -> {
             try (Stream<Path> s = GlobPathFinder.findPaths(query)) {
@@ -58,7 +57,7 @@ class GlobPathFinderErrorHandlingTest {
             }
         });
 
-        // then
+        // Then
         assertThat(result.get()).isEmpty();
 
         // and WARN should be present about failing to start scanning this base
@@ -70,15 +69,14 @@ class GlobPathFinderErrorHandlingTest {
         assertThat(appender.list).anySatisfy(le -> assertThat(le).is(warnForBase));
     }
 
-    // --- Test 2: unreadable subdirectory causes iteration-time failures (POSIX-only) ---
     @Test
-    void findPaths_unreadableSubdirectory_shouldWarnAndStillReturnOtherFiles_posixOnly() throws IOException {
+    void findPaths_unreadableSubdirectory_warnsAndSkipsLockedPaths() throws IOException {
         // Run only on POSIX where chmod(000) is available
         assumeTrue(
                 Files.getFileAttributeView(tempDir, PosixFileAttributeView.class) != null,
                 "POSIX attributes not supported; skipping test.");
 
-        // Arrange: base/ok/file1.txt + base/denied (000) + base/denied/file2.txt
+        // Given
         Path base = tempDir.resolve("base");
         Path okDir = base.resolve("ok");
         Path deniedDir = base.resolve("denied");
@@ -106,7 +104,7 @@ class GlobPathFinderErrorHandlingTest {
                 .failFastOnError(false)
                 .build();
 
-        // Act: iterate the stream (shield should suppress late I/O errors)
+        // When
         AtomicReference<List<Path>> result = new AtomicReference<>();
         assertThatNoException().isThrownBy(() -> {
             try (Stream<Path> s = GlobPathFinder.findPaths(query)) {
@@ -114,7 +112,7 @@ class GlobPathFinderErrorHandlingTest {
             }
         });
 
-        // Assert: WARN about I/O during traversal should be present (iteration-time)
+        // Then
         Condition<ILoggingEvent> warnDuringTraversal = new Condition<>(
                 e -> e.getLevel() == Level.WARN
                         && e.getFormattedMessage().toLowerCase(Locale.ROOT).contains("i/o")

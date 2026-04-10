@@ -21,16 +21,16 @@ class GlobPathFinderComputeBaseToPatternTest {
 
     @Test
     void computeBaseToPattern_blankIncludeGlobs_trimmedOut_returnsBaseMappedToEmptySet() {
-        // given
+        // Given
         Path normalizedBaseDir = temporaryDirectory.toAbsolutePath().normalize();
         // All entries are blank and will be trimmed to null → filtered out → stream becomes empty
         Set<String> includeGlobPatterns = Set.of("", " ", "\t", "   ");
 
-        // when
+        // When
         Map<Path, Set<java.nio.file.PathMatcher>> baseToMatchers =
                 computeBaseToIncludeMatchers(normalizedBaseDir, includeGlobPatterns);
 
-        // then
+        // Then
         // Same fallback branch as above
         assertThat(baseToMatchers)
                 .as("All-blank patterns must be ignored; fallback returns base → empty set")
@@ -41,7 +41,7 @@ class GlobPathFinderComputeBaseToPatternTest {
 
     @Test
     void computeBaseToPattern_matchAllForGroupedBase_collapsesToEmptySet() {
-        // given
+        // Given
         Path normalizedBaseDir = temporaryDirectory.toAbsolutePath().normalize();
         // "src" has no wildcards ⇒ extracted base = <baseDir>/src, tail = MATCH_ALL
         // The presence of MATCH_ALL in the grouped set must collapse the set to empty (our sentinel).
@@ -51,11 +51,11 @@ class GlobPathFinderComputeBaseToPatternTest {
                 "src/**/impl/**" // redundant once MATCH_ALL is present
                 );
 
-        // when
+        // When
         Map<Path, Set<java.nio.file.PathMatcher>> baseToMatchers =
                 computeBaseToIncludeMatchers(normalizedBaseDir, includeGlobPatterns);
 
-        // then
+        // Then
         Path extractedGroupedBase = normalizedBaseDir.resolve("src").normalize();
 
         assertThat(baseToMatchers)

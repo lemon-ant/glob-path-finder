@@ -36,7 +36,8 @@ class GlobPathFinderAdditionalScenariosTest {
     Path tempDir;
 
     @Test
-    void singleBaseManyFiles_canSplitResultStreamWithoutMaterializingList() throws IOException {
+    void findPaths_singleBaseManyFiles_splitsAcrossThreads() throws IOException {
+        // Given
         Path base = Files.createDirectories(tempDir.resolve("one-base"));
         for (int i = 0; i < 2_000; i++) {
             writeFile(base.resolve("dir-" + (i % 20)).resolve("File" + i + ".java"), "class C" + i + " {}");
@@ -50,6 +51,7 @@ class GlobPathFinderAdditionalScenariosTest {
                 .maxDepth(Integer.MAX_VALUE)
                 .build();
 
+        // When
         Set<String> workerThreads = new ConcurrentSkipListSet<>();
         long count;
         try (Stream<Path> s = GlobPathFinder.findPaths(query)) {
@@ -58,6 +60,7 @@ class GlobPathFinderAdditionalScenariosTest {
                     .count();
         }
 
+        // Then
         assertThat(count).isEqualTo(2_000L);
         // Only assert multi-thread fan-out when the common pool actually has more than one worker.
         assumeTrue(
@@ -69,7 +72,8 @@ class GlobPathFinderAdditionalScenariosTest {
     }
 
     @Test
-    void multiBaseManyFiles_bridgeEnablesParallelDownstreamForAllBases() throws IOException {
+    void findPaths_multiBaseManyFiles_usesMultipleThreads() throws IOException {
+        // Given
         // Scenario: multiple absolute-include bases, one with many files.
         // The bridge should allow downstream parallel processing of all files.
         Path base1 = Files.createDirectories(tempDir.resolve("base1"));
@@ -97,6 +101,7 @@ class GlobPathFinderAdditionalScenariosTest {
                 .maxDepth(Integer.MAX_VALUE)
                 .build();
 
+        // When
         Set<String> workerThreads = new ConcurrentSkipListSet<>();
         long count;
         try (Stream<Path> s = GlobPathFinder.findPaths(query)) {
@@ -105,6 +110,7 @@ class GlobPathFinderAdditionalScenariosTest {
                     .count();
         }
 
+        // Then
         assertThat(count).isGreaterThanOrEqualTo(2_000L);
         // Only assert multi-thread fan-out when the common pool has more than one worker.
         assumeTrue(
@@ -116,7 +122,8 @@ class GlobPathFinderAdditionalScenariosTest {
     }
 
     @Test
-    void overlappingBases_distinctDeduplicatesFilesAcrossParallelBases() throws IOException {
+    void findPaths_overlappingBases_deduplicatesResults() throws IOException {
+        // Given
         // Scenario: parent dir and its child dir are both used as bases (via absolute includes).
         // Files under the child dir are discovered by BOTH scans; distinct() must remove duplicates.
         Path parent = Files.createDirectories(tempDir.resolve("parent"));
@@ -141,11 +148,13 @@ class GlobPathFinderAdditionalScenariosTest {
                 .maxDepth(Integer.MAX_VALUE)
                 .build();
 
+        // When
         List<Path> resultList;
         try (Stream<Path> s = GlobPathFinder.findPaths(query)) {
             resultList = s.collect(Collectors.toList());
         }
 
+        // Then
         // 1 file in sibling + 500 files in child = 501 unique files total (no duplicates)
         int expectedUniqueCount = 1 + childFileCount;
         assertThat(resultList)
@@ -158,11 +167,9 @@ class GlobPathFinderAdditionalScenariosTest {
         assertThat(resultSet).hasSize(expectedUniqueCount);
     }
 
-    // -------------------- helpers --------------------
-
     @Test
-    void absoluteExclude_filtersOutAbsoluteTargetTree() throws IOException {
-        // given
+    void findPaths_absoluteExcludePattern_filtersTargetTree() throws IOException {
+        // Given
         Path src = writeFile(tempDir.resolve("src/A.java"), "class A {}");
         Path target = writeFile(tempDir.resolve("target/T.java"), "class T {}");
 
@@ -178,20 +185,20 @@ class GlobPathFinderAdditionalScenariosTest {
                 .maxDepth(Integer.MAX_VALUE)
                 .build();
 
-        // when
+        // When
         Set<Path> result;
         try (Stream<Path> s = GlobPathFinder.findPaths(query)) {
             result = toAbsoluteNormalizedSet(s);
         }
 
-        // then: src file present, target file excluded
+        // Then
         assertThat(result)
                 .contains(src.toAbsolutePath().normalize())
                 .doesNotContain(target.toAbsolutePath().normalize());
     }
 
     @Test
-    void cyclicSymlink_doesNotLoopOrCrash_posixOnly() throws Exception {
+    void findPaths_cyclicSymlink_warnsAndCompletes() throws Exception {
         // Only run on POSIX
         assumeTrue(
                 Files.getFileAttributeView(tempDir, PosixFileAttributeView.class) != null,
@@ -200,13 +207,13 @@ class GlobPathFinderAdditionalScenariosTest {
         // Attach ListAppender specifically to IoShieldingStream logger (not root)
         ListAppender<ILoggingEvent> appender = LogHelper.attachListAppender(IoTolerantPathStream.class);
 
-        // given
+        // Given
         Path loopDir = Files.createDirectories(tempDir.resolve("loop"));
-        Path javaFile = writeFile(loopDir.resolve("Loop.java"), "class Loop {}");
+        writeFile(loopDir.resolve("Loop.java"), "class Loop {}");
         Path backSymlink = loopDir.resolve("back");
         try {
             // backSymlink -> loopDir (creates a cycle)
-            Path createdSymlink = Files.createSymbolicLink(backSymlink, loopDir);
+            Files.createSymbolicLink(backSymlink, loopDir);
         } catch (Exception e) {
             // Symlinks might be forbidden in the environment; skip gracefully
             assumeTrue(false, "Symlink creation not permitted: " + e.getMessage());
@@ -223,10 +230,10 @@ class GlobPathFinderAdditionalScenariosTest {
                 .failFastOnError(false)
                 .build();
 
-        // when
+        // When
         long count = GlobPathFinder.findPaths(query).count();
 
-        // then
+        // Then
         // We do NOT require any particular payload result; traversal may be cut short by the shield.
         // The only hard guarantee here is: no crash and a WARN is logged by IoShieldingStream.
         List<ILoggingEvent> warnEvents =
@@ -245,12 +252,13 @@ class GlobPathFinderAdditionalScenariosTest {
     }
 
     @Test
-    void followLinks_true_findsThroughSymlink_posixOnly() throws Exception {
+    void findPaths_followLinksEnabled_resolvesThroughSymlink() throws Exception {
         // Run only on POSIX
         assumeTrue(
                 Files.getFileAttributeView(tempDir, PosixFileAttributeView.class) != null,
                 "POSIX attributes not supported; skipping test.");
 
+        // Given
         // Arrange: link -> real/src ; expect to find real/src/Main.java
         Path realPath = Files.createDirectories(tempDir.resolve("real/src"));
         Path testFile = writeFile(realPath.resolve("Main.java"), "class Main {}");
@@ -271,7 +279,8 @@ class GlobPathFinderAdditionalScenariosTest {
                 .maxDepth(Integer.MAX_VALUE)
                 .build();
 
-        // Act: compare by real paths because Files.find returns paths via the symlink itself
+        // When
+        // Compare by real paths because Files.find returns paths via the symlink itself
         Set<Path> result;
         try (Stream<Path> s = GlobPathFinder.findPaths(query)) {
             result = s.map(p -> {
@@ -284,15 +293,13 @@ class GlobPathFinderAdditionalScenariosTest {
                     .collect(Collectors.toSet());
         }
 
-        // Assert
+        // Then
         assertThat(result).contains(testFile.toRealPath());
     }
 
-    // -------------------- tests ----------------------
-
     @Test
-    void includeAndExcludeSamePattern_yieldsEmpty() throws IOException {
-        // given
+    void findPaths_includeAndExcludeSamePattern_returnsEmpty() throws IOException {
+        // Given
         writeFile(tempDir.resolve("src/B.java"), "class B {}");
 
         PathQuery query = PathQuery.builder()
@@ -304,7 +311,7 @@ class GlobPathFinderAdditionalScenariosTest {
                 .maxDepth(Integer.MAX_VALUE)
                 .build();
 
-        // when
+        // When
         AtomicReference<List<Path>> result = new AtomicReference<>();
         assertThatNoException().isThrownBy(() -> {
             try (Stream<Path> s = GlobPathFinder.findPaths(query)) {
@@ -312,13 +319,13 @@ class GlobPathFinderAdditionalScenariosTest {
             }
         });
 
-        // then
+        // Then
         assertThat(result.get()).isEmpty();
     }
 
     @Test
-    void includeWithNoMatches_returnsEmpty() throws IOException {
-        // given
+    void findPaths_noMatchingIncludes_returnsEmpty() throws IOException {
+        // Given
         writeFile(tempDir.resolve("src/C.java"), "class C {}");
 
         PathQuery query = PathQuery.builder()
@@ -329,7 +336,7 @@ class GlobPathFinderAdditionalScenariosTest {
                 .maxDepth(Integer.MAX_VALUE)
                 .build();
 
-        // when
+        // When
         AtomicReference<List<Path>> result = new AtomicReference<>();
         assertThatNoException().isThrownBy(() -> {
             try (Stream<Path> s = GlobPathFinder.findPaths(query)) {
@@ -337,13 +344,13 @@ class GlobPathFinderAdditionalScenariosTest {
             }
         });
 
-        // then
+        // Then
         assertThat(result.get()).isEmpty();
     }
 
     @Test
-    void singleFileAbsoluteInclude_findsThatFileOnly() throws IOException {
-        // given
+    void findPaths_singleFileAbsoluteInclude_findsOneFile() throws IOException {
+        // Given
         Path single = writeFile(tempDir.resolve("single/App.java"), "class App {}");
 
         // absolute include without wildcards
@@ -357,20 +364,20 @@ class GlobPathFinderAdditionalScenariosTest {
                 .maxDepth(Integer.MAX_VALUE)
                 .build();
 
-        // when
+        // When
         Set<Path> result;
         try (Stream<Path> s = GlobPathFinder.findPaths(query)) {
             result = toAbsoluteNormalizedSet(s);
         }
 
-        // then
+        // Then
         assertThat(result).containsExactly(single.toAbsolutePath().normalize());
     }
 
     @Test
     @EnabledOnOs(OS.WINDOWS)
-    void windowsBackslashInclude_works() throws IOException {
-        // given
+    void findPaths_windowsBackslashInclude_findsFile() throws IOException {
+        // Given
         Path dir = Files.createDirectories(tempDir.resolve("win"));
         Path javaFile = writeFile(dir.resolve("WinTest.java"), "class WinTest {}");
 
@@ -385,13 +392,13 @@ class GlobPathFinderAdditionalScenariosTest {
                 .maxDepth(Integer.MAX_VALUE)
                 .build();
 
-        // when
+        // When
         Set<Path> result;
         try (Stream<Path> s = GlobPathFinder.findPaths(query)) {
             result = toAbsoluteNormalizedSet(s);
         }
 
-        // then
+        // Then
         assertThat(result).containsExactly(javaFile.toAbsolutePath().normalize());
     }
 
