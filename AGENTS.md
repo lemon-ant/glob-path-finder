@@ -58,8 +58,8 @@ This file defines repository-wide conventions for coding agents working in this 
   - Exception: do not add JavaDoc to standard `Object` overrides such as `equals`, `hashCode`, and `toString`.
 - Annotate every non-private method's reference-type parameters and non-primitive return type with explicit nullability using `lombok.NonNull`, `edu.umd.cs.findbugs.annotations.Nullable`, or the accepted legacy `javax.annotation` nullability annotations already present in the codebase.
 - Do not change standard `Object` method signatures when overriding them.
-    - Do not add nullability annotations to `Object` overrides just to satisfy local conventions.
-    - Preserve standard contracts exactly, especially `equals(Object)`.
+  - Do not add nullability annotations to `Object` overrides just to satisfy local conventions.
+  - Preserve standard contracts exactly, especially `equals(Object)`.
 - Every non-private production method and constructor must have concise JavaDoc that states the purpose, documents parameters, and documents the return value when applicable.
     - Exception: do not add JavaDoc to standard `Object` overrides such as `equals`, `hashCode`, and `toString`.
 - Repository-wide convention: do not introduce Java records in production code or shared test infrastructure; use classes with Lombok instead where appropriate.
