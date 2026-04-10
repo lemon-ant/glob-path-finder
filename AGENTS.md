@@ -41,16 +41,15 @@ This file defines repository-wide conventions for coding agents working in this 
   - Move non-trivial business, filtering, parsing, and transformation logic into dedicated service or processing classes.
 - Explicitly annotate field and non-private method nullability with `@NonNull` / `@Nullable` where applicable; private method parameters may stay implicit when the intent is already obvious.
 - Reference-returning private methods must declare explicit `@NonNull` or `@Nullable` return annotations.
+  - Private method parameters must not use Lombok `@NonNull`; it adds redundant runtime null checks for private helpers.
+  - Use `@Nullable` on a private parameter only when that private helper intentionally accepts `null`; otherwise leave private parameters unannotated.
+  - Place method-level nullability annotations on their own line above the method declaration instead of inline in the signature.
 - Prefer Stream API when it makes the control flow clearer and more concise than imperative loops.
 - If a boolean helper is always consumed through negation at its call sites, invert the helper logic and rename it so callers stay positive and direct.
 - Prefer `get` only for conventional object-model/DTO getters; for computed values, searches, conditional lookups, or transformations, prefer a more specific verb such as `find`, `resolve`, `collect`, `compute`, or `merge`.
 - For non-get behavior methods, start the method name with a clear verb.
   - Prefer explicit verb-led names such as `find`, `resolve`, `collect`, `compute`, `merge`, `parse`, `format`, or `render`.
   - Avoid ambiguous prefixes such as `toXxx` when a clearer verb-based name fits the method behavior.
-- Reference-returning private methods must declare explicit `@NonNull` or `@Nullable` return annotations.
-    - Private method parameters must not use Lombok `@NonNull`; it adds redundant runtime null checks for private helpers.
-  - Use `@Nullable` on a private parameter only when that private helper intentionally accepts `null`; otherwise leave private parameters unannotated.
-  - Place method-level nullability annotations on their own line above the method declaration instead of inline in the signature.
 - Prefer static imports for frequently used assertion/helper methods when repeated type-qualified calls add noise.
 - Do not use `protected` fields; keep fields `private` and expose only the narrow protected accessor methods that subclasses actually need.
 - Prefer the shorter `src*` naming family (`srcFile`, `srcPath`, `srcCode`, `srcDiff`) for source-related variables and parameters.
