@@ -17,9 +17,11 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.Spliterator;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 import lombok.NonNull;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
@@ -40,7 +42,15 @@ import org.slf4j.helpers.MessageFormatter;
  *   <li><b>Excludes</b>: relative/absolute patterns compiled as {@code PathMatcher("glob:...")}.</li>
  *   <li><b>Files/directories</b>: {@code onlyFiles=true} keeps regular files only; otherwise both files and directories may appear.</li>
  *   <li><b>Depth/options</b>: {@code maxDepth} and {@code getVisitOptions()} are passed to {@link java.nio.file.Files#find}.</li>
- *   <li><b>Parallelism</b>: different base directories are scanned in parallel; downstream is {@code unordered()}.</li>
+ *   <li><b>Parallelism</b>: per-entry streams from {@link java.nio.file.Files#find} are merged via
+ *       {@code flatMap} and then wrapped in a {@link BatchingSpliterator} with a fixed batch size
+ *       of 1024. This enables effective parallel splitting via {@code .parallel()}
+ *       without collecting all discovered paths into an intermediate collection.
+ *       Each batch is backed by an array-based spliterator that further splits down to individual
+ *       elements, so work distributes across all available threads.
+ *       Note: {@code distinct()} maintains an internal {@code HashSet} of {@code O(uniquePaths)} for
+ *       deduplication, but paths flow through incrementally — no full path collection is created before
+ *       processing starts.</li>
  *   <li><b>Uniqueness</b>: resulting paths are deduplicated; the stream yields unique entries ({@code distinct()}).</li>
  *   <li><b>Stream safety</b>: the inner stream from {@code Files.find(...)} is closed via {@code onClose} when the outer stream is closed.</li>
  * </ul>
@@ -52,12 +62,22 @@ public class GlobPathFinder {
     public static final String FAILED_TO_START_SCANNING_BASE =
             "Failed to start scanning base '{}'. Skipping this base.";
 
+    private static final int BATCH_SIZE = 1024;
+
     /**
      * Find paths according to the provided {@link PathQuery}.
      *
+     * <p>Per-entry streams from {@link java.nio.file.Files#find} are merged via {@code flatMap}
+     * and then wrapped in a {@link BatchingSpliterator} with a fixed batch size of 1024.
+     * Calling {@code .parallel()} on the result enables
+     * true ForkJoinPool parallelism without collecting all paths into an intermediate collection.
+     * Each batch is backed by an array-based spliterator that further splits down to individual
+     * elements, so work distributes across all available threads.</p>
+     *
      * @param pathQuery configuration (base, include/exclude, extensions, depth, onlyFiles)
      * @return a stream of absolute, normalized and <b>unique</b> paths that satisfy the filters;
-     *         the caller is responsible for closing the returned stream
+     *         the caller must close the returned stream to release underlying file handles;
+     *         call {@code .parallel()} to enable multi-threaded consumption
      * @throws UncheckedIOException on IO errors during traversal
      */
     @NonNull
@@ -93,21 +113,26 @@ public class GlobPathFinder {
         Function<Entry<Path, Set<PathMatcher>>, Function<Stream<Path>, Stream<Path>>> perBasePipelineFactory =
                 buildPerBasePipelineFactory(relativeExcludeMatchers);
 
-        // 4) Start traversal:
-        //    - bases are scanned in parallel via parallelStream(),
-        //    - the bridge is always applied so downstream `.parallel()` can fan out per-path
-        //      regardless of how many bases there are or how files are distributed across them.
-        //      Batch-pull locking keeps overhead low even when multi-base discovery is already parallel.
-        Stream<Path> discoveredPathStream = baseToIncludeMatchers.entrySet().parallelStream()
+        // 4) Build a streaming pipeline by merging per-entry streams via flatMap.
+        // Each entry in the map produces its own Files.find() stream via scanBaseDir().
+        // flatMap lazily opens and auto-closes inner streams as they are consumed,
+        // so file handles are released incrementally rather than held all at once.
+        // The BatchingSpliterator wraps the merged source and enables parallel splitting
+        // by pulling small batches on demand — batch memory is O(batchSize), not O(totalPaths).
+        // Note: distinct() maintains an internal HashSet of O(uniquePaths) for deduplication,
+        // but paths flow through incrementally — no full path collection is created before processing.
+        // Batch size of 1024 matches Java's IteratorSpliterator default and produces
+        // array-backed spliterators that the ForkJoinPool can recursively halve.
+        Stream<Path> merged = baseToIncludeMatchers.entrySet().stream()
                 .flatMap(entry -> scanBaseDir(entry, pathQuery, globalPipeline, perBasePipelineFactory, fileTypeFilter))
-                .unordered()
                 .distinct();
-        Stream<Path> resultPathStream = ParallelStreamBridge.parallelize(discoveredPathStream);
+
+        Spliterator<Path> batchSpliterator = new BatchingSpliterator<>(merged.spliterator(), BATCH_SIZE);
+        Stream<Path> resultPathStream =
+                StreamSupport.stream(batchSpliterator, false).onClose(merged::close);
         if (log.isDebugEnabled()) {
             // DEBUG: final emission (after all filters)
-            resultPathStream = resultPathStream.peek(path -> {
-                log.debug("Emitting {}", path);
-            });
+            resultPathStream = resultPathStream.peek(path -> log.debug("Emitting {}", path));
         }
         return resultPathStream;
     }
