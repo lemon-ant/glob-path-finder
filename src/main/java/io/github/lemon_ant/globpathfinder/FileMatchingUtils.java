@@ -25,6 +25,16 @@ class FileMatchingUtils {
     private static final PathMatcher MATCH_ALL = FileSystems.getDefault().getPathMatcher("glob:**");
     private static final Pattern WINDOWS_DRIVE_PATTERN = Pattern.compile("^[a-zA-Z]:[/\\\\].*");
 
+    /**
+     * Groups the given include glob patterns by their extracted static base directory, compiling
+     * each pattern tail into a {@link PathMatcher}. An empty matcher set for a base signals
+     * "match all" under that base (MATCH_ALL sentinel). If the resulting map is empty (all
+     * patterns were blank), returns a single entry mapping {@code baseDir} to an empty set.
+     *
+     * @param baseDir      the normalized absolute base directory to resolve relative globs against
+     * @param includeGlobs the raw include glob patterns; blank entries are ignored
+     * @return a map from extracted base {@link Path} to the set of compiled {@link PathMatcher}s
+     */
     @NonNull
     static Map<Path, Set<PathMatcher>> computeBaseToIncludeMatchers(
             @NonNull Path baseDir, @NonNull Set<String> includeGlobs) {
@@ -43,11 +53,28 @@ class FileMatchingUtils {
         return Map.of(baseDir, Set.of());
     }
 
+    /**
+     * Returns {@code true} if the given path matches at least one of the provided matchers,
+     * or if the matcher set is empty (empty set means "match all").
+     *
+     * @param pathToMatch  the path to test
+     * @param pathMatchers the set of matchers to check against; an empty set always returns {@code true}
+     * @return {@code true} if the path matches any matcher or the set is empty
+     */
     static boolean isMatchedToPatterns(@NonNull Path pathToMatch, @NonNull Set<PathMatcher> pathMatchers) {
         return pathMatchers.isEmpty() || pathMatchers.stream().anyMatch(matcher -> matcher.matches(pathToMatch));
     }
 
-    static Pair<List<String>, List<String>> partitionAbsoluteAndRelative(Collection<String> patterns) {
+    /**
+     * Partitions the given glob patterns into two lists: absolute patterns (starting with {@code /}
+     * or a Windows drive letter such as {@code C:\}) and relative patterns (everything else).
+     *
+     * @param patterns the raw glob patterns to partition
+     * @return a {@link Pair} where the left list contains absolute patterns and the right list
+     *         contains relative patterns
+     */
+    @NonNull
+    static Pair<List<String>, List<String>> partitionAbsoluteAndRelative(@NonNull Collection<String> patterns) {
         List<String> absolute = new ArrayList<>();
         List<String> relative = new ArrayList<>();
 

@@ -11,28 +11,28 @@ import org.junit.jupiter.api.Test;
 class StringUtilsTest {
 
     @Test
-    void processNormalizedStrings_whenProcessorNormalizesToSameToken_distinctIsPreserved() {
-        // given
+    void processNormalizedStrings_processorNormalizesToSameToken_preservesDistinct() {
+        // Given
         List<String> inputStrings = List.of("gamma", "GAMMA", " gamma ");
         Function<String, String> normalizeToLowerCase = s -> s.trim().toLowerCase();
 
-        // when
+        // When
         Set<String> result = StringUtils.processNormalizedStrings(inputStrings, normalizeToLowerCase);
 
-        // then
+        // Then
         assertThat(result).containsExactly("gamma");
     }
 
     @Test
-    void processNormalizedStrings_withBlanksAndDuplicates_returnsTrimmedProcessedUniqueUnmodifiableSet() {
-        // given: mixed strings (leading/trailing spaces, blanks, duplicates)
+    void processNormalizedStrings_blanksAndDuplicates_returnsTrimmedUniqueSet() {
+        // Given
         List<String> inputStrings = List.of(" alpha ", "  ", "", "\t", "beta", "alpha");
         Function<String, String> toUpperCaseProcessor = String::toUpperCase;
 
-        // when
+        // When
         Set<String> result = StringUtils.processNormalizedStrings(inputStrings, toUpperCaseProcessor);
 
-        // then
+        // Then
         assertThat(result)
                 .as("Result should contain processed, trimmed, unique values")
                 .containsExactlyInAnyOrder("ALPHA", "BETA");
@@ -42,14 +42,14 @@ class StringUtilsTest {
     }
 
     @Test
-    void processNormalizedStrings_withEmptyInput_returnsEmptyUnmodifiableSet() {
-        // given
+    void processNormalizedStrings_emptyInput_returnsEmptySet() {
+        // Given
         List<String> inputStrings = List.of();
 
-        // when
+        // When
         Set<String> result = StringUtils.processNormalizedStrings(inputStrings, s -> s);
 
-        // then
+        // Then
         assertThat(result).isEmpty();
         assertThatThrownBy(() -> result.add("anything")).isInstanceOf(UnsupportedOperationException.class);
     }

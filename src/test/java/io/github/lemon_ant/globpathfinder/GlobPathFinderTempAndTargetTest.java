@@ -24,8 +24,8 @@ import org.junit.jupiter.api.io.TempDir;
 class GlobPathFinderTempAndTargetTest {
 
     @Test
-    void findPaths_twoParallelAbsoluteIncludes_tempAndTarget_areHonored(@TempDir Path tempRoot) throws IOException {
-        // ----- Arrange -----
+    void findPaths_twoAbsoluteIncludes_honorsAllIncludes(@TempDir Path tempRoot) throws IOException {
+        // Given
         // Temp side: create an absolute base with a Java file and a tmp file to be excluded
         Path tempJavaBaseDirectory = Files.createDirectories(tempRoot.resolve("src/main/java"));
         Path tempJavaFile = Files.writeString(tempJavaBaseDirectory.resolve("A.java"), "class A {}");
@@ -64,7 +64,7 @@ class GlobPathFinderTempAndTargetTest {
                 .maxDepth(Integer.MAX_VALUE)
                 .build();
 
-        // ----- Act -----
+        // When
         List<Path> actualPaths;
         try (Stream<Path> foundPaths = GlobPathFinder.findPaths(query)) {
             actualPaths = foundPaths.collect(toUnmodifiableList());
@@ -83,7 +83,7 @@ class GlobPathFinderTempAndTargetTest {
             }
         }
 
-        // ----- Assert -----
+        // Then
         assertThat(actualPaths)
                 .containsExactlyInAnyOrder(tempJavaFile.toAbsolutePath(), targetMarkdownFile.toAbsolutePath())
                 .doesNotContain(tempIgnoredTmpFile.toAbsolutePath());

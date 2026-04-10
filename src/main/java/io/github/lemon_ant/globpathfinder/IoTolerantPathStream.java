@@ -6,6 +6,7 @@ import java.util.Spliterator;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import lombok.NonNull;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 
@@ -57,7 +58,8 @@ class IoTolerantPathStream {
      * @param basePath     context for logging; typically the scanned base directory
      * @return a shielded stream that logs and suppresses late {@code UncheckedIOException}
      */
-    static Stream<Path> wrap(Stream<Path> sourceStream, Path basePath) {
+    @NonNull
+    static Stream<Path> wrap(@NonNull Stream<Path> sourceStream, @NonNull Path basePath) {
         boolean isParallel = sourceStream.isParallel();
         Spliterator<Path> sourceSpliterator = sourceStream.spliterator();
         Spliterator<Path> shielded = createIoTolerantSpliterator(sourceSpliterator, basePath);
@@ -80,6 +82,7 @@ class IoTolerantPathStream {
      * @param basePath base-path context for logging
      * @return shielding spliterator
      */
+    @NonNull
     private static Spliterator<Path> createIoTolerantSpliterator(Spliterator<Path> source, Path basePath) {
         return new Spliterator<>() {
             @Override

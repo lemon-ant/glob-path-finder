@@ -76,6 +76,13 @@ final class BatchingSpliterator<T> implements Spliterator<T> {
         this.batchSize = batchSize;
     }
 
+    /**
+     * Pulls up to {@code batchSize} elements from the source and returns them as an
+     * array-backed spliterator that the {@link java.util.concurrent.ForkJoinPool} can
+     * recursively halve. Returns {@code null} when the source is exhausted.
+     *
+     * @return an array-backed spliterator with the next batch of elements, or {@code null}
+     */
     @Override
     @SuppressWarnings("unchecked")
     public Spliterator<T> trySplit() {
@@ -91,23 +98,47 @@ final class BatchingSpliterator<T> implements Spliterator<T> {
         return (Spliterator<T>) Spliterators.spliterator(batch, 0, count, characteristics());
     }
 
+    /**
+     * Advances by one element from the source spliterator, delegating directly.
+     *
+     * @param action the action to perform on the next element
+     * @return {@code true} if an element was consumed; {@code false} if the source is exhausted
+     */
     @Override
     public boolean tryAdvance(Consumer<? super T> action) {
         return source.tryAdvance(action);
     }
 
+    /**
+     * Iterates all remaining elements from the source spliterator, delegating directly.
+     *
+     * @param action the action to perform on each remaining element
+     */
     @Override
     public void forEachRemaining(Consumer<? super T> action) {
         source.forEachRemaining(action);
     }
 
+    /**
+     * Returns {@link Long#MAX_VALUE} regardless of source estimate, so the
+     * {@link java.util.concurrent.ForkJoinPool} continues calling {@link #trySplit()} eagerly.
+     *
+     * <p>The source estimate is unreliable after wrapping (e.g., {@code flatMap} over
+     * {@code Files.find} streams reports the base-entry count, not the element count).
+     *
+     * @return {@link Long#MAX_VALUE} always
+     */
     @Override
     public long estimateSize() {
-        // The source size is unreliable after wrapping (e.g. flatMap reports base-entry count,
-        // not element count). Report unknown so the ForkJoinPool keeps calling trySplit().
         return Long.MAX_VALUE;
     }
 
+    /**
+     * Returns the characteristics of this spliterator, excluding {@link #SIZED} and
+     * {@link #SUBSIZED} since batch splitting makes those estimates unreliable.
+     *
+     * @return the masked characteristics of the source spliterator
+     */
     @Override
     public int characteristics() {
         return source.characteristics() & ~SIZED & ~SUBSIZED;

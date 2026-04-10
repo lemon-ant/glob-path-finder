@@ -53,7 +53,8 @@ class GlobPatternValidationTest {
 
     @ParameterizedTest(name = "malformedGlobProvider[{index}] -> ''{0}'' should throw")
     @MethodSource("malformedGlobProvider")
-    void validateGlobOrThrow_malformedGlob_shouldThrowIAE(String badGlob) {
+    void validateGlobOrThrow_malformedGlob_throwsIllegalArgument(String badGlob) {
+        // When / Then
         assertThatThrownBy(() -> validateGlobOrThrow(badGlob))
                 .as("Pattern should be rejected: %s", badGlob)
                 .isInstanceOf(IllegalArgumentException.class)
@@ -62,7 +63,8 @@ class GlobPatternValidationTest {
 
     @ParameterizedTest(name = "validButWeirdGlobProvider[{index}] -> ''{0}'' should be accepted")
     @MethodSource("validButWeirdGlobProvider")
-    void validateGlobOrThrow_validButWeirdGlob_shouldNotThrow(String weirdButValid) {
+    void validateGlobOrThrow_validButWeirdGlob_doesNotThrow(String weirdButValid) {
+        // When / Then
         assertThatCode(() -> validateGlobOrThrow(weirdButValid))
                 .as("Pattern should be accepted: %s", weirdButValid)
                 .doesNotThrowAnyException();

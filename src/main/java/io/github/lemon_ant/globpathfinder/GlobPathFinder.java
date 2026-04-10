@@ -59,8 +59,7 @@ import org.slf4j.helpers.MessageFormatter;
 @UtilityClass
 public class GlobPathFinder {
 
-    public static final String FAILED_TO_START_SCANNING_BASE =
-            "Failed to start scanning base '{}'. Skipping this base.";
+    static final String FAILED_TO_START_SCANNING_BASE = "Failed to start scanning base '{}'. Skipping this base.";
 
     private static final int BATCH_SIZE = 1024;
 
@@ -140,6 +139,7 @@ public class GlobPathFinder {
     /**
      * Files.find(...) predicate: either regular files only or pass-through. This is not a stream operator.
      */
+    @NonNull
     private static BiPredicate<Path, BasicFileAttributes> buildFileTypeFilter(boolean onlyFiles) {
         return onlyFiles ? (path, attrs) -> attrs.isRegularFile() : (path, attrs) -> true;
     }
@@ -150,6 +150,7 @@ public class GlobPathFinder {
      * - optionally filters by extension,
      * - optionally filters by absolute excludes.
      */
+    @NonNull
     private static Function<Stream<Path>, Stream<Path>> buildGlobalPipeline(
             Set<String> normalizedExtensions, boolean hasAllowedExtensions, Set<PathMatcher> absoluteExcludeMatchers) {
         // We compose steps only when they are needed. No "path -> true" fallbacks.
@@ -189,6 +190,7 @@ public class GlobPathFinder {
     /**
      * Build lower-cased extension set; empty set disables the extension filter.
      */
+    @NonNull
     private static Set<String> buildNormalizedExtensions(PathQuery pathQuery) {
         return processNormalizedStrings(
                 pathQuery.getAllowedExtensions(), extension -> extension.toLowerCase(Locale.ROOT));
@@ -198,6 +200,7 @@ public class GlobPathFinder {
      * Factory that builds a per-base pipeline. It adds a “relative phase”
      * (relativize → per-base include → relative excludes) only if needed for that specific base.
      */
+    @NonNull
     private static Function<Entry<Path, Set<PathMatcher>>, Function<Stream<Path>, Stream<Path>>>
             buildPerBasePipelineFactory(Set<PathMatcher> relativeExcludeMatchers) {
         return entry -> {
@@ -244,6 +247,7 @@ public class GlobPathFinder {
     /**
      * Split excludes to absolute/relative and compile to PathMatcher(glob:...).
      */
+    @NonNull
     private static Pair<Set<PathMatcher>, Set<PathMatcher>> compileExcludeMatchers(PathQuery pathQuery) {
         Pair<List<String>, List<String>> absoluteAndRelativeExcludes =
                 partitionAbsoluteAndRelative(pathQuery.getExcludeGlobs());
@@ -272,6 +276,7 @@ public class GlobPathFinder {
      *   <li>ensures the inner stream is closed when the resulting stream is closed.</li>
      * </ul>
      */
+    @NonNull
     private static Stream<Path> scanBaseDir(
             Entry<Path, Set<PathMatcher>> baseEntry,
             PathQuery pathQuery,

@@ -13,11 +13,11 @@ import org.junit.jupiter.api.Test;
 class PathQueryTest {
 
     @Test
-    void builder_defaults_shouldSetExpectedDefaults() {
-        // when
+    void builder_defaults_setsExpectedDefaults() {
+        // When
         PathQuery pathQuery = PathQuery.builder().build();
 
-        // then
+        // Then
         assertThat(pathQuery.getBaseDir()).isEqualTo(Path.of("."));
         assertThat(pathQuery.getIncludeGlobs()).isEmpty();
         assertThat(pathQuery.getAllowedExtensions()).isEmpty();
@@ -28,8 +28,8 @@ class PathQueryTest {
     }
 
     @Test
-    void collections_areDefensivelyCopied_shouldNotReflectExternalMutation() {
-        // given
+    void collections_defensivelyCopied_doesNotReflectExternalMutation() {
+        // Given
         Set<String> includes = new HashSet<>(Set.of("**/*.java", "**/*.md"));
         Set<String> exts = new HashSet<>(Set.of("java", "md"));
         Set<String> excludes = new HashSet<>(Set.of("**/generated/**"));
@@ -40,20 +40,20 @@ class PathQueryTest {
                 .excludeGlobs(excludes)
                 .build();
 
-        // when
+        // When
         includes.add("**/*.xml");
         exts.add("xml");
         excludes.add("**/tmp/**");
 
-        // then
+        // Then
         assertThat(pathQuery.getIncludeGlobs()).containsExactlyInAnyOrder("**/*.java", "**/*.md");
         assertThat(pathQuery.getAllowedExtensions()).containsExactlyInAnyOrder("java", "md");
         assertThat(pathQuery.getExcludeGlobs()).containsExactlyInAnyOrder("**/generated/**");
     }
 
     @Test
-    void equalsHashCode_contract_basicShouldWork() {
-        // given
+    void equalsHashCode_identicalPairs_contractSatisfied() {
+        // Given
         PathQuery a1 = PathQuery.builder()
                 .baseDir(Path.of("."))
                 .includeGlobs(Set.of("**/*.java"))
@@ -79,46 +79,46 @@ class PathQueryTest {
                 .includeGlobs(Set.of("**/*"))
                 .build();
 
-        // then
+        // When / Then
         assertThat(a1).isEqualTo(a2);
         assertThat(a1.hashCode()).isEqualTo(a2.hashCode());
         assertThat(a1).isNotEqualTo(b);
     }
 
     @Test
-    void getVisitOptions_followLinksFalse_shouldBeEmpty() {
-        // given
+    void getVisitOptions_followLinksFalse_returnsEmpty() {
+        // Given
         PathQuery pathQuery = PathQuery.builder().followLinks(false).build();
 
-        // when
+        // When
         Set<FileVisitOption> opts = pathQuery.getVisitOptions();
 
-        // then
+        // Then
         assertThat(opts).isEmpty();
     }
 
     @Test
-    void getVisitOptions_followLinksTrue_shouldContainFollowLinks() {
-        // given
+    void getVisitOptions_followLinksTrue_containsFollowLinks() {
+        // Given
         PathQuery pathQuery = PathQuery.builder().followLinks(true).build();
 
-        // when
+        // When
         Set<FileVisitOption> opts = pathQuery.getVisitOptions();
 
-        // then
+        // Then
         assertThat(opts).isEqualTo(EnumSet.of(FileVisitOption.FOLLOW_LINKS));
     }
 
     @Test
-    void getters_returnUnmodifiableSets_shouldThrowOnMutation() {
-        // given
+    void getters_unmodifiableSets_throwOnMutation() {
+        // Given
         PathQuery pathQuery = PathQuery.builder()
                 .includeGlobs(Set.of("**/*.java"))
                 .allowedExtensions(Set.of("java"))
                 .excludeGlobs(Set.of("**/gen/**"))
                 .build();
 
-        // then
+        // When / Then
         assertThatThrownBy(() -> pathQuery.getIncludeGlobs().add("**/*.md"))
                 .isInstanceOf(UnsupportedOperationException.class);
         assertThat(pathQuery.getAllowedExtensions()).isNotNull();
@@ -130,8 +130,8 @@ class PathQueryTest {
     }
 
     @Test
-    void optionalFields_canBeNull_returnEmptySets() {
-        // given
+    void optionalFields_nullInput_defaultsToEmpty() {
+        // Given
         PathQuery pathQuery = PathQuery.builder()
                 .baseDir(null)
                 .includeGlobs(null)
@@ -139,7 +139,7 @@ class PathQueryTest {
                 .excludeGlobs(null)
                 .build();
 
-        // then
+        // Then
         assertThat(pathQuery.getBaseDir()).isEqualTo(Path.of("."));
         assertThat(pathQuery.getIncludeGlobs()).isEmpty();
         assertThat(pathQuery.getAllowedExtensions()).isEmpty();
@@ -147,8 +147,8 @@ class PathQueryTest {
     }
 
     @Test
-    void toBuilder_shouldPreserveAndAllowTweaks() {
-        // given
+    void toBuilder_tweakedField_preservesOtherFields() {
+        // Given
         PathQuery base = PathQuery.builder()
                 .baseDir(Path.of("src"))
                 .includeGlobs(Set.of("**/*.java"))
@@ -159,10 +159,10 @@ class PathQueryTest {
                 .followLinks(false)
                 .build();
 
-        // when
+        // When
         PathQuery tweaked = base.toBuilder().maxDepth(10).build();
 
-        // then
+        // Then
         assertThat(tweaked.getBaseDir()).isEqualTo(Path.of("src"));
         assertThat(tweaked.getIncludeGlobs()).containsExactlyInAnyOrder("**/*.java");
         assertThat(tweaked.getAllowedExtensions()).containsExactlyInAnyOrder("java");
