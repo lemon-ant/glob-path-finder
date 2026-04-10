@@ -160,7 +160,8 @@ void resolveGroups_nestedMatch_winOverParentGroup() {
 Recommended API shape:
 
 - Keep resource identifiers as typed values where feasible (`URL`), not raw strings.
-- Keep resource paths absolute (start with `/`).
+- When using `ClassLoader.getResourceAsStream` (preferred), do not use a leading `/`; classpath resource names are always relative to the classpath root.
+- Only when using `Class#getResourceAsStream` should the path start with `/` to indicate an absolute classpath resource.
 - If you need to resolve a file under a directory, resolve via a dedicated helper, not via deprecated URL constructors.
 
 ### Shared test setup and one-time initialization (avoid repeated work)

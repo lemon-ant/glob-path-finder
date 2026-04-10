@@ -13,6 +13,8 @@ class PathQueryEqualsTest {
     void equals_differentAllowedExtensions_returnsFalse() {
         // Given
         Path base = Paths.get(".").toAbsolutePath().normalize();
+
+        // When
         PathQuery left = buildQuery(base, Set.of("**/*.*"), Set.of("java"), Set.of("**/build/**"), true, true, 42);
         PathQuery right = buildQuery(
                 base,
@@ -25,7 +27,7 @@ class PathQueryEqualsTest {
                 true,
                 42);
 
-        // When / Then
+        // Then
         assertThat(left).isNotEqualTo(right);
     }
 
@@ -34,11 +36,13 @@ class PathQueryEqualsTest {
         // Given
         Path base = Paths.get(".").toAbsolutePath().normalize();
         Path differentBase = resolveDifferentAbsoluteBase(base);
+
+        // When
         PathQuery left = buildQuery(base, Set.of("**/*.java"), Set.of("java"), Set.of("**/build/**"), true, true, 42);
         PathQuery right =
                 buildQuery(differentBase, Set.of("**/*.java"), Set.of("java"), Set.of("**/build/**"), true, true, 42);
 
-        // When / Then
+        // Then
         assertThat(left).isNotEqualTo(right);
     }
 
@@ -46,6 +50,8 @@ class PathQueryEqualsTest {
     void equals_differentExcludeGlobs_returnsFalse() {
         // Given
         Path base = Paths.get(".").toAbsolutePath().normalize();
+
+        // When
         PathQuery left = buildQuery(base, Set.of("**/*.*"), Set.of("java"), Set.of("**/build/**"), true, true, 42);
         PathQuery right = buildQuery(
                 base,
@@ -56,7 +62,7 @@ class PathQueryEqualsTest {
                 true,
                 42);
 
-        // When / Then
+        // Then
         assertThat(left).isNotEqualTo(right);
     }
 
@@ -64,6 +70,8 @@ class PathQueryEqualsTest {
     void equals_differentFollowLinks_returnsFalse() {
         // Given
         Path base = Paths.get(".").toAbsolutePath().normalize();
+
+        // When
         PathQuery left = buildQuery(base, Set.of("**/*.*"), Set.of("java"), Set.of("**/build/**"), true, true, 42);
         PathQuery right = buildQuery(
                 base,
@@ -74,7 +82,7 @@ class PathQueryEqualsTest {
                 false, // different
                 42);
 
-        // When / Then
+        // Then
         assertThat(left).isNotEqualTo(right);
     }
 
@@ -82,6 +90,8 @@ class PathQueryEqualsTest {
     void equals_differentIncludeGlobs_returnsFalse() {
         // Given
         Path base = Paths.get(".").toAbsolutePath().normalize();
+
+        // When
         PathQuery left = buildQuery(base, Set.of("**/*.java"), Set.of("java"), Set.of("**/build/**"), true, true, 42);
         PathQuery right = buildQuery(
                 base,
@@ -92,7 +102,7 @@ class PathQueryEqualsTest {
                 true,
                 42);
 
-        // When / Then
+        // Then
         assertThat(left).isNotEqualTo(right);
     }
 
@@ -100,12 +110,14 @@ class PathQueryEqualsTest {
     void equals_differentMaxDepth_returnsFalse() {
         // Given
         Path base = Paths.get(".").toAbsolutePath().normalize();
+
+        // When
         PathQuery left = buildQuery(base, Set.of("**/*.*"), Set.of("java"), Set.of("**/build/**"), true, true, 42);
         PathQuery right = buildQuery(
                 base, Set.of("**/*.*"), Set.of("java"), Set.of("**/build/**"), true, true, 7 // different
                 );
 
-        // When / Then
+        // Then
         assertThat(left).isNotEqualTo(right);
     }
 
@@ -113,6 +125,8 @@ class PathQueryEqualsTest {
     void equals_differentOnlyFiles_returnsFalse() {
         // Given
         Path base = Paths.get(".").toAbsolutePath().normalize();
+
+        // When
         PathQuery left = buildQuery(base, Set.of("**/*.*"), Set.of("java"), Set.of("**/build/**"), true, true, 42);
         PathQuery right = buildQuery(
                 base,
@@ -123,7 +137,7 @@ class PathQueryEqualsTest {
                 true,
                 42);
 
-        // When / Then
+        // Then
         assertThat(left).isNotEqualTo(right);
     }
 
@@ -141,10 +155,12 @@ class PathQueryEqualsTest {
     void equals_identicalFields_returnsTrueWithMatchingHashCodes() {
         // Given
         Path base = Paths.get(".").toAbsolutePath().normalize();
+
+        // When
         PathQuery left = buildQuery(base, Set.of("**/*.java"), Set.of("java"), Set.of("**/build/**"), true, true, 42);
         PathQuery right = buildQuery(base, Set.of("**/*.java"), Set.of("java"), Set.of("**/build/**"), true, true, 42);
 
-        // When / Then
+        // Then
         assertThat(left).isEqualTo(right);
         assertThat(left.hashCode()).isEqualTo(right.hashCode());
     }

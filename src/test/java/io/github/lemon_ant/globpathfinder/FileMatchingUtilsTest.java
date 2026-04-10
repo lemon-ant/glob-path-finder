@@ -15,8 +15,10 @@ class FileMatchingUtilsTest {
     // ---------- composePattern ----------
     @Test
     void composePattern_emptyRest_returnsNull() throws Exception {
-        // Given / When
+        // Given
         String[] pathSegments = {"a", "b"};
+
+        // When
         String result = ReflectiveMethodInvoker.invokePrivateStatic(
                 FileMatchingUtils.class, "composePattern", 2, pathSegments, false);
 
@@ -26,8 +28,10 @@ class FileMatchingUtilsTest {
 
     @Test
     void composePattern_withTrailingSlash_appendsSlashAtEnd() throws Exception {
-        // Given / When
+        // Given
         String[] pathSegments = {"a", "b"};
+
+        // When
         String result = ReflectiveMethodInvoker.invokePrivateStatic(
                 FileMatchingUtils.class, "composePattern", 0, pathSegments, true);
 
@@ -37,8 +41,10 @@ class FileMatchingUtilsTest {
 
     @Test
     void composePattern_withoutTrailingSlash_buildsSlashSeparated() throws Exception {
-        // Given / When
+        // Given
         String[] pathSegments = {"a", "b", "*.txt"};
+
+        // When
         String result = ReflectiveMethodInvoker.invokePrivateStatic(
                 FileMatchingUtils.class, "composePattern", 1, pathSegments, false);
 

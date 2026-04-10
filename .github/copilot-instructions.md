@@ -23,6 +23,7 @@
 - Avoid cosmetic-only churn in production files (for example adding/removing separator blank lines) when there is no behavioral or readability gain tied to the task.
 - Reuse existing project and library utilities before introducing custom helpers.
 - Prefer explicit Java types over `var`.
+- Prefer normal imports over repeated fully qualified class names.
 - Prefer Lombok for routine boilerplate such as getters, setters, constructors, and `toString` / `equals` / `hashCode` when it matches the surrounding style.
 - For DTO/model/state-holder classes that primarily carry data, prefer immutable Lombok shapes such as `@Value` unless mutability is required.
 - When a simple data-carrier class only needs a narrower constructor than Lombok's default, keep `@Value` and add the constructor visibility override instead of decomposing `@Value` into separate Lombok annotations.
@@ -49,6 +50,7 @@
 - Do not change standard `Object` method signatures when overriding them.
   - Do not add nullability annotations to `Object` overrides just to satisfy local conventions.
   - Preserve standard contracts exactly, especially `equals(Object)`.
+- Use `@UtilityClass` for classes that contain only static utility methods and should never be instantiated; this applies to both production code and test utilities.
 - Every non-private production method and constructor must have concise JavaDoc that states the purpose, documents parameters, and documents the return value when applicable.
 - Do not add JavaDoc to standard `Object` overrides such as `equals`, `hashCode`, and `toString`.
 - Do not introduce Java records in production code or shared test infrastructure; use classes with Lombok instead where appropriate.
@@ -76,8 +78,10 @@
 - JUnit 5 is the test runner.
 - AssertJ is the assertion library.
 - Do not use `org.junit.jupiter.api.Assertions.*` in new or updated tests.
+- Prefer ordinary imports over repeated fully qualified names in test code.
 - Prefer using production pipeline building blocks such as parsers, converters, compilers, and factories instead of test-only reimplementations.
 - When an annotation argument in test code only repeats the library or framework default behavior, omit it instead of spelling it out explicitly.
+- When test code overrides standard `Object` methods, preserve the standard signature exactly; do not add nullability annotations to `Object` overrides in tests.
 
 ### Code reuse and deduplication
 
@@ -144,7 +148,8 @@
 - Use shared helpers such as `TestCaseResourceUtils` to read resources.
 - If a regression test verifies the built-in default configuration, load the real embedded `default-config.yml` through the production default-loading path instead of duplicating it in test fixtures or inline YAML.
 - Keep resource identifiers as typed values where feasible, such as `URL`, not raw strings.
-- Keep resource paths absolute, starting with `/`.
+- When using `ClassLoader.getResourceAsStream` (preferred), do not use a leading `/`; classpath resource names are always relative to the classpath root.
+- Only when using `Class#getResourceAsStream` should the path start with `/` to indicate an absolute classpath resource.
 - If you need to resolve a file under a directory, resolve it via a dedicated helper, not via deprecated URL constructors.
 
 ### Shared test setup and one-time initialization

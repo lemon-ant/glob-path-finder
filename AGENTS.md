@@ -60,8 +60,7 @@ This file defines repository-wide conventions for coding agents working in this 
 - Do not change standard `Object` method signatures when overriding them.
   - Do not add nullability annotations to `Object` overrides just to satisfy local conventions.
   - Preserve standard contracts exactly, especially `equals(Object)`.
-- Every non-private production method and constructor must have concise JavaDoc that states the purpose, documents parameters, and documents the return value when applicable.
-    - Exception: do not add JavaDoc to standard `Object` overrides such as `equals`, `hashCode`, and `toString`.
+- Use `@UtilityClass` for classes that contain only static utility methods and should never be instantiated; this applies to both production code and test utilities.
 - Repository-wide convention: do not introduce Java records in production code or shared test infrastructure; use classes with Lombok instead where appropriate.
   - Java fixtures under `src/test/resources/test-cases/**` may still use records when a scenario explicitly tests record handling.
 - If a utility is shared across processing phases (for example translator and sorter), place it in a neutral package instead of under a phase-specific package.
