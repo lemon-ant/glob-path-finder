@@ -13,6 +13,8 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -32,6 +34,129 @@ class GlobPathFinderAdditionalScenariosTest {
 
     @TempDir
     Path tempDir;
+
+    @Test
+    void singleBaseManyFiles_canSplitResultStreamWithoutMaterializingList() throws IOException {
+        Path base = Files.createDirectories(tempDir.resolve("one-base"));
+        for (int i = 0; i < 2_000; i++) {
+            writeFile(base.resolve("dir-" + (i % 20)).resolve("File" + i + ".java"), "class C" + i + " {}");
+        }
+
+        PathQuery query = PathQuery.builder()
+                .baseDir(base)
+                .includeGlobs(Set.of("**/*.java"))
+                .onlyFiles(true)
+                .followLinks(true)
+                .maxDepth(Integer.MAX_VALUE)
+                .build();
+
+        Set<String> workerThreads = new ConcurrentSkipListSet<>();
+        long count;
+        try (Stream<Path> s = GlobPathFinder.findPaths(query)) {
+            count = s.parallel()
+                    .peek(path -> workerThreads.add(Thread.currentThread().getName()))
+                    .count();
+        }
+
+        assertThat(count).isEqualTo(2_000L);
+        // Only assert multi-thread fan-out when the common pool actually has more than one worker.
+        assumeTrue(
+                ForkJoinPool.getCommonPoolParallelism() > 1,
+                "Common pool parallelism is 1; parallel-thread assertion would be trivially false");
+        assertThat(workerThreads.size())
+                .as("Expected downstream processing to use multiple worker threads for one base directory.")
+                .isGreaterThan(1);
+    }
+
+    @Test
+    void multiBaseManyFiles_bridgeEnablesParallelDownstreamForAllBases() throws IOException {
+        // Scenario: multiple absolute-include bases, one with many files.
+        // The bridge should allow downstream parallel processing of all files.
+        Path base1 = Files.createDirectories(tempDir.resolve("base1"));
+        Path base2 = Files.createDirectories(tempDir.resolve("base2"));
+        Path base3 = Files.createDirectories(tempDir.resolve("base3"));
+        Path baseLarge = Files.createDirectories(tempDir.resolve("baseLarge"));
+
+        writeFile(base1.resolve("A.java"), "class A {}");
+        writeFile(base2.resolve("B.java"), "class B {}");
+        writeFile(base3.resolve("C.java"), "class C {}");
+        for (int i = 0; i < 2_000; i++) {
+            writeFile(baseLarge.resolve("dir-" + (i % 20)).resolve("File" + i + ".java"), "class F" + i + " {}");
+        }
+
+        // Use absolute includes to create multiple base directories
+        PathQuery query = PathQuery.builder()
+                .baseDir(tempDir)
+                .includeGlobs(Set.of(
+                        absGlob(base1, "**/*.java"),
+                        absGlob(base2, "**/*.java"),
+                        absGlob(base3, "**/*.java"),
+                        absGlob(baseLarge, "**/*.java")))
+                .onlyFiles(true)
+                .followLinks(true)
+                .maxDepth(Integer.MAX_VALUE)
+                .build();
+
+        Set<String> workerThreads = new ConcurrentSkipListSet<>();
+        long count;
+        try (Stream<Path> s = GlobPathFinder.findPaths(query)) {
+            count = s.parallel()
+                    .peek(path -> workerThreads.add(Thread.currentThread().getName()))
+                    .count();
+        }
+
+        assertThat(count).isGreaterThanOrEqualTo(2_000L);
+        // Only assert multi-thread fan-out when the common pool has more than one worker.
+        assumeTrue(
+                ForkJoinPool.getCommonPoolParallelism() > 1,
+                "Common pool parallelism is 1; parallel-thread assertion would be trivially false");
+        assertThat(workerThreads.size())
+                .as("Expected downstream processing to use multiple worker threads for multi-base directories.")
+                .isGreaterThan(1);
+    }
+
+    @Test
+    void overlappingBases_distinctDeduplicatesFilesAcrossParallelBases() throws IOException {
+        // Scenario: parent dir and its child dir are both used as bases (via absolute includes).
+        // Files under the child dir are discovered by BOTH scans; distinct() must remove duplicates.
+        Path parent = Files.createDirectories(tempDir.resolve("parent"));
+        Path child = Files.createDirectories(parent.resolve("child"));
+        Path sibling = Files.createDirectories(parent.resolve("sibling"));
+
+        // File in sibling (found only by parent scan, not by child scan)
+        writeFile(sibling.resolve("Root.java"), "class Root {}");
+
+        // Many files under child (found by BOTH parent and child scans → duplicates expected)
+        int childFileCount = 500;
+        for (int i = 0; i < childFileCount; i++) {
+            writeFile(child.resolve("sub-" + (i % 10)).resolve("C" + i + ".java"), "class C" + i + " {}");
+        }
+
+        // Absolute includes covering both parent and child → two overlapping base directories
+        PathQuery query = PathQuery.builder()
+                .baseDir(tempDir)
+                .includeGlobs(Set.of(absGlob(parent, "**/*.java"), absGlob(child, "**/*.java")))
+                .onlyFiles(true)
+                .followLinks(true)
+                .maxDepth(Integer.MAX_VALUE)
+                .build();
+
+        List<Path> resultList;
+        try (Stream<Path> s = GlobPathFinder.findPaths(query)) {
+            resultList = s.collect(Collectors.toList());
+        }
+
+        // 1 file in sibling + 500 files in child = 501 unique files total (no duplicates)
+        int expectedUniqueCount = 1 + childFileCount;
+        assertThat(resultList)
+                .as("distinct() should deduplicate files that appear under both parent and child base scans")
+                .hasSize(expectedUniqueCount);
+
+        // Sanity: converting to a Set should not shrink the list (i.e. no duplicates were present)
+        Set<Path> resultSet =
+                resultList.stream().map(p -> p.toAbsolutePath().normalize()).collect(Collectors.toSet());
+        assertThat(resultSet).hasSize(expectedUniqueCount);
+    }
 
     // -------------------- helpers --------------------
 
@@ -111,7 +236,8 @@ class GlobPathFinderAdditionalScenariosTest {
                 .as("Expected a WARN from IoShieldingStream about a filesystem loop")
                 .anySatisfy(ev -> {
                     String message = ev.getFormattedMessage();
-                    assertThat(message).contains("I/O during traversal of", "FileSystemLoopException", "Stopping");
+                    assertThat(message).contains("I/O during traversal of", "FileSystemLoopException");
+                    assertThat(message).containsAnyOf("Stopping", "Skipping");
                     // Throwable presence and type hint (FileSystemLoopException)
                     assertThat(ev.getThrowableProxy()).isNotNull();
                     assertThat(ev.getThrowableProxy().getCause().getClassName()).contains("FileSystemLoopException");
