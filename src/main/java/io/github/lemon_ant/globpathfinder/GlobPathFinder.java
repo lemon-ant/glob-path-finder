@@ -25,8 +25,6 @@ import java.util.stream.StreamSupport;
 import lombok.NonNull;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.helpers.MessageFormatter;
 
@@ -145,6 +143,24 @@ public class GlobPathFinder {
     }
 
     /**
+     * Extracts the file extension from the given path (the part after the last dot
+     * in the file name). Returns an empty string when there is no extension.
+     *
+     * @param path the path to extract the extension from
+     * @return the file extension without the leading dot, or an empty string
+     */
+    @NonNull
+    private static String findExtension(Path path) {
+        Path fileName = path.getFileName();
+        if (fileName == null) {
+            return "";
+        }
+        String name = fileName.toString();
+        int dotIndex = name.lastIndexOf('.');
+        return dotIndex == -1 ? "" : name.substring(dotIndex + 1);
+    }
+
+    /**
      * Compose the global (base-agnostic) pipeline that:
      * - optionally logs raw discoveries,
      * - optionally filters by extension,
@@ -165,7 +181,7 @@ public class GlobPathFinder {
         if (hasAllowedExtensions) {
             globalPipeline = globalPipeline.andThen(pathStream -> pathStream.filter(path -> {
                 // Compute extension lazily only when this step exists.
-                String extension = StringUtils.lowerCase(FilenameUtils.getExtension(path.toString()));
+                String extension = findExtension(path).toLowerCase(Locale.ROOT);
                 return normalizedExtensions.contains(extension);
             }));
             if (log.isTraceEnabled()) {
