@@ -14,7 +14,7 @@ class StringUtilsTest {
     void processNormalizedStrings_processorNormalizesToSameToken_preservesDistinct() {
         // Given
         List<String> inputStrings = List.of("gamma", "GAMMA", " gamma ");
-        Function<String, String> normalizeToLowerCase = s -> s.trim().toLowerCase();
+        Function<String, String> normalizeToLowerCase = value -> value.trim().toLowerCase();
 
         // When
         Set<String> result = StringUtils.processNormalizedStrings(inputStrings, normalizeToLowerCase);
@@ -47,7 +47,7 @@ class StringUtilsTest {
         List<String> inputStrings = List.of();
 
         // When
-        Set<String> result = StringUtils.processNormalizedStrings(inputStrings, s -> s);
+        Set<String> result = StringUtils.processNormalizedStrings(inputStrings, value -> value);
 
         // Then
         assertThat(result).isEmpty();

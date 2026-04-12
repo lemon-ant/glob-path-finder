@@ -176,8 +176,8 @@ public class GlobPathFinder {
 
         // Absolute excludes
         if (!absoluteExcludeMatchers.isEmpty()) {
-            globalPipeline = globalPipeline.andThen(pathStream ->
-                    pathStream.filter(path -> absoluteExcludeMatchers.stream().noneMatch(m -> m.matches(path))));
+            globalPipeline = globalPipeline.andThen(pathStream -> pathStream.filter(
+                    path -> absoluteExcludeMatchers.stream().noneMatch(matcher -> matcher.matches(path))));
             if (log.isTraceEnabled()) {
                 globalPipeline = globalPipeline.andThen(
                         pathStream -> pathStream.peek(path -> log.trace("Passed exclude absolute filter {}", path)));
@@ -230,7 +230,7 @@ public class GlobPathFinder {
             // 3) relative excludes (only if configured at all)
             if (hasRelativeExcludes) {
                 perBaseDirPipeline = perBaseDirPipeline.andThen(pathStream -> pathStream.filter(
-                        relPath -> relativeExcludeMatchers.stream().noneMatch(m -> m.matches(relPath))));
+                        relPath -> relativeExcludeMatchers.stream().noneMatch(matcher -> matcher.matches(relPath))));
                 if (log.isTraceEnabled()) {
                     perBaseDirPipeline = perBaseDirPipeline.andThen(pathStream ->
                             pathStream.peek(path -> log.trace("Passed exclude relative filter {}", path)));

@@ -16,7 +16,7 @@ import org.junit.jupiter.api.io.TempDir;
 class GlobPathFinderTest {
 
     @TempDir
-    Path tmp;
+    Path tempDir;
 
     @Test
     void findPaths_basicInclude_returnsMatchingFiles() throws Exception {
@@ -25,13 +25,13 @@ class GlobPathFinderTest {
         createFile("a/Util.md");
         createFile("b/c/Nested.java");
 
-        PathQuery q = PathQuery.builder()
-                .baseDir(tmp)
+        PathQuery query = PathQuery.builder()
+                .baseDir(tempDir)
                 .includeGlobs(Set.of("**/*.java"))
                 .build();
 
         // When
-        Set<String> result = collectToRelStringSet(GlobPathFinder.findPaths(q), tmp);
+        Set<String> result = collectToRelStringSet(GlobPathFinder.findPaths(query), tempDir);
 
         // Then
         assertThat(result).containsExactlyInAnyOrder("a/Main.java", "b/c/Nested.java");
@@ -44,14 +44,14 @@ class GlobPathFinderTest {
         createFile("src/app/App.java");
         createFile("src/app/impl/Impl.java");
 
-        PathQuery q = PathQuery.builder()
-                .baseDir(tmp.resolve("src"))
+        PathQuery query = PathQuery.builder()
+                .baseDir(tempDir.resolve("src"))
                 .includeGlobs(Set.of("**/*.java"))
                 .excludeGlobs(Set.of("gen/**", "**/impl/**"))
                 .build();
 
         // When
-        Set<String> result = collectToRelStringSet(GlobPathFinder.findPaths(q), tmp.resolve("src"));
+        Set<String> result = collectToRelStringSet(GlobPathFinder.findPaths(query), tempDir.resolve("src"));
 
         // Then
         assertThat(result).containsExactlyInAnyOrder("app/App.java");
@@ -64,14 +64,14 @@ class GlobPathFinderTest {
         createFile("src/B.java");
         createFile("src/C.txt");
 
-        PathQuery q = PathQuery.builder()
-                .baseDir(tmp.resolve("src"))
+        PathQuery query = PathQuery.builder()
+                .baseDir(tempDir.resolve("src"))
                 .includeGlobs(Set.of("**"))
                 .allowedExtensions(Set.of("java"))
                 .build();
 
         // When
-        Set<String> result = collectToRelStringSet(GlobPathFinder.findPaths(q), tmp.resolve("src"));
+        Set<String> result = collectToRelStringSet(GlobPathFinder.findPaths(query), tempDir.resolve("src"));
 
         // Then
         assertThat(result).containsExactlyInAnyOrder("A.JAVA", "B.java");
@@ -84,14 +84,14 @@ class GlobPathFinderTest {
         createFile("src/level1/L1.java");
         createFile("src/level1/level2/L2.java");
 
-        PathQuery q = PathQuery.builder()
-                .baseDir(tmp.resolve("src"))
+        PathQuery query = PathQuery.builder()
+                .baseDir(tempDir.resolve("src"))
                 .includeGlobs(Set.of("**.java"))
                 .maxDepth(1) // only src/* level
                 .build();
 
         // When
-        Set<String> result = collectToRelStringSet(GlobPathFinder.findPaths(q), tmp.resolve("src"));
+        Set<String> result = collectToRelStringSet(GlobPathFinder.findPaths(query), tempDir.resolve("src"));
 
         // Then
         assertThat(result).containsExactlyInAnyOrder("L0.java");
@@ -103,13 +103,13 @@ class GlobPathFinderTest {
         createFile("m/src/A.java");
         createFile("m/test/A.java");
 
-        PathQuery q = PathQuery.builder()
-                .baseDir(tmp.resolve("m"))
+        PathQuery query = PathQuery.builder()
+                .baseDir(tempDir.resolve("m"))
                 .includeGlobs(Set.of("**/*.java", "src/**/*.java"))
                 .build();
 
         // When
-        Set<String> result = collectToRelStringSet(GlobPathFinder.findPaths(q), tmp.resolve("m"));
+        Set<String> result = collectToRelStringSet(GlobPathFinder.findPaths(query), tempDir.resolve("m"));
 
         // Then
         // No duplicates even if matched by both patterns.
@@ -122,19 +122,19 @@ class GlobPathFinderTest {
         createDir("d1/inner");
         createFile("d1/inner/X.txt");
 
-        PathQuery q = PathQuery.builder()
-                .baseDir(tmp)
+        PathQuery query = PathQuery.builder()
+                .baseDir(tempDir)
                 .includeGlobs(Set.of("**/*")) // include everything
                 .onlyFiles(false)
                 .build();
 
         // When
-        List<String> all =
-                collectToRelStringSet(GlobPathFinder.findPaths(q), tmp).stream().collect(toUnmodifiableList());
+        List<String> all = collectToRelStringSet(GlobPathFinder.findPaths(query), tempDir).stream()
+                .collect(toUnmodifiableList());
 
         // Then
         // Should contain both the directory and the file somewhere in the results.
-        assertThat(all).anyMatch(p -> p.endsWith("d1/inner")).anyMatch(p -> p.endsWith("X.txt"));
+        assertThat(all).anyMatch(path -> path.endsWith("d1/inner")).anyMatch(path -> path.endsWith("X.txt"));
     }
 
     @Test
@@ -146,13 +146,13 @@ class GlobPathFinderTest {
 
         String absPattern = absBase.toAbsolutePath().toString().replace('\\', '/') + "**.java";
 
-        PathQuery q = PathQuery.builder()
-                .baseDir(tmp) // baseDir is tmp, but include has an absolute glob
+        PathQuery query = PathQuery.builder()
+                .baseDir(tempDir) // baseDir is tempDir, but include has an absolute glob
                 .includeGlobs(Set.of(absPattern, "**/two/*.java"))
                 .build();
 
         // When
-        Set<String> result = collectToRelStringSet(GlobPathFinder.findPaths(q), tmp);
+        Set<String> result = collectToRelStringSet(GlobPathFinder.findPaths(query), tempDir);
 
         // Then
         assertThat(result).containsExactlyInAnyOrder("abs/One.java", "abs/two/Two.java");
@@ -162,9 +162,9 @@ class GlobPathFinderTest {
     void findPaths_normalizedBase_returnsAbsolutePaths() throws Exception {
         // Given
         Path expectedFile = createFile("abscheck/F.java");
-        Path baseDir = tmp.resolve("abscheck");
+        Path baseDir = tempDir.resolve("abscheck");
 
-        PathQuery q = PathQuery.builder()
+        PathQuery query = PathQuery.builder()
                 .baseDir(baseDir)
                 .includeGlobs(Set.of("**/*.java", "F.java")) // only one real file
                 .allowedExtensions(Set.of("java"))
@@ -172,7 +172,7 @@ class GlobPathFinderTest {
 
         // When
         List<Path> actualPaths;
-        try (Stream<Path> foundPaths = GlobPathFinder.findPaths(q)) {
+        try (Stream<Path> foundPaths = GlobPathFinder.findPaths(query)) {
             actualPaths = foundPaths.collect(toUnmodifiableList());
         }
 
@@ -185,35 +185,36 @@ class GlobPathFinderTest {
     void findPaths_closedViaResources_completesNormally() throws Exception {
         // Given
         createFile("z/A.java");
-        PathQuery q = PathQuery.builder()
-                .baseDir(tmp)
+        PathQuery query = PathQuery.builder()
+                .baseDir(tempDir)
                 .includeGlobs(Set.of("**/*.java"))
                 .build();
 
         // When / Then (no exceptions and results available)
-        try (Stream<Path> s = GlobPathFinder.findPaths(q)) {
-            assertThat(s.collect(Collectors.toSet())).hasSize(1);
+        try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
+            assertThat(pathStream.collect(Collectors.toSet())).hasSize(1);
         }
     }
 
-    private Set<String> collectToRelStringSet(Stream<Path> s, Path base) {
-        // Compare results as paths relative to tmp for stability across OS/roots.
-        try (s) {
-            return s.map(path -> base.relativize(path).normalize().toString())
+    private Set<String> collectToRelStringSet(Stream<Path> pathStream, Path base) {
+        // Compare results as paths relative to tempDir for stability across OS/roots.
+        try (pathStream) {
+            return pathStream
+                    .map(path -> base.relativize(path).normalize().toString())
                     .map(path -> path.replace('\\', '/'))
                     .collect(Collectors.toUnmodifiableSet());
         }
     }
 
-    private Path createDir(String rel) throws IOException {
-        Path p = tmp.resolve(rel);
-        Files.createDirectories(p);
-        return p;
+    private Path createDir(String relativePath) throws IOException {
+        Path directoryPath = tempDir.resolve(relativePath);
+        Files.createDirectories(directoryPath);
+        return directoryPath;
     }
 
-    private Path createFile(String rel) throws IOException {
-        Path p = tmp.resolve(rel);
-        Files.createDirectories(p.getParent());
-        return Files.createFile(p);
+    private Path createFile(String relativePath) throws IOException {
+        Path filePath = tempDir.resolve(relativePath);
+        Files.createDirectories(filePath.getParent());
+        return Files.createFile(filePath);
     }
 }
