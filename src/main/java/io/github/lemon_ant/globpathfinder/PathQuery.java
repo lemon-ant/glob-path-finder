@@ -196,21 +196,6 @@ public class PathQuery {
         this.failFastOnError = ofNullable(failFastOnError).orElse(true);
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (!(o instanceof PathQuery)) {
-            return false;
-        }
-
-        PathQuery pathQuery = (PathQuery) o;
-        return maxDepth == pathQuery.maxDepth
-                && onlyFiles == pathQuery.onlyFiles
-                && followLinks == pathQuery.followLinks
-                && baseDir.equals(pathQuery.baseDir)
-                && includeGlobs.equals(pathQuery.includeGlobs)
-                && allowedExtensions.equals(pathQuery.allowedExtensions)
-                && excludeGlobs.equals(pathQuery.excludeGlobs);
-    }
 
     /**
      * Computes the visit options derived from this configuration.
@@ -225,17 +210,5 @@ public class PathQuery {
     @NonNull
     public Set<FileVisitOption> getVisitOptions() {
         return followLinks ? EnumSet.of(FileVisitOption.FOLLOW_LINKS) : Set.of();
-    }
-
-    @Override
-    public int hashCode() {
-        int result = baseDir.hashCode();
-        result = 31 * result + includeGlobs.hashCode();
-        result = 31 * result + allowedExtensions.hashCode();
-        result = 31 * result + excludeGlobs.hashCode();
-        result = 31 * result + maxDepth;
-        result = 31 * result + Boolean.hashCode(onlyFiles);
-        result = 31 * result + Boolean.hashCode(followLinks);
-        return result;
     }
 }
