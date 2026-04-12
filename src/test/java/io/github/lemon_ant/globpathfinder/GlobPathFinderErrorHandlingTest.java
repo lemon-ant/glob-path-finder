@@ -2,12 +2,14 @@ package io.github.lemon_ant.globpathfinder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFileAttributeView;
@@ -134,5 +136,46 @@ class GlobPathFinderErrorHandlingTest {
                         PosixFilePermission.OWNER_READ,
                         PosixFilePermission.OWNER_WRITE,
                         PosixFilePermission.OWNER_EXECUTE));
+    }
+
+    @Test
+    void findPaths_failFastEnabled_nonExistentBase_throwsUncheckedIOException() {
+        // Given
+        Path nonExistingBase = tempDir.resolve("does-not-exist");
+        PathQuery query = PathQuery.builder()
+                .baseDir(nonExistingBase)
+                .includeGlobs(Set.of("**/*.txt"))
+                .failFastOnError(true)
+                .build();
+
+        // When / Then
+        assertThatThrownBy(() -> {
+                    try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
+                        pathStream.collect(Collectors.toList());
+                    }
+                })
+                .isInstanceOf(UncheckedIOException.class);
+    }
+
+    @Test
+    void findPaths_failSafeEnabled_existingBase_traversesShieldedStream() throws IOException {
+        // Given
+        Path base = tempDir.resolve("safe");
+        Files.createDirectories(base.resolve("sub"));
+        Files.writeString(base.resolve("sub/Hello.java"), "class Hello {}");
+        PathQuery query = PathQuery.builder()
+                .baseDir(base)
+                .includeGlobs(Set.of("**/*.java"))
+                .failFastOnError(false)
+                .build();
+
+        // When
+        List<Path> result;
+        try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
+            result = pathStream.collect(Collectors.toUnmodifiableList());
+        }
+
+        // Then
+        assertThat(result).hasSize(1);
     }
 }

@@ -147,6 +147,15 @@ class PathQueryTest {
     }
 
     @Test
+    void maxDepth_negativeValue_treatedAsUnlimited() {
+        // When
+        PathQuery pathQuery = PathQuery.builder().maxDepth(-1).build();
+
+        // Then
+        assertThat(pathQuery.getMaxDepth()).isEqualTo(Integer.MAX_VALUE);
+    }
+
+    @Test
     void toBuilder_tweakedField_preservesOtherFields() {
         // Given
         PathQuery base = PathQuery.builder()
