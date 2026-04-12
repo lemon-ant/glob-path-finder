@@ -2,7 +2,10 @@ package io.github.lemon_ant.globpathfinder;
 
 import static java.util.stream.Collectors.toUnmodifiableList;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -12,6 +15,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.slf4j.LoggerFactory;
 
 class GlobPathFinderTest {
 
@@ -194,6 +198,92 @@ class GlobPathFinderTest {
         try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
             assertThat(pathStream.collect(Collectors.toSet())).hasSize(1);
         }
+    }
+
+    @Test
+    void findPaths_nullQuery_throwsNullPointerException() {
+        // When / Then
+        assertThatThrownBy(() -> GlobPathFinder.findPaths(null)).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void findPaths_defaultSettings_returnsAllFiles() throws Exception {
+        // Given
+        createFile("a/One.java");
+        createFile("b/Two.txt");
+        PathQuery query = PathQuery.builder().baseDir(tempDir).build();
+
+        // When
+        Set<String> result = collectToRelStringSet(GlobPathFinder.findPaths(query), tempDir);
+
+        // Then
+        assertThat(result).containsExactlyInAnyOrder("a/One.java", "b/Two.txt");
+    }
+
+    @Test
+    void findPaths_matchAllIncludeWithRelativeExcludes_excludesMatches() throws Exception {
+        // Given – empty includeGlobs (MATCH_ALL for the base) + a relative exclude
+        createFile("src/Keep.java");
+        createFile("src/gen/Skip.java");
+        PathQuery query = PathQuery.builder()
+                .baseDir(tempDir.resolve("src"))
+                .excludeGlobs(Set.of("gen/**"))
+                .build();
+
+        // When
+        Set<String> result = collectToRelStringSet(GlobPathFinder.findPaths(query), tempDir.resolve("src"));
+
+        // Then
+        assertThat(result).containsExactlyInAnyOrder("Keep.java");
+    }
+
+    @Test
+    void findPaths_allowedExtensionsSet_excludesNoExtensionFile() throws Exception {
+        // Given
+        createFile("ext/Hello.java");
+        createFile("ext/README");
+        PathQuery query = PathQuery.builder()
+                .baseDir(tempDir.resolve("ext"))
+                .allowedExtensions(Set.of("java"))
+                .build();
+
+        // When
+        Set<String> result = collectToRelStringSet(GlobPathFinder.findPaths(query), tempDir.resolve("ext"));
+
+        // Then
+        assertThat(result).containsExactlyInAnyOrder("Hello.java");
+    }
+
+    @Test
+    void findPaths_traceLoggingEnabled_returnsFilteredResults() throws Exception {
+        // Given
+        createFile("trc/sub/App.java");
+        createFile("trc/gen/Gen.java");
+        Logger logger = (Logger) LoggerFactory.getLogger(GlobPathFinder.class);
+        Level original = logger.getLevel();
+        logger.setLevel(Level.TRACE);
+        String absExclude = tempDir.resolve("trc/gen")
+                        .toAbsolutePath()
+                        .normalize()
+                        .toString()
+                        .replace('\\', '/') + "/**";
+        PathQuery query = PathQuery.builder()
+                .baseDir(tempDir.resolve("trc"))
+                .includeGlobs(Set.of("**/*.java"))
+                .allowedExtensions(Set.of("java"))
+                .excludeGlobs(Set.of("gen/**", absExclude))
+                .build();
+
+        // When
+        Set<String> result;
+        try {
+            result = collectToRelStringSet(GlobPathFinder.findPaths(query), tempDir.resolve("trc"));
+        } finally {
+            logger.setLevel(original);
+        }
+
+        // Then
+        assertThat(result).containsExactlyInAnyOrder("sub/App.java");
     }
 
     private Set<String> collectToRelStringSet(Stream<Path> pathStream, Path base) {
