@@ -196,7 +196,6 @@ public class PathQuery {
         this.failFastOnError = ofNullable(failFastOnError).orElse(true);
     }
 
-
     /**
      * Computes the visit options derived from this configuration.
      * <br/>Current behavior:
