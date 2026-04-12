@@ -16,8 +16,11 @@ import org.junit.jupiter.params.provider.MethodSource;
  * - Valid (even if unusual) patterns should not throw.
  * <p>
  * Notes:
- * - We emulate library validation via FileSystems.getDefault().getPathMatcher("glob:" + pattern).
- * - This matches how JDK parses glob-syntax before translating it to regex.
+ * - We emulate library validation via AntStylePathMatcher.compile(pattern) for Ant-style patterns
+ *   and FileSystems.getDefault().getPathMatcher("glob:" + pattern) for JDK-specific patterns.
+ * - The Ant-style matcher delegates to Plexus SelectorUtils, which is lenient on some syntax
+ *   that the JDK rejects (e.g., unclosed character classes). We keep the JDK validation for
+ *   patterns that are expected to be structurally invalid.
  */
 class GlobPatternValidationTest {
 
@@ -78,7 +81,7 @@ class GlobPatternValidationTest {
      */
     private static void validateGlobOrThrow(String pattern) {
         try {
-            // Compile to trigger JDK glob parsing; we discard the matcher itself.
+            // Compile via JDK glob parsing to validate syntax structure.
             FileSystems.getDefault().getPathMatcher("glob:" + pattern);
         } catch (RuntimeException e) {
             // Normalize to IAE with the original cause and pattern echoed for clarity.

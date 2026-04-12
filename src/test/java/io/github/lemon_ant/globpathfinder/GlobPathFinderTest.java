@@ -148,7 +148,7 @@ class GlobPathFinderTest {
         createFile("abs/One.java");
         createFile("abs/two/Two.java");
 
-        String absPattern = absBase.toAbsolutePath().toString().replace('\\', '/') + "**.java";
+        String absPattern = absBase.toAbsolutePath().toString().replace('\\', '/') + "/**/*.java";
 
         PathQuery query = PathQuery.builder()
                 .baseDir(tempDir) // baseDir is tempDir, but include has an absolute glob
@@ -235,6 +235,43 @@ class GlobPathFinderTest {
 
         // Then
         assertThat(result).containsExactlyInAnyOrder("Keep.java");
+    }
+
+    @Test
+    void findPaths_doubleStarGlob_matchesFilesInBaseDir() throws Exception {
+        // Given — file directly in baseDir, no subdirectory
+        createFile("antglob/Root.java");
+        createFile("antglob/sub/Nested.java");
+
+        PathQuery query = PathQuery.builder()
+                .baseDir(tempDir.resolve("antglob"))
+                .includeGlobs(Set.of("**/*.java"))
+                .build();
+
+        // When
+        Set<String> result = collectToRelStringSet(GlobPathFinder.findPaths(query), tempDir.resolve("antglob"));
+
+        // Then — Root.java must be found (** matches zero directories per Ant/Maven convention)
+        assertThat(result).containsExactlyInAnyOrder("Root.java", "sub/Nested.java");
+    }
+
+    @Test
+    void findPaths_doubleStarExclude_excludesFilesInBaseDir() throws Exception {
+        // Given — exclude with ** should also hit files directly at the base level
+        createFile("exclbase/Keep.txt");
+        createFile("exclbase/Skip.java");
+        createFile("exclbase/sub/AlsoSkip.java");
+
+        PathQuery query = PathQuery.builder()
+                .baseDir(tempDir.resolve("exclbase"))
+                .excludeGlobs(Set.of("**/*.java"))
+                .build();
+
+        // When
+        Set<String> result = collectToRelStringSet(GlobPathFinder.findPaths(query), tempDir.resolve("exclbase"));
+
+        // Then — both .java files should be excluded
+        assertThat(result).containsExactlyInAnyOrder("Keep.txt");
     }
 
     @Test

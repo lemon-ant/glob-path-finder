@@ -4,7 +4,6 @@ import static java.util.Optional.ofNullable;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 import java.io.File;
-import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.util.ArrayList;
@@ -22,7 +21,7 @@ import org.apache.commons.lang3.tuple.Pair;
 
 @UtilityClass
 class FileMatchingUtils {
-    private static final PathMatcher MATCH_ALL = FileSystems.getDefault().getPathMatcher("glob:**");
+    private static final PathMatcher MATCH_ALL = AntStylePathMatcher.compile("**");
     private static final Pattern WINDOWS_DRIVE_PATTERN = Pattern.compile("^[a-zA-Z]:[/\\\\].*");
 
     /**
@@ -148,9 +147,7 @@ class FileMatchingUtils {
 
         return Pair.of(
                 extractedBasePath,
-                ofNullable(pattern)
-                        .map(patternText -> FileSystems.getDefault().getPathMatcher("glob:" + patternText))
-                        .orElse(MATCH_ALL));
+                ofNullable(pattern).map(AntStylePathMatcher::compile).orElse(MATCH_ALL));
     }
 
     private static boolean isAbsoluteGlob(String globPattern) {

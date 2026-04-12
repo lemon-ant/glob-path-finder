@@ -125,6 +125,25 @@ class FileMatchingUtilsTest {
     }
 
     @Test
+    void extractBaseAndPattern_doubleStarWildcard_matchesFileInBaseDir() throws Exception {
+        // Given
+        Path defaultBaseDirectory = Path.of("/tmp").toAbsolutePath().normalize();
+        String globExpression = "**/*.java";
+
+        // When
+        Pair<Path, PathMatcher> resultPair = ReflectiveMethodInvoker.invokePrivateStatic(
+                FileMatchingUtils.class, "extractBaseAndPattern", defaultBaseDirectory, globExpression);
+
+        // Then
+        PathMatcher matcher = resultPair.getRight();
+        assertThat(matcher.matches(Paths.get("Foo.java")))
+                .as("** should match zero directories (Ant/Maven convention)")
+                .isTrue();
+        assertThat(matcher.matches(Paths.get("sub/Bar.java"))).isTrue();
+        assertThat(matcher.matches(Paths.get("a/b/Baz.java"))).isTrue();
+    }
+
+    @Test
     void extractBaseAndPattern_rootPathWithNoPattern_matchesAll() throws Exception {
         // Given
         Path defaultBaseDirectory = Path.of("/").toAbsolutePath().normalize();
