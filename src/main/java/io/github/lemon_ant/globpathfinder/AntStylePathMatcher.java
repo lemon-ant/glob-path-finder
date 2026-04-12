@@ -26,7 +26,7 @@ final class AntStylePathMatcher implements PathMatcher {
 
     private final String pattern;
 
-    private AntStylePathMatcher(@NonNull String pattern) {
+    private AntStylePathMatcher(String pattern) {
         this.pattern = normalizeToUnixSeparators(pattern);
     }
 
