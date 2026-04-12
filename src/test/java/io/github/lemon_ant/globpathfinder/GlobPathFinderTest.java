@@ -197,7 +197,7 @@ class GlobPathFinderTest {
     }
 
     private Set<String> collectToRelStringSet(Stream<Path> pathStream, Path base) {
-        // Compare results as paths relative to tempDir for stability across OS/roots.
+        // Compare results as paths relative to the passed base for stability across OS/roots.
         try (pathStream) {
             return pathStream
                     .map(path -> base.relativize(path).normalize().toString())
