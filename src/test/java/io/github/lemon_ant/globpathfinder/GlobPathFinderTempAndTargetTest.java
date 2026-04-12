@@ -71,10 +71,10 @@ class GlobPathFinderTempAndTargetTest {
         } finally {
             // Best-effort cleanup: remove only what we created under target
             try (Stream<Path> walk = Files.walk(targetSandboxDirectory)) {
-                walk.sorted((a, b) -> Integer.compare(b.getNameCount(), a.getNameCount()))
-                        .forEach(p -> {
+                walk.sorted((first, second) -> Integer.compare(second.getNameCount(), first.getNameCount()))
+                        .forEach(path -> {
                             try {
-                                Files.deleteIfExists(p);
+                                Files.deleteIfExists(path);
                             } catch (IOException ignored) {
                             }
                         });
