@@ -31,18 +31,18 @@ class PathQueryTest {
     void collections_defensivelyCopied_doesNotReflectExternalMutation() {
         // Given
         Set<String> includes = new HashSet<>(Set.of("**/*.java", "**/*.md"));
-        Set<String> exts = new HashSet<>(Set.of("java", "md"));
+        Set<String> extensions = new HashSet<>(Set.of("java", "md"));
         Set<String> excludes = new HashSet<>(Set.of("**/generated/**"));
 
         PathQuery pathQuery = PathQuery.builder()
                 .includeGlobs(includes)
-                .allowedExtensions(exts)
+                .allowedExtensions(extensions)
                 .excludeGlobs(excludes)
                 .build();
 
         // When
         includes.add("**/*.xml");
-        exts.add("xml");
+        extensions.add("xml");
         excludes.add("**/tmp/**");
 
         // Then
@@ -54,7 +54,7 @@ class PathQueryTest {
     @Test
     void equalsHashCode_identicalPairs_contractSatisfied() {
         // Given
-        PathQuery a1 = PathQuery.builder()
+        PathQuery firstQuery = PathQuery.builder()
                 .baseDir(Path.of("."))
                 .includeGlobs(Set.of("**/*.java"))
                 .allowedExtensions(Set.of("java"))
@@ -64,7 +64,7 @@ class PathQueryTest {
                 .followLinks(false)
                 .build();
 
-        PathQuery a2 = PathQuery.builder()
+        PathQuery identicalQuery = PathQuery.builder()
                 .baseDir(Path.of("."))
                 .includeGlobs(Set.of("**/*.java"))
                 .allowedExtensions(Set.of("java"))
@@ -74,15 +74,15 @@ class PathQueryTest {
                 .followLinks(false)
                 .build();
 
-        PathQuery b = PathQuery.builder()
+        PathQuery differentQuery = PathQuery.builder()
                 .baseDir(Path.of("src"))
                 .includeGlobs(Set.of("**/*"))
                 .build();
 
         // When / Then
-        assertThat(a1).isEqualTo(a2);
-        assertThat(a1.hashCode()).isEqualTo(a2.hashCode());
-        assertThat(a1).isNotEqualTo(b);
+        assertThat(firstQuery).isEqualTo(identicalQuery);
+        assertThat(firstQuery.hashCode()).isEqualTo(identicalQuery.hashCode());
+        assertThat(firstQuery).isNotEqualTo(differentQuery);
     }
 
     @Test
@@ -91,10 +91,10 @@ class PathQueryTest {
         PathQuery pathQuery = PathQuery.builder().followLinks(false).build();
 
         // When
-        Set<FileVisitOption> opts = pathQuery.getVisitOptions();
+        Set<FileVisitOption> visitOptions = pathQuery.getVisitOptions();
 
         // Then
-        assertThat(opts).isEmpty();
+        assertThat(visitOptions).isEmpty();
     }
 
     @Test
@@ -103,10 +103,10 @@ class PathQueryTest {
         PathQuery pathQuery = PathQuery.builder().followLinks(true).build();
 
         // When
-        Set<FileVisitOption> opts = pathQuery.getVisitOptions();
+        Set<FileVisitOption> visitOptions = pathQuery.getVisitOptions();
 
         // Then
-        assertThat(opts).isEqualTo(EnumSet.of(FileVisitOption.FOLLOW_LINKS));
+        assertThat(visitOptions).isEqualTo(EnumSet.of(FileVisitOption.FOLLOW_LINKS));
     }
 
     @Test

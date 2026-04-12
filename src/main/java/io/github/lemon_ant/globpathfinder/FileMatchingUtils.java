@@ -94,11 +94,11 @@ class FileMatchingUtils {
             return null;
         }
         StringBuilder patternBuilder = new StringBuilder();
-        for (int j = startSegment; j < segments.length; j++) {
+        for (int segmentIndex = startSegment; segmentIndex < segments.length; segmentIndex++) {
             if (patternBuilder.length() > 0) {
                 patternBuilder.append('/');
             }
-            patternBuilder.append(segments[j]);
+            patternBuilder.append(segments[segmentIndex]);
         }
         if (addTrailSlash) {
             patternBuilder.append('/');
@@ -149,7 +149,7 @@ class FileMatchingUtils {
         return Pair.of(
                 extractedBasePath,
                 ofNullable(pattern)
-                        .map(ptr -> FileSystems.getDefault().getPathMatcher("glob:" + ptr))
+                        .map(patternText -> FileSystems.getDefault().getPathMatcher("glob:" + patternText))
                         .orElse(MATCH_ALL));
     }
 

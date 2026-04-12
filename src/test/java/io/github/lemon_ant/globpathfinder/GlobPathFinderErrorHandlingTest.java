@@ -52,8 +52,8 @@ class GlobPathFinderErrorHandlingTest {
         // When
         AtomicReference<List<Path>> result = new AtomicReference<>();
         assertThatNoException().isThrownBy(() -> {
-            try (Stream<Path> s = GlobPathFinder.findPaths(query)) {
-                result.set(s.collect(Collectors.toUnmodifiableList()));
+            try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
+                result.set(pathStream.collect(Collectors.toUnmodifiableList()));
             }
         });
 
@@ -62,11 +62,13 @@ class GlobPathFinderErrorHandlingTest {
 
         // and WARN should be present about failing to start scanning this base
         Condition<ILoggingEvent> warnForBase = new Condition<>(
-                e -> e.getLevel() == Level.WARN
-                        && e.getFormattedMessage().toLowerCase(Locale.ROOT).contains("failed to start scanning base")
-                        && e.getFormattedMessage().contains(nonExistingBase.toString()),
+                event -> event.getLevel() == Level.WARN
+                        && event.getFormattedMessage()
+                                .toLowerCase(Locale.ROOT)
+                                .contains("failed to start scanning base")
+                        && event.getFormattedMessage().contains(nonExistingBase.toString()),
                 "WARN mentioning failed to start scanning this base");
-        assertThat(appender.list).anySatisfy(le -> assertThat(le).is(warnForBase));
+        assertThat(appender.list).anySatisfy(logEvent -> assertThat(logEvent).is(warnForBase));
     }
 
     @Test
@@ -107,22 +109,23 @@ class GlobPathFinderErrorHandlingTest {
         // When
         AtomicReference<List<Path>> result = new AtomicReference<>();
         assertThatNoException().isThrownBy(() -> {
-            try (Stream<Path> s = GlobPathFinder.findPaths(query)) {
-                result.set(s.collect(Collectors.toUnmodifiableList()));
+            try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
+                result.set(pathStream.collect(Collectors.toUnmodifiableList()));
             }
         });
 
         // Then
         Condition<ILoggingEvent> warnDuringTraversal = new Condition<>(
-                e -> e.getLevel() == Level.WARN
-                        && e.getFormattedMessage().toLowerCase(Locale.ROOT).contains("i/o")
-                        && e.getFormattedMessage().toLowerCase(Locale.ROOT).contains("traversal"),
+                event -> event.getLevel() == Level.WARN
+                        && event.getFormattedMessage().toLowerCase(Locale.ROOT).contains("i/o")
+                        && event.getFormattedMessage().toLowerCase(Locale.ROOT).contains("traversal"),
                 "WARN mentioning I/O during traversal");
-        assertThat(appender.list).anySatisfy(le -> assertThat(le).is(warnDuringTraversal));
+        assertThat(appender.list).anySatisfy(logEvent -> assertThat(logEvent).is(warnDuringTraversal));
 
         // And nothing from denied/ leaked into the result
         Path deniedAbs = deniedDir.toAbsolutePath().normalize();
-        assertThat(result.get()).noneMatch(p -> p.toAbsolutePath().normalize().startsWith(deniedAbs));
+        assertThat(result.get())
+                .noneMatch(path -> path.toAbsolutePath().normalize().startsWith(deniedAbs));
 
         // Cleanup: restore permissions so TempDir can delete the tree
         Files.setPosixFilePermissions(

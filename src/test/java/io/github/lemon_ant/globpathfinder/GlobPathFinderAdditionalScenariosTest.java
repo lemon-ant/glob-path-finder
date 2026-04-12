@@ -54,8 +54,9 @@ class GlobPathFinderAdditionalScenariosTest {
         // When
         Set<String> workerThreads = new ConcurrentSkipListSet<>();
         long count;
-        try (Stream<Path> s = GlobPathFinder.findPaths(query)) {
-            count = s.parallel()
+        try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
+            count = pathStream
+                    .parallel()
                     .peek(path -> workerThreads.add(Thread.currentThread().getName()))
                     .count();
         }
@@ -104,8 +105,9 @@ class GlobPathFinderAdditionalScenariosTest {
         // When
         Set<String> workerThreads = new ConcurrentSkipListSet<>();
         long count;
-        try (Stream<Path> s = GlobPathFinder.findPaths(query)) {
-            count = s.parallel()
+        try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
+            count = pathStream
+                    .parallel()
                     .peek(path -> workerThreads.add(Thread.currentThread().getName()))
                     .count();
         }
@@ -150,8 +152,8 @@ class GlobPathFinderAdditionalScenariosTest {
 
         // When
         List<Path> resultList;
-        try (Stream<Path> s = GlobPathFinder.findPaths(query)) {
-            resultList = s.collect(Collectors.toList());
+        try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
+            resultList = pathStream.collect(Collectors.toList());
         }
 
         // Then
@@ -162,8 +164,9 @@ class GlobPathFinderAdditionalScenariosTest {
                 .hasSize(expectedUniqueCount);
 
         // Sanity: converting to a Set should not shrink the list (i.e. no duplicates were present)
-        Set<Path> resultSet =
-                resultList.stream().map(p -> p.toAbsolutePath().normalize()).collect(Collectors.toSet());
+        Set<Path> resultSet = resultList.stream()
+                .map(path -> path.toAbsolutePath().normalize())
+                .collect(Collectors.toSet());
         assertThat(resultSet).hasSize(expectedUniqueCount);
     }
 
@@ -187,8 +190,8 @@ class GlobPathFinderAdditionalScenariosTest {
 
         // When
         Set<Path> result;
-        try (Stream<Path> s = GlobPathFinder.findPaths(query)) {
-            result = toAbsoluteNormalizedSet(s);
+        try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
+            result = toAbsoluteNormalizedSet(pathStream);
         }
 
         // Then
@@ -282,12 +285,13 @@ class GlobPathFinderAdditionalScenariosTest {
         // When
         // Compare by real paths because Files.find returns paths via the symlink itself
         Set<Path> result;
-        try (Stream<Path> s = GlobPathFinder.findPaths(query)) {
-            result = s.map(p -> {
+        try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
+            result = pathStream
+                    .map(path -> {
                         try {
-                            return p.toRealPath();
+                            return path.toRealPath();
                         } catch (IOException e) {
-                            return p.toAbsolutePath().normalize();
+                            return path.toAbsolutePath().normalize();
                         }
                     })
                     .collect(Collectors.toSet());
@@ -314,8 +318,8 @@ class GlobPathFinderAdditionalScenariosTest {
         // When
         AtomicReference<List<Path>> result = new AtomicReference<>();
         assertThatNoException().isThrownBy(() -> {
-            try (Stream<Path> s = GlobPathFinder.findPaths(query)) {
-                result.set(s.collect(Collectors.toUnmodifiableList()));
+            try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
+                result.set(pathStream.collect(Collectors.toUnmodifiableList()));
             }
         });
 
@@ -339,8 +343,8 @@ class GlobPathFinderAdditionalScenariosTest {
         // When
         AtomicReference<List<Path>> result = new AtomicReference<>();
         assertThatNoException().isThrownBy(() -> {
-            try (Stream<Path> s = GlobPathFinder.findPaths(query)) {
-                result.set(s.collect(Collectors.toUnmodifiableList()));
+            try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
+                result.set(pathStream.collect(Collectors.toUnmodifiableList()));
             }
         });
 
@@ -366,8 +370,8 @@ class GlobPathFinderAdditionalScenariosTest {
 
         // When
         Set<Path> result;
-        try (Stream<Path> s = GlobPathFinder.findPaths(query)) {
-            result = toAbsoluteNormalizedSet(s);
+        try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
+            result = toAbsoluteNormalizedSet(pathStream);
         }
 
         // Then
@@ -394,8 +398,8 @@ class GlobPathFinderAdditionalScenariosTest {
 
         // When
         Set<Path> result;
-        try (Stream<Path> s = GlobPathFinder.findPaths(query)) {
-            result = toAbsoluteNormalizedSet(s);
+        try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
+            result = toAbsoluteNormalizedSet(pathStream);
         }
 
         // Then
@@ -410,7 +414,7 @@ class GlobPathFinderAdditionalScenariosTest {
     }
 
     private static Set<Path> toAbsoluteNormalizedSet(Stream<Path> stream) {
-        return stream.map(p -> p.toAbsolutePath().normalize()).collect(Collectors.toSet());
+        return stream.map(path -> path.toAbsolutePath().normalize()).collect(Collectors.toSet());
     }
 
     private static Path writeFile(Path path, String content) throws IOException {
