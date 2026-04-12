@@ -54,7 +54,7 @@ final class AntStylePathMatcher implements PathMatcher {
     }
 
     @Override
-    public boolean matches(Path path) {
+    public boolean matches(@NonNull Path path) {
         String pathString = normalizeToUnixSeparators(path.toString());
         return SelectorUtils.matchPath(pattern, pathString, UNIX_SEPARATOR, true);
     }

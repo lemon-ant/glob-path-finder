@@ -161,6 +161,6 @@ class FileMatchingUtils {
     }
 
     private static boolean isWildcardSegment(String segment) {
-        return StringUtils.containsAny(segment, "*?[{]}");
+        return StringUtils.containsAny(segment, "*?");
     }
 }

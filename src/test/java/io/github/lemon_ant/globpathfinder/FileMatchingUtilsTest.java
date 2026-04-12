@@ -144,6 +144,22 @@ class FileMatchingUtilsTest {
     }
 
     @Test
+    void extractBaseAndPattern_bracketSegmentLiteral_keepsSegmentInBasePath() throws Exception {
+        // Given
+        Path defaultBaseDirectory = Path.of("/tmp").toAbsolutePath().normalize();
+        String globExpression = "src/a[b]/**/*.java";
+
+        // When
+        Pair<Path, PathMatcher> resultPair = ReflectiveMethodInvoker.invokePrivateStatic(
+                FileMatchingUtils.class, "extractBaseAndPattern", defaultBaseDirectory, globExpression);
+
+        // Then
+        assertThat(resultPair.getLeft()).isEqualTo(defaultBaseDirectory.resolve("src/a[b]"));
+        assertThat(resultPair.getRight().matches(Paths.get("Foo.java"))).isTrue();
+        assertThat(resultPair.getRight().matches(Paths.get("nested/Foo.java"))).isTrue();
+    }
+
+    @Test
     void extractBaseAndPattern_rootPathWithNoPattern_matchesAll() throws Exception {
         // Given
         Path defaultBaseDirectory = Path.of("/").toAbsolutePath().normalize();
@@ -179,7 +195,7 @@ class FileMatchingUtilsTest {
 
     // ---------- isWildcardSegment ----------
     @ParameterizedTest
-    @ValueSource(strings = {"*", "?.txt", "file{1,2}.log", "a[b]"})
+    @ValueSource(strings = {"*", "?.txt", "**", "*.java"})
     void isWildcardSegment_containsMeta_returnsTrue(String segment) throws Exception {
         // When
         Boolean result =
@@ -187,6 +203,17 @@ class FileMatchingUtilsTest {
 
         // Then
         assertThat(result).isTrue();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"file{1,2}.log", "a[b]"})
+    void isWildcardSegment_antLiteralMeta_returnsFalse(String segment) throws Exception {
+        // When
+        Boolean result =
+                ReflectiveMethodInvoker.invokePrivateStatic(FileMatchingUtils.class, "isWildcardSegment", segment);
+
+        // Then
+        assertThat(result).isFalse();
     }
 
     @ParameterizedTest
