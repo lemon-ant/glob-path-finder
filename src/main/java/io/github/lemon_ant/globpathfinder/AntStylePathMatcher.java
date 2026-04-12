@@ -13,7 +13,7 @@ import org.codehaus.plexus.util.SelectorUtils;
  *
  * <p>The key difference from the JDK's built-in {@code glob:} matcher is that
  * {@code **} matches <b>zero or more</b> directories. For example, the pattern
- * {@code ** / *.java} matches both {@code Foo.java} (zero directories) and
+ * {@code **/*.java} matches both {@code Foo.java} (zero directories) and
  * {@code sub/Foo.java} (one directory), whereas the JDK matcher requires at
  * least one directory between {@code **} and the filename segment.</p>
  *
@@ -28,7 +28,7 @@ final class AntStylePathMatcher implements PathMatcher {
     /**
      * Creates an Ant-style path matcher for the given glob pattern.
      *
-     * @param pattern the glob pattern using Ant/Maven conventions (e.g. {@code ** / *.java})
+     * @param pattern the glob pattern using Ant/Maven conventions (e.g. {@code **/*.java})
      */
     private AntStylePathMatcher(@NonNull String pattern) {
         this.pattern = normalizeToUnixSeparators(pattern);
