@@ -1,5 +1,7 @@
 package io.github.lemon_ant.globpathfinder;
 
+import static io.github.lemon_ant.globpathfinder.StringUtils.normalizeToUnixSeparators;
+
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import lombok.NonNull;
@@ -28,8 +30,8 @@ final class AntStylePathMatcher implements PathMatcher {
      *
      * @param pattern the glob pattern using Ant/Maven conventions (e.g. {@code ** / *.java})
      */
-    AntStylePathMatcher(@NonNull String pattern) {
-        this.pattern = normalizeToUnix(pattern);
+    private AntStylePathMatcher(@NonNull String pattern) {
+        this.pattern = normalizeToUnixSeparators(pattern);
     }
 
     /**
@@ -45,15 +47,7 @@ final class AntStylePathMatcher implements PathMatcher {
 
     @Override
     public boolean matches(Path path) {
-        String pathString = normalizeToUnix(path.toString());
+        String pathString = normalizeToUnixSeparators(path.toString());
         return SelectorUtils.matchPath(pattern, pathString, UNIX_SEPARATOR, true);
-    }
-
-    /**
-     * Normalizes backslashes to forward slashes for consistent cross-platform matching.
-     */
-    @NonNull
-    private static String normalizeToUnix(String value) {
-        return value.replace('\\', '/');
     }
 }

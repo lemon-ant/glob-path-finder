@@ -1,5 +1,6 @@
 package io.github.lemon_ant.globpathfinder;
 
+import static io.github.lemon_ant.globpathfinder.StringUtils.normalizeToUnixSeparators;
 import static java.util.Optional.ofNullable;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -107,7 +108,7 @@ class FileMatchingUtils {
 
     @NonNull
     private static Pair<Path, PathMatcher> extractBaseAndPattern(Path defaultAbsoluteBase, String globPattern) {
-        String normalizedGlob = globPattern.replace('\\', '/');
+        String normalizedGlob = normalizeToUnixSeparators(globPattern);
         String[] pathSegments = StringUtils.split(normalizedGlob, '/');
 
         StringBuilder baseBuilder = new StringBuilder();
@@ -152,7 +153,7 @@ class FileMatchingUtils {
 
     private static boolean isAbsoluteGlob(String globPattern) {
         // Normalize separators
-        String normalized = globPattern.replace('\\', '/');
+        String normalized = normalizeToUnixSeparators(globPattern);
 
         // Unix-like absolute OR Windows drive letter absolute (e.g., C:/, D:\)
         return normalized.startsWith("/")
