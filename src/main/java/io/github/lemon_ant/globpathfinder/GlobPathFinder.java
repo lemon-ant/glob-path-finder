@@ -6,7 +6,6 @@ import static io.github.lemon_ant.globpathfinder.StringUtils.processNormalizedSt
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.file.FileSystems;
 import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -37,7 +36,7 @@ import org.slf4j.helpers.MessageFormatter;
  *   <li><b>Include globs</b>: patterns are grouped by extracted base via {@code computeBaseToPattern}. For a base path,
  *       an empty matcher set means “match all under that base”.</li>
  *   <li><b>Extensions</b>: case-insensitive filter built from {@code allowedExtensions}. An empty set disables the filter.</li>
- *   <li><b>Excludes</b>: relative/absolute patterns compiled as {@code PathMatcher("glob:...")}.</li>
+ *   <li><b>Excludes</b>: relative/absolute patterns compiled as Ant-style {@code PathMatcher}s.</li>
  *   <li><b>Files/directories</b>: {@code onlyFiles=true} keeps regular files only; otherwise both files and directories may appear.</li>
  *   <li><b>Depth/options</b>: {@code maxDepth} and {@code getVisitOptions()} are passed to {@link java.nio.file.Files#find}.</li>
  *   <li><b>Parallelism</b>: per-entry streams from {@link java.nio.file.Files#find} are merged via
@@ -261,22 +260,20 @@ public class GlobPathFinder {
     }
 
     /**
-     * Split excludes to absolute/relative and compile to PathMatcher(glob:...).
+     * Split excludes to absolute/relative and compile to Ant-style PathMatchers.
      */
     @NonNull
     private static Pair<Set<PathMatcher>, Set<PathMatcher>> compileExcludeMatchers(PathQuery pathQuery) {
         Pair<List<String>, List<String>> absoluteAndRelativeExcludes =
                 partitionAbsoluteAndRelative(pathQuery.getExcludeGlobs());
 
-        // Compile exclude globs to PathMatcher (glob:...) and evaluate against ABSOLUTE paths.
+        // Compile exclude globs to PathMatcher and evaluate against ABSOLUTE paths.
         Set<PathMatcher> absoluteExcludeMatchers =
-                processNormalizedStrings(absoluteAndRelativeExcludes.getLeft(), pattern -> FileSystems.getDefault()
-                        .getPathMatcher("glob:" + pattern));
+                processNormalizedStrings(absoluteAndRelativeExcludes.getLeft(), AntStylePathMatcher::compile);
 
-        // Compile exclude globs to PathMatcher (glob:...) and evaluate against RELATIVE paths.
+        // Compile exclude globs to PathMatcher and evaluate against RELATIVE paths.
         Set<PathMatcher> relativeExcludeMatchers =
-                processNormalizedStrings(absoluteAndRelativeExcludes.getRight(), pattern -> FileSystems.getDefault()
-                        .getPathMatcher("glob:" + pattern));
+                processNormalizedStrings(absoluteAndRelativeExcludes.getRight(), AntStylePathMatcher::compile);
 
         return Pair.of(absoluteExcludeMatchers, relativeExcludeMatchers);
     }
