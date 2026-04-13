@@ -13,6 +13,17 @@ import lombok.experimental.UtilityClass;
 class StringUtils {
 
     /**
+     * Replaces Windows path separators with Unix separators for consistent glob matching.
+     *
+     * @param value the raw path or glob string
+     * @return the same value with backslashes replaced by forward slashes
+     */
+    @NonNull
+    static String normalizeToUnixSeparators(@NonNull String value) {
+        return value.replace('\\', '/');
+    }
+
+    /**
      * Trims each string in the collection, filters out blank entries, applies the given
      * processor to each remaining value, and collects the results into an unmodifiable set.
      *
