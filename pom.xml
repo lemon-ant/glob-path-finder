@@ -328,7 +328,6 @@
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-assembly-plugin</artifactId>
                         <version>3.8.0</version>
-                        <!-- Current version as of 2025; check maven.apache.org if an update is needed -->
                         <configuration>
                             <descriptors>
                                 <descriptor>assembly/project-zip.xml</descriptor>
