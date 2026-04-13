@@ -3,32 +3,32 @@
           xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/3.0.0 http://maven.apache.org/xsd/assembly-3.0.0.xsd">
     <id>sources</id>
     <formats>
-        <format>zip</format> <!-- Формат: ZIP -->
+        <format>zip</format> <!-- Archive format: ZIP -->
     </formats>
-    <includeBaseDirectory>true</includeBaseDirectory> <!-- Включить корневую директорию проекта в ZIP -->
+    <includeBaseDirectory>true</includeBaseDirectory> <!-- Include the project root directory in the ZIP -->
     <fileSets>
-        <!-- Включаем исходный код (src/) -->
+        <!-- Include source code (src/) -->
         <fileSet>
             <directory>${project.basedir}/src</directory>
             <outputDirectory>/src</outputDirectory>
             <includes>
-                <include>**/*</include> <!-- Всё внутри src/ -->
+                <include>**/*</include> <!-- Everything inside src/ -->
             </includes>
         </fileSet>
-        <!-- Включаем конфиги проекта (pom.xml, README и т.д.) -->
+        <!-- Include project config files (pom.xml, README, etc.) -->
         <fileSet>
             <directory>${project.basedir}</directory>
             <outputDirectory>/</outputDirectory>
             <includes>
                 <include>pom.xml</include>
-                <include>README.md</include> <!-- Добавь другие файлы, если нужно, например *.properties -->
+                <include>README.md</include> <!-- Add other files if needed, e.g. *.properties -->
             </includes>
             <excludes>
-                <exclude>**/target/**</exclude> <!-- Исключаем target/ и скомпилированное -->
-                <exclude>.idea/**</exclude> <!-- Исключаем IDE-файлы -->
-                <exclude>.git/**</exclude> <!-- Исключаем Git -->
-                <exclude>**/*.class</exclude> <!-- Исключаем .class файлы, если они где-то завалялись -->
-                <exclude>**/build/**</exclude> <!-- Другие build-артефакты -->
+                <exclude>**/target/**</exclude> <!-- Exclude target/ and compiled output -->
+                <exclude>.idea/**</exclude> <!-- Exclude IDE files -->
+                <exclude>.git/**</exclude> <!-- Exclude Git metadata -->
+                <exclude>**/*.class</exclude> <!-- Exclude stray .class files -->
+                <exclude>**/build/**</exclude> <!-- Other build artifacts -->
             </excludes>
         </fileSet>
     </fileSets>

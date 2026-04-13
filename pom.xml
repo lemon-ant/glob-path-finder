@@ -17,7 +17,7 @@
     </distributionManagement>
 
     <properties>
-        <lombok.version>1.18.38</lombok.version>
+        <lombok.version>1.18.44</lombok.version>
         <maven-clean-plugin.version>3.5.0</maven-clean-plugin.version>
         <maven-dependency-plugin.version>3.8.1</maven-dependency-plugin.version>
         <maven-deploy-plugin.version>3.1.4</maven-deploy-plugin.version>
@@ -28,8 +28,8 @@
         <palantir-java-format.version>2.73.0</palantir-java-format.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <sortpom-maven-plugin.version>4.0.0</sortpom-maven-plugin.version>
-        <spotbugs-maven-plugin.version>4.9.3.2</spotbugs-maven-plugin.version>
-        <spotbugs.version>4.9.4</spotbugs.version>
+        <spotbugs-maven-plugin.version>4.9.8.3</spotbugs-maven-plugin.version>
+        <spotbugs.version>4.9.8</spotbugs.version>
         <spotless-maven-plugin.version>2.46.1</spotless-maven-plugin.version>
     </properties>
 
@@ -38,7 +38,7 @@
             <dependency>
                 <groupId>org.mockito</groupId>
                 <artifactId>mockito-bom</artifactId>
-                <version>5.18.0</version>
+                <version>5.23.0</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -65,7 +65,7 @@
             <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-lang3</artifactId>
-                <version>3.18.0</version>
+                <version>3.20.0</version>
             </dependency>
             <dependency>
                 <groupId>org.codehaus.plexus</groupId>
@@ -81,7 +81,7 @@
             <dependency>
                 <groupId>ch.qos.logback</groupId>
                 <artifactId>logback-classic</artifactId>
-                <version>1.5.18</version>
+                <version>1.5.32</version>
                 <scope>test</scope>
             </dependency>
         </dependencies>
@@ -143,7 +143,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-jar-plugin</artifactId>
-                    <version>3.4.2</version>
+                    <version>3.5.0</version>
                     <configuration>
                         <archive>
                             <manifestEntries>
@@ -155,7 +155,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
-                    <version>3.14.0</version>
+                    <version>3.15.0</version>
                     <configuration>
                         <annotationProcessorPaths>
                             <path>
@@ -169,7 +169,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
-                    <version>3.5.3</version>
+                    <version>3.5.5</version>
                 </plugin>
                 <plugin>
                     <artifactId>maven-site-plugin</artifactId>
@@ -229,6 +229,16 @@
                         </java>
                     </configuration>
                 </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>3.12.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-source-plugin</artifactId>
+                    <version>3.4.0</version>
+                </plugin>
             </plugins>
         </pluginManagement>
 
@@ -236,12 +246,12 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
-                <version>3.6.1</version>
+                <version>3.6.2</version>
                 <dependencies>
                     <dependency>
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>extra-enforcer-rules</artifactId>
-                        <version>1.10.0</version>
+                        <version>1.12.0</version>
                     </dependency>
                 </dependencies>
                 <executions>
@@ -289,7 +299,6 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
-                        <version>3.6.3</version>
                         <executions>
                             <execution>
                                 <id>attach-javadocs</id>
@@ -311,7 +320,6 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-source-plugin</artifactId>
-                        <version>3.3.0</version>
                         <executions>
                             <execution>
                                 <id>attach-sources</id>
@@ -336,23 +344,22 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-assembly-plugin</artifactId>
-                        <version>3.7.1</version>
-                        <!-- Актуальная версия на 2025 год; проверь на maven.apache.org если нужно обновить -->
+                        <version>3.8.0</version>
                         <configuration>
                             <descriptors>
                                 <descriptor>assembly/project-zip.xml</descriptor>
-                                <!-- Ссылка на дескриптор; создадим его ниже -->
+                                <!-- Reference to the descriptor; defined below -->
                             </descriptors>
                             <outputDirectory>${project.basedir}</outputDirectory>
                             <finalName>${project.artifactId}-${project.version}-sources</finalName>
-                            <!-- Имя ZIP: например, myproject-1.0-sources.zip -->
+                            <!-- Archive name, e.g. myproject-1.0-sources.zip -->
                             <appendAssemblyId>false</appendAssemblyId>
-                            <!-- Не добавлять суффикс к имени файла -->
+                            <!-- Do not append the assembly id suffix to the archive name -->
                         </configuration>
                         <executions>
                             <execution>
                                 <id>make-assembly</id>
-                                <!-- Привязка к фазе package: после компиляции и тестов, но перед установкой -->
+                                <!-- Bound to the package phase: after compile and test, but before install -->
                                 <goals>
                                     <goal>single</goal>
                                 </goals>
@@ -454,7 +461,7 @@
 
                     <plugin>
                         <artifactId>maven-pmd-plugin</artifactId>
-                        <version>3.27.0</version>
+                        <version>3.28.0</version>
                         <configuration>
                             <linkXRef>false</linkXRef>
                             <printFailingErrors>true</printFailingErrors>
@@ -492,7 +499,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
-                        <version>3.5.3</version>
+                        <version>3.5.5</version>
                         <configuration>
                             <argLine>${jacocoArgLine}</argLine>
                         </configuration>
@@ -501,7 +508,7 @@
                     <plugin>
                         <groupId>org.jacoco</groupId>
                         <artifactId>jacoco-maven-plugin</artifactId>
-                        <version>0.8.13</version>
+                        <version>0.8.14</version>
                         <executions>
                             <execution>
                                 <id>prepare-agent</id>

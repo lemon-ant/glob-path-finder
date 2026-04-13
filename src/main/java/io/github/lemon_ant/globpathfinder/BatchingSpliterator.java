@@ -90,7 +90,8 @@ final class BatchingSpliterator<T> implements Spliterator<T> {
         int count = 0;
         HoldingConsumer<T> holder = new HoldingConsumer<>();
         while (count < batchSize && source.tryAdvance(holder)) {
-            batch[count++] = holder.value;
+            batch[count] = holder.value;
+            count++;
         }
         if (count == 0) {
             return null;
