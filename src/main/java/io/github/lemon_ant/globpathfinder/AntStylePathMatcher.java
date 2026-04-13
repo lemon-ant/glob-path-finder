@@ -36,6 +36,7 @@ final class AntStylePathMatcher implements PathMatcher {
 
     private static final String UNIX_SEPARATOR = "/";
 
+    @NonNull
     private final String pattern;
 
     private AntStylePathMatcher(String pattern) {
