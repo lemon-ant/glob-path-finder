@@ -75,9 +75,9 @@ class FileMatchingUtils {
      */
     @NonNull
     static Pair<List<String>, List<String>> partitionAbsoluteAndRelative(@NonNull Collection<String> patterns) {
-        Map<Boolean, List<String>> partitioned =
+        Map<Boolean, List<String>> absoluteToPatterns =
                 patterns.stream().collect(Collectors.partitioningBy(FileMatchingUtils::isAbsoluteGlob));
-        return Pair.of(partitioned.get(true), partitioned.get(false));
+        return Pair.of(absoluteToPatterns.get(true), absoluteToPatterns.get(false));
     }
 
     @Nullable
@@ -85,8 +85,8 @@ class FileMatchingUtils {
         if (startSegment == segments.length) {
             return null;
         }
-        String joined = String.join("/", Arrays.copyOfRange(segments, startSegment, segments.length));
-        return addTrailSlash ? joined + '/' : joined;
+        String patternSegments = String.join("/", Arrays.copyOfRange(segments, startSegment, segments.length));
+        return addTrailSlash ? patternSegments + '/' : patternSegments;
     }
 
     @NonNull

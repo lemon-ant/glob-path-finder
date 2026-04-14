@@ -130,7 +130,7 @@ class BatchingSpliteratorTest {
     }
 
     @Test
-    void characteristics_excludesSizedAndSubsized() {
+    void characteristics_sourceSizedAndSubsized_sizedAndSubsizedStripped() {
         // Given
         Spliterator<String> sourceSpliterator = List.of("a", "b").spliterator();
         // List spliterator is SIZED | SUBSIZED | ORDERED | IMMUTABLE
