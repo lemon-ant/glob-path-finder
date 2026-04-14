@@ -25,7 +25,6 @@ import lombok.NonNull;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
-import org.slf4j.helpers.MessageFormatter;
 
 /**
  * GlobPathFinder — service that traverses the file system and applies include/exclude rules.
@@ -60,6 +59,8 @@ public class GlobPathFinder {
 
     private static final int BATCH_SIZE = 1024;
 
+    private static final BiPredicate<Path, BasicFileAttributes> MATCH_ALL_FILE_TYPES = (path, attrs) -> true;
+
     /**
      * Find paths according to the provided {@link PathQuery}.
      *
@@ -78,7 +79,6 @@ public class GlobPathFinder {
      */
     @NonNull
     public static Stream<Path> findPaths(@NonNull PathQuery pathQuery) {
-        // DEBUG: entrypoint info
         log.debug("findPaths: starting with query {}", pathQuery);
 
         // 1) Normalize inputs and precompute matchers/sets (no I/O here).
@@ -92,7 +92,6 @@ public class GlobPathFinder {
 
         // Extensions (case-insensitive); if empty, there will be NO extension step in the pipeline.
         Set<String> normalizedExtensions = buildNormalizedExtensions(pathQuery);
-        boolean hasAllowedExtensions = !normalizedExtensions.isEmpty();
 
         // Excludes: split into absolute vs relative; if a set is empty, there will be NO respective step.
         Pair<Set<PathMatcher>, Set<PathMatcher>> absoluteAndRelativeExcludeMatchers = compileExcludeMatchers(pathQuery);
@@ -103,7 +102,7 @@ public class GlobPathFinder {
 
         // 2) Compose global pipeline once (base-agnostic).
         Function<Stream<Path>, Stream<Path>> globalPipeline =
-                buildGlobalPipeline(normalizedExtensions, hasAllowedExtensions, absoluteExcludeMatchers);
+                buildGlobalPipeline(normalizedExtensions, absoluteExcludeMatchers);
 
         // 3) Compose per-base pipeline factory (adds relative-phase only when needed for that base).
         Function<Entry<Path, Set<PathMatcher>>, Function<Stream<Path>, Stream<Path>>> perBasePipelineFactory =
@@ -138,7 +137,7 @@ public class GlobPathFinder {
      */
     @NonNull
     private static BiPredicate<Path, BasicFileAttributes> buildFileTypeFilter(boolean onlyFiles) {
-        return onlyFiles ? (path, attrs) -> attrs.isRegularFile() : (path, attrs) -> true;
+        return onlyFiles ? (path, attrs) -> attrs.isRegularFile() : MATCH_ALL_FILE_TYPES;
     }
 
     /**
@@ -167,7 +166,7 @@ public class GlobPathFinder {
      */
     @NonNull
     private static Function<Stream<Path>, Stream<Path>> buildGlobalPipeline(
-            Set<String> normalizedExtensions, boolean hasAllowedExtensions, Set<PathMatcher> absoluteExcludeMatchers) {
+            Set<String> normalizedExtensions, Set<PathMatcher> absoluteExcludeMatchers) {
         // We compose steps only when they are needed. No "path -> true" fallbacks.
         Function<Stream<Path>, Stream<Path>> globalPipeline = Function.identity();
 
@@ -177,7 +176,7 @@ public class GlobPathFinder {
         }
 
         // Extensions filter
-        if (hasAllowedExtensions) {
+        if (!normalizedExtensions.isEmpty()) {
             globalPipeline = globalPipeline.andThen(pathStream -> pathStream.filter(path -> {
                 // Compute extension lazily only when this step exists.
                 String extension = findExtension(path).toLowerCase(Locale.ROOT);
@@ -224,7 +223,7 @@ public class GlobPathFinder {
             boolean hasIncludesForBase = !includeMatchersForBase.isEmpty();
             boolean hasRelativeExcludes = !relativeExcludeMatchers.isEmpty();
 
-            if (!(hasIncludesForBase || hasRelativeExcludes)) {
+            if (!hasIncludesForBase && !hasRelativeExcludes) {
                 return Function.identity();
             }
 
@@ -252,9 +251,8 @@ public class GlobPathFinder {
                 }
             }
 
-            // 4) return to absolute, normalized
-            perBaseDirPipeline = perBaseDirPipeline.andThen(pathStream -> pathStream.map(
-                    relPath -> basePath.resolve(relPath).toAbsolutePath().normalize()));
+            // 4) return to absolute path
+            perBaseDirPipeline = perBaseDirPipeline.andThen(pathStream -> pathStream.map(basePath::resolve));
             return perBaseDirPipeline;
         };
     }
@@ -315,10 +313,7 @@ public class GlobPathFinder {
         } catch (IOException startFailure) {
             // Early failure when creating the stream (not during iteration).
             if (pathQuery.isFailFastOnError()) {
-                throw new UncheckedIOException(
-                        MessageFormatter.format(FAILED_TO_START_SCANNING_BASE, basePath)
-                                .getMessage(),
-                        startFailure);
+                throw new UncheckedIOException("Failed to start scanning base '" + basePath + "'.", startFailure);
             }
             log.warn(FAILED_TO_START_SCANNING_BASE, basePath, startFailure);
             return Stream.empty();

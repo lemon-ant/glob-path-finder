@@ -25,6 +25,7 @@ class PathQueryTest {
         assertThat(pathQuery.getMaxDepth()).isEqualTo(Integer.MAX_VALUE);
         assertThat(pathQuery.isOnlyFiles()).isTrue();
         assertThat(pathQuery.isFollowLinks()).isTrue();
+        assertThat(pathQuery.isFailFastOnError()).isTrue();
     }
 
     @Test

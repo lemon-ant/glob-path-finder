@@ -7,8 +7,31 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 class StringUtilsTest {
+
+    @Test
+    void normalizeToUnixSeparators_backslashes_replacedWithForwardSlash() {
+        // When / Then
+        assertThat(StringUtils.normalizeToUnixSeparators("src\\main\\java\\Foo.java"))
+                .isEqualTo("src/main/java/Foo.java");
+    }
+
+    @Test
+    void normalizeToUnixSeparators_alreadyUnixSeparators_returnedUnchanged() {
+        // When / Then
+        assertThat(StringUtils.normalizeToUnixSeparators("src/main/java/Foo.java"))
+                .isEqualTo("src/main/java/Foo.java");
+    }
+
+    @ParameterizedTest
+    @CsvSource({"C:\\Users\\foo, C:/Users/foo", "D:\\\\share, D://share"})
+    void normalizeToUnixSeparators_windowsPaths_allBackslashesReplaced(String input, String expected) {
+        // When / Then
+        assertThat(StringUtils.normalizeToUnixSeparators(input)).isEqualTo(expected);
+    }
 
     @Test
     void processNormalizedStrings_processorNormalizesToSameToken_preservesDistinct() {

@@ -7,7 +7,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -75,17 +75,9 @@ class FileMatchingUtils {
      */
     @NonNull
     static Pair<List<String>, List<String>> partitionAbsoluteAndRelative(@NonNull Collection<String> patterns) {
-        List<String> absolute = new ArrayList<>();
-        List<String> relative = new ArrayList<>();
-
-        for (String pattern : patterns) {
-            if (isAbsoluteGlob(pattern)) {
-                absolute.add(pattern);
-            } else {
-                relative.add(pattern);
-            }
-        }
-        return Pair.of(absolute, relative);
+        Map<Boolean, List<String>> partitioned =
+                patterns.stream().collect(Collectors.partitioningBy(FileMatchingUtils::isAbsoluteGlob));
+        return Pair.of(partitioned.get(true), partitioned.get(false));
     }
 
     @Nullable
@@ -93,17 +85,8 @@ class FileMatchingUtils {
         if (startSegment == segments.length) {
             return null;
         }
-        StringBuilder patternBuilder = new StringBuilder();
-        for (int segmentIndex = startSegment; segmentIndex < segments.length; segmentIndex++) {
-            if (patternBuilder.length() > 0) {
-                patternBuilder.append('/');
-            }
-            patternBuilder.append(segments[segmentIndex]);
-        }
-        if (addTrailSlash) {
-            patternBuilder.append('/');
-        }
-        return patternBuilder.toString();
+        String joined = String.join("/", Arrays.copyOfRange(segments, startSegment, segments.length));
+        return addTrailSlash ? joined + '/' : joined;
     }
 
     @NonNull
@@ -152,12 +135,9 @@ class FileMatchingUtils {
     }
 
     private static boolean isAbsoluteGlob(String globPattern) {
-        // Normalize separators
         String normalized = normalizeToUnixSeparators(globPattern);
-
-        // Unix-like absolute OR Windows drive letter absolute (e.g., C:/, D:\)
         return normalized.startsWith("/")
-                || WINDOWS_DRIVE_PATTERN.matcher(globPattern).matches();
+                || WINDOWS_DRIVE_PATTERN.matcher(normalized).matches();
     }
 
     private static boolean isWildcardSegment(String segment) {
