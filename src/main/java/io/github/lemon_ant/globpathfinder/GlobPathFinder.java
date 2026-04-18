@@ -54,7 +54,8 @@ import lombok.extern.slf4j.Slf4j;
 @UtilityClass
 public class GlobPathFinder {
 
-    static final String FAILED_TO_START_SCANNING_BASE = "Failed to start scanning base '{}'. Skipping this base.";
+    private static final String FAILED_TO_START_SCANNING_BASE =
+            "Failed to start scanning base '{}'. Skipping this base.";
     private static final String BASE_DIR_DOES_NOT_EXIST = "Base directory does not exist: ";
     private static final String BASE_PATH_NOT_A_DIRECTORY = "Base path is not a directory: ";
 
