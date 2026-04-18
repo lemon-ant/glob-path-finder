@@ -2,14 +2,13 @@ package io.github.lemon_ant.globpathfinder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFileAttributeView;
@@ -37,14 +36,12 @@ class GlobPathFinderErrorHandlingTest {
     Path tempDir;
 
     @Test
-    void findPaths_nonExistentBase_warnsAndReturnsEmpty() {
+    void findPaths_nonExistentBase_failFastDisabled_throwsIllegalArgumentException() {
         // Given
         Path nonExistingBase = tempDir.resolve("does-not-exist");
-        ListAppender<ILoggingEvent> appender = LogHelper.attachListAppender(GlobPathFinder.class);
-
         PathQuery query = PathQuery.builder()
                 .baseDir(nonExistingBase)
-                .includeGlobs(Set.of("**/*.txt")) // anything; base doesn't exist anyway
+                .includeGlobs(Set.of("**/*.txt"))
                 .onlyFiles(true)
                 .maxDepth(Integer.MAX_VALUE)
                 .followLinks(true)
@@ -52,25 +49,18 @@ class GlobPathFinderErrorHandlingTest {
                 .build();
 
         // When
-        AtomicReference<List<Path>> result = new AtomicReference<>();
-        assertThatNoException().isThrownBy(() -> {
+        Throwable thrown = catchThrowable(() -> {
             try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
-                result.set(pathStream.collect(Collectors.toUnmodifiableList()));
+                pathStream.collect(Collectors.toList());
             }
         });
 
         // Then
-        assertThat(result.get()).isEmpty();
-
-        // and WARN should be present about failing to start scanning this base
-        Condition<ILoggingEvent> warnForBase = new Condition<>(
-                event -> event.getLevel() == Level.WARN
-                        && event.getFormattedMessage()
-                                .toLowerCase(Locale.ROOT)
-                                .contains("failed to start scanning base")
-                        && event.getFormattedMessage().contains(nonExistingBase.toString()),
-                "WARN mentioning failed to start scanning this base");
-        assertThat(appender.list).anySatisfy(logEvent -> assertThat(logEvent).is(warnForBase));
+        assertThat(thrown)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Base directory does not exist: ")
+                .hasMessageContaining(
+                        nonExistingBase.toAbsolutePath().normalize().toString());
     }
 
     @Test
@@ -139,7 +129,7 @@ class GlobPathFinderErrorHandlingTest {
     }
 
     @Test
-    void findPaths_failFastEnabled_nonExistentBase_throwsUncheckedIOException() {
+    void findPaths_nonExistentBase_failFastEnabled_throwsIllegalArgumentException() {
         // Given
         Path nonExistingBase = tempDir.resolve("does-not-exist");
         PathQuery query = PathQuery.builder()
@@ -148,13 +138,40 @@ class GlobPathFinderErrorHandlingTest {
                 .failFastOnError(true)
                 .build();
 
-        // When / Then
-        assertThatThrownBy(() -> {
-                    try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
-                        pathStream.collect(Collectors.toList());
-                    }
-                })
-                .isInstanceOf(UncheckedIOException.class);
+        // When
+        Throwable thrown = catchThrowable(() -> {
+            try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
+                pathStream.collect(Collectors.toList());
+            }
+        });
+
+        // Then
+        assertThat(thrown)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Base directory does not exist: ")
+                .hasMessageContaining(
+                        nonExistingBase.toAbsolutePath().normalize().toString());
+    }
+
+    @Test
+    void findPaths_baseDirIsFile_throwsIllegalArgumentException() throws IOException {
+        // Given
+        Path file = tempDir.resolve("somefile.txt");
+        Files.writeString(file, "content");
+        PathQuery query = PathQuery.builder().baseDir(file).build();
+
+        // When
+        Throwable thrown = catchThrowable(() -> {
+            try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
+                pathStream.collect(Collectors.toList());
+            }
+        });
+
+        // Then
+        assertThat(thrown)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Base path is not a directory: ")
+                .hasMessageContaining(file.toAbsolutePath().normalize().toString());
     }
 
     @Test
