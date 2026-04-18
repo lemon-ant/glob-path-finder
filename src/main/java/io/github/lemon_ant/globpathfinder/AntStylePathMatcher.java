@@ -78,34 +78,77 @@ final class AntStylePathMatcher implements PathMatcher {
      * @return {@code true} if the remaining pattern fully matches the remaining path
      */
     private static boolean matchSegments(String[] patParts, int piStart, String[] pathParts, int siStart) {
+        byte[][] memoizedResults = new byte[patParts.length + 1][pathParts.length + 1];
+        return matchSegments(patParts, piStart, pathParts, siStart, memoizedResults);
+    }
+
+    /**
+     * Matches pattern and path segments starting at the supplied indexes.
+     *
+     * <p>This uses memoization on {@code (patternIndex, segmentIndex)} so repeated
+     * states reached through multiple {@code **} expansions are evaluated only once.
+     * That avoids the exponential backtracking behavior of the naive recursive
+     * implementation while preserving the existing Ant-style matching semantics.</p>
+     *
+     * @param patParts         the pattern segments
+     * @param piStart          the starting pattern segment index
+     * @param pathParts        the path segments
+     * @param siStart          the starting path segment index
+     * @param memoizedResults  cached results indexed by pattern and path positions
+     * @return {@code true} if the remaining pattern matches the remaining path
+     */
+    private static boolean matchSegments(
+            String[] patParts,
+            int piStart,
+            String[] pathParts,
+            int siStart,
+            byte[][] memoizedResults) {
+        byte cachedResult = memoizedResults[piStart][siStart];
+        if (cachedResult != 0) {
+            return cachedResult == 2;
+        }
+
         int pi = piStart;
         int si = siStart;
+        boolean matches = false;
         while (pi < patParts.length) {
             if (DOUBLE_STAR.equals(patParts[pi])) {
-                return matchFromDoubleStar(patParts, pi, pathParts, si);
+                matches = matchFromDoubleStar(patParts, pi, pathParts, si, memoizedResults);
+                memoizedResults[piStart][siStart] = (byte) (matches ? 2 : 1);
+                return matches;
             }
             if (si >= pathParts.length || !matchSegment(patParts[pi], pathParts[si])) {
+                memoizedResults[piStart][siStart] = 1;
                 return false;
             }
             pi++;
             si++;
         }
-        return si == pathParts.length;
+
+        matches = si == pathParts.length;
+        memoizedResults[piStart][siStart] = (byte) (matches ? 2 : 1);
+        return matches;
     }
 
     /**
      * Handles a {@code **} segment by trying to match the remaining pattern against
      * every possible suffix of the remaining path (zero or more segments skipped).
      *
-     * @param patParts  the pattern segments
-     * @param pi        index of the {@code **} segment in {@code patParts}
-     * @param pathParts the path segments
-     * @param si        current position in {@code pathParts}
+     * @param patParts         the pattern segments
+     * @param pi               index of the {@code **} segment in {@code patParts}
+     * @param pathParts        the path segments
+     * @param si               current position in {@code pathParts}
+     * @param memoizedResults  cached results indexed by pattern and path positions
      * @return {@code true} if any skip count leads to a full match
      */
-    private static boolean matchFromDoubleStar(String[] patParts, int pi, String[] pathParts, int si) {
+    private static boolean matchFromDoubleStar(
+            String[] patParts,
+            int pi,
+            String[] pathParts,
+            int si,
+            byte[][] memoizedResults) {
         for (int skip = 0; skip <= pathParts.length - si; skip++) {
-            if (matchSegments(patParts, pi + 1, pathParts, si + skip)) {
+            if (matchSegments(patParts, pi + 1, pathParts, si + skip, memoizedResults)) {
                 return true;
             }
         }
