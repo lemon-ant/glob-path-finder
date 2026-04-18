@@ -116,9 +116,9 @@ public class GlobPathFinder {
         // by pulling small batches on demand — batch memory is O(batchSize), not O(totalPaths).
         // Note: distinct() maintains an internal HashSet of O(uniquePaths) for deduplication,
         // but paths flow through incrementally — no full path collection is created before processing.
-        // Batch size of availableProcessors() * 2 keeps the batch small enough to start parallel
-        // processing quickly — each thread gets work as soon as the first batches are ready —
-        // while still producing array-backed spliterators that the ForkJoinPool can recursively halve.
+        // The configured batch size keeps the batch small enough to start parallel processing
+        // quickly — each thread gets work as soon as the first batches are ready — while still
+        // producing array-backed spliterators that the ForkJoinPool can recursively halve.
         Stream<Path> merged = baseToIncludeMatchers.entrySet().stream()
                 .flatMap(entry -> scanBaseDir(entry, pathQuery, globalPipeline, perBasePipelineFactory, fileTypeFilter))
                 .distinct();
