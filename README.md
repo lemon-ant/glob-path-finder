@@ -73,6 +73,11 @@ try (Stream<Path> paths = GlobPathFinder.findPaths(query)) {
 }
 ```
 
+> **Glob pattern semantics:** include and exclude patterns use **Ant/Maven-style** matching, not
+> the JDK `glob:` syntax. Key differences:
+> - `**` matches **zero or more** path segments (JDK `glob:` requires at least one).
+> - Character classes (`[abc]`) and alternation groups (`{foo,bar}`) are **not supported**.
+
 ---
 
 ## ⚡ Performance and Logging
@@ -82,8 +87,8 @@ GlobPathFinder is built with efficiency in mind:
 - Dynamic pipeline construction ensures that only the necessary filters and matchers are applied.
 - No redundant operations — traversal and filtering remain lightweight even for large trees.
 - Professional logging with SLF4J integration:
-    - `trace` for deep traversal inspection
-    - `debug` for emitted paths and filtering steps
+    - `trace` for raw path discoveries and per-filter pass logging
+    - `debug` for the initial query start and final emitted paths
 
 This makes the library not only fast, but also developer-friendly for debugging and analysis.
 
@@ -115,7 +120,8 @@ If you like this project, please consider:
 ## Wiki
 
 Additional documentation is available in the [project Wiki](../../wiki).
-If you run into questions about how glob patterns behave in Java NIO, the Wiki already contains a dedicated article with examples and explanations.
+The Wiki contains a dedicated article about Java NIO glob pattern syntax for background reference.
+Note that GlobPathFinder itself uses Ant/Maven-style matching (see the Quick Start note above).
 
 ---
 
