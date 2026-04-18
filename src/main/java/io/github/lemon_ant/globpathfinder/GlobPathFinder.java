@@ -55,6 +55,8 @@ import lombok.extern.slf4j.Slf4j;
 public class GlobPathFinder {
 
     static final String FAILED_TO_START_SCANNING_BASE = "Failed to start scanning base '{}'. Skipping this base.";
+    static final String BASE_DIR_DOES_NOT_EXIST = "Base directory does not exist: ";
+    static final String BASE_PATH_NOT_A_DIRECTORY = "Base path is not a directory: ";
 
     private static final int BATCH_SIZE = Runtime.getRuntime().availableProcessors() * 2;
 
@@ -74,6 +76,9 @@ public class GlobPathFinder {
      * @return a stream of absolute, normalized and <b>unique</b> paths that satisfy the filters;
      *         the caller must close the returned stream to release underlying file handles;
      *         call {@code .parallel()} to enable multi-threaded consumption
+     * @throws IllegalArgumentException if {@code baseDir} does not exist or is not a directory;
+     *         this is always thrown regardless of the {@code failFastOnError} flag, because a
+     *         missing or non-directory base is a configuration error, not a traversal error
      * @throws UncheckedIOException on IO errors during traversal
      */
     @NonNull
@@ -82,6 +87,7 @@ public class GlobPathFinder {
 
         // 1) Normalize inputs and precompute matchers/sets (no I/O here).
         Path normalizedBaseDir = pathQuery.getBaseDir().toAbsolutePath().normalize();
+        validateBaseDir(normalizedBaseDir);
 
         // Group include globs by extracted base; empty matcher set for a base denotes MATCH_ALL under that base.
         Map<Path, Set<PathMatcher>> baseToIncludeMatchers =
@@ -130,6 +136,23 @@ public class GlobPathFinder {
             resultPathStream = resultPathStream.peek(path -> log.debug("Emitting {}", path));
         }
         return resultPathStream;
+    }
+
+    /**
+     * Validates that the given normalized base directory exists and is a directory.
+     * This is a configuration-time check: a missing or non-directory base is always
+     * an error regardless of the {@code failFastOnError} flag.
+     *
+     * @param normalizedBaseDir the absolute, normalized base path to validate
+     * @throws IllegalArgumentException if the path does not exist or is not a directory
+     */
+    private static void validateBaseDir(Path normalizedBaseDir) {
+        if (!Files.exists(normalizedBaseDir)) {
+            throw new IllegalArgumentException(BASE_DIR_DOES_NOT_EXIST + normalizedBaseDir);
+        }
+        if (!Files.isDirectory(normalizedBaseDir)) {
+            throw new IllegalArgumentException(BASE_PATH_NOT_A_DIRECTORY + normalizedBaseDir);
+        }
     }
 
     /**
