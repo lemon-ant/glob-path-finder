@@ -32,10 +32,10 @@ final class AntStylePathMatcher implements PathMatcher {
     private static final char WILDCARD_ONE = '?';
 
     @NonNull
-    private final String pattern;
+    private final String[] patternParts;
 
     private AntStylePathMatcher(String pattern) {
-        this.pattern = normalizeToUnixSeparators(pattern);
+        this.patternParts = splitSegments(normalizeToUnixSeparators(pattern));
     }
 
     /**
@@ -52,7 +52,7 @@ final class AntStylePathMatcher implements PathMatcher {
     @Override
     public boolean matches(@NonNull Path path) {
         String pathString = normalizeToUnixSeparators(path.toString());
-        return matchPath(pattern, pathString);
+        return matchSegments(patternParts, 0, splitSegments(pathString), 0);
     }
 
     /**
@@ -98,11 +98,7 @@ final class AntStylePathMatcher implements PathMatcher {
      * @return {@code true} if the remaining pattern matches the remaining path
      */
     private static boolean matchSegments(
-            String[] patParts,
-            int piStart,
-            String[] pathParts,
-            int siStart,
-            byte[][] memoizedResults) {
+            String[] patParts, int piStart, String[] pathParts, int siStart, byte[][] memoizedResults) {
         byte cachedResult = memoizedResults[piStart][siStart];
         if (cachedResult != 0) {
             return cachedResult == 2;
@@ -110,12 +106,11 @@ final class AntStylePathMatcher implements PathMatcher {
 
         int pi = piStart;
         int si = siStart;
-        boolean matches = false;
         while (pi < patParts.length) {
             if (DOUBLE_STAR.equals(patParts[pi])) {
-                matches = matchFromDoubleStar(patParts, pi, pathParts, si, memoizedResults);
-                memoizedResults[piStart][siStart] = (byte) (matches ? 2 : 1);
-                return matches;
+                boolean result = matchFromDoubleStar(patParts, pi, pathParts, si, memoizedResults);
+                memoizedResults[piStart][siStart] = (byte) (result ? 2 : 1);
+                return result;
             }
             if (si >= pathParts.length || !matchSegment(patParts[pi], pathParts[si])) {
                 memoizedResults[piStart][siStart] = 1;
@@ -125,9 +120,9 @@ final class AntStylePathMatcher implements PathMatcher {
             si++;
         }
 
-        matches = si == pathParts.length;
-        memoizedResults[piStart][siStart] = (byte) (matches ? 2 : 1);
-        return matches;
+        boolean result = si == pathParts.length;
+        memoizedResults[piStart][siStart] = (byte) (result ? 2 : 1);
+        return result;
     }
 
     /**
@@ -142,11 +137,7 @@ final class AntStylePathMatcher implements PathMatcher {
      * @return {@code true} if any skip count leads to a full match
      */
     private static boolean matchFromDoubleStar(
-            String[] patParts,
-            int pi,
-            String[] pathParts,
-            int si,
-            byte[][] memoizedResults) {
+            String[] patParts, int pi, String[] pathParts, int si, byte[][] memoizedResults) {
         for (int skip = 0; skip <= pathParts.length - si; skip++) {
             if (matchSegments(patParts, pi + 1, pathParts, si + skip, memoizedResults)) {
                 return true;
@@ -228,9 +219,5 @@ final class AntStylePathMatcher implements PathMatcher {
             }
         }
         return false;
-    }
-
-    private static boolean matchPath(String pattern, String path) {
-        return matchSegments(splitSegments(pattern), 0, splitSegments(path), 0);
     }
 }
