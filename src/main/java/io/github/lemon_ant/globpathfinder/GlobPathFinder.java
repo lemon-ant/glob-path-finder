@@ -38,8 +38,8 @@ import lombok.extern.slf4j.Slf4j;
  *   <li><b>Files/directories</b>: {@code onlyFiles=true} keeps regular files only; otherwise both files and directories may appear.</li>
  *   <li><b>Depth/options</b>: {@code maxDepth} and {@code getVisitOptions()} are passed to {@link java.nio.file.Files#find}.</li>
  *   <li><b>Parallelism</b>: per-entry streams from {@link java.nio.file.Files#find} are merged via
- *       {@code flatMap} and then wrapped in a {@link BatchingSpliterator} with a fixed batch size
- *       of 1024. This enables effective parallel splitting via {@code .parallel()}
+ *       {@code flatMap} and then wrapped in a {@link BatchingSpliterator} with a batch size of
+ *       {@code availableProcessors() * 2}. This enables effective parallel splitting via {@code .parallel()}
  *       without collecting all discovered paths into an intermediate collection.
  *       Each batch is backed by an array-based spliterator that further splits down to individual
  *       elements, so work distributes across all available threads.
@@ -56,7 +56,7 @@ public class GlobPathFinder {
 
     static final String FAILED_TO_START_SCANNING_BASE = "Failed to start scanning base '{}'. Skipping this base.";
 
-    private static final int BATCH_SIZE = 1024;
+    private static final int BATCH_SIZE = Runtime.getRuntime().availableProcessors() * 2;
 
     private static final BiPredicate<Path, BasicFileAttributes> MATCH_ALL_FILE_TYPES = (path, attrs) -> true;
 
@@ -64,8 +64,8 @@ public class GlobPathFinder {
      * Find paths according to the provided {@link PathQuery}.
      *
      * <p>Per-entry streams from {@link java.nio.file.Files#find} are merged via {@code flatMap}
-     * and then wrapped in a {@link BatchingSpliterator} with a fixed batch size of 1024.
-     * Calling {@code .parallel()} on the result enables
+     * and then wrapped in a {@link BatchingSpliterator} with a batch size of
+     * {@code availableProcessors() * 2}. Calling {@code .parallel()} on the result enables
      * true ForkJoinPool parallelism without collecting all paths into an intermediate collection.
      * Each batch is backed by an array-based spliterator that further splits down to individual
      * elements, so work distributes across all available threads.</p>
@@ -115,8 +115,9 @@ public class GlobPathFinder {
         // by pulling small batches on demand — batch memory is O(batchSize), not O(totalPaths).
         // Note: distinct() maintains an internal HashSet of O(uniquePaths) for deduplication,
         // but paths flow through incrementally — no full path collection is created before processing.
-        // Batch size of 1024 matches Java's IteratorSpliterator default and produces
-        // array-backed spliterators that the ForkJoinPool can recursively halve.
+        // The configured batch size keeps the batch small enough to start parallel processing
+        // quickly — each thread gets work as soon as the first batches are ready — while still
+        // producing array-backed spliterators that the ForkJoinPool can recursively halve.
         Stream<Path> merged = baseToIncludeMatchers.entrySet().stream()
                 .flatMap(entry -> scanBaseDir(entry, pathQuery, globalPipeline, perBasePipelineFactory, fileTypeFilter))
                 .distinct();
