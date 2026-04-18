@@ -85,7 +85,7 @@ public class GlobPathFinder {
     public static Stream<Path> findPaths(@NonNull PathQuery pathQuery) {
         log.debug("findPaths: starting with query {}", pathQuery);
 
-        // 1) Normalize inputs and precompute matchers/sets (no I/O here).
+        // 1) Normalize inputs, validate the base directory, and precompute matchers/sets.
         Path normalizedBaseDir = pathQuery.getBaseDir().toAbsolutePath().normalize();
         validateBaseDir(normalizedBaseDir);
 
