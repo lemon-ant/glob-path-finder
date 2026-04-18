@@ -55,8 +55,8 @@ import lombok.extern.slf4j.Slf4j;
 public class GlobPathFinder {
 
     static final String FAILED_TO_START_SCANNING_BASE = "Failed to start scanning base '{}'. Skipping this base.";
-    static final String BASE_DIR_DOES_NOT_EXIST = "Base directory does not exist: ";
-    static final String BASE_PATH_NOT_A_DIRECTORY = "Base path is not a directory: ";
+    private static final String BASE_DIR_DOES_NOT_EXIST = "Base directory does not exist: ";
+    private static final String BASE_PATH_NOT_A_DIRECTORY = "Base path is not a directory: ";
 
     private static final int BATCH_SIZE = Runtime.getRuntime().availableProcessors() * 2;
 

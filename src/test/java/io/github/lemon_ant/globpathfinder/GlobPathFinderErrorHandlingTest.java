@@ -2,7 +2,7 @@ package io.github.lemon_ant.globpathfinder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import ch.qos.logback.classic.Level;
@@ -48,14 +48,17 @@ class GlobPathFinderErrorHandlingTest {
                 .failFastOnError(false)
                 .build();
 
-        // When / Then
-        assertThatThrownBy(() -> {
-                    try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
-                        pathStream.collect(Collectors.toList());
-                    }
-                })
+        // When
+        Throwable thrown = catchThrowable(() -> {
+            try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
+                pathStream.collect(Collectors.toList());
+            }
+        });
+
+        // Then
+        assertThat(thrown)
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining(GlobPathFinder.BASE_DIR_DOES_NOT_EXIST)
+                .hasMessageContaining("Base directory does not exist: ")
                 .hasMessageContaining(
                         nonExistingBase.toAbsolutePath().normalize().toString());
     }
@@ -135,14 +138,17 @@ class GlobPathFinderErrorHandlingTest {
                 .failFastOnError(true)
                 .build();
 
-        // When / Then
-        assertThatThrownBy(() -> {
-                    try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
-                        pathStream.collect(Collectors.toList());
-                    }
-                })
+        // When
+        Throwable thrown = catchThrowable(() -> {
+            try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
+                pathStream.collect(Collectors.toList());
+            }
+        });
+
+        // Then
+        assertThat(thrown)
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining(GlobPathFinder.BASE_DIR_DOES_NOT_EXIST)
+                .hasMessageContaining("Base directory does not exist: ")
                 .hasMessageContaining(
                         nonExistingBase.toAbsolutePath().normalize().toString());
     }
@@ -154,14 +160,17 @@ class GlobPathFinderErrorHandlingTest {
         Files.writeString(file, "content");
         PathQuery query = PathQuery.builder().baseDir(file).build();
 
-        // When / Then
-        assertThatThrownBy(() -> {
-                    try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
-                        pathStream.collect(Collectors.toList());
-                    }
-                })
+        // When
+        Throwable thrown = catchThrowable(() -> {
+            try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
+                pathStream.collect(Collectors.toList());
+            }
+        });
+
+        // Then
+        assertThat(thrown)
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining(GlobPathFinder.BASE_PATH_NOT_A_DIRECTORY)
+                .hasMessageContaining("Base path is not a directory: ")
                 .hasMessageContaining(file.toAbsolutePath().normalize().toString());
     }
 
