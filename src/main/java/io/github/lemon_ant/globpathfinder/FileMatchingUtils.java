@@ -11,14 +11,11 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.NonNull;
 import lombok.experimental.UtilityClass;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.Pair;
 
 @UtilityClass
 class FileMatchingUtils {
@@ -39,8 +36,8 @@ class FileMatchingUtils {
     static Map<Path, Set<PathMatcher>> computeBaseToIncludeMatchers(
             @NonNull Path baseDir, @NonNull Set<String> includeGlobs) {
         Map<Path, Set<PathMatcher>> result = includeGlobs.stream()
-                .map(StringUtils::trimToNull)
-                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
                 .map(glob -> extractBaseAndPattern(baseDir, glob))
                 .collect(Collectors.groupingBy(
                         Pair::getKey,
@@ -92,7 +89,9 @@ class FileMatchingUtils {
     @NonNull
     private static Pair<Path, PathMatcher> extractBaseAndPattern(Path defaultAbsoluteBase, String globPattern) {
         String normalizedGlob = normalizeToUnixSeparators(globPattern);
-        String[] pathSegments = StringUtils.split(normalizedGlob, '/');
+        String[] pathSegments = Arrays.stream(normalizedGlob.split("/", -1))
+                .filter(s -> !s.isEmpty())
+                .toArray(String[]::new);
 
         StringBuilder baseBuilder = new StringBuilder();
 
@@ -141,6 +140,6 @@ class FileMatchingUtils {
     }
 
     private static boolean isWildcardSegment(String segment) {
-        return StringUtils.containsAny(segment, "*?");
+        return segment.indexOf('*') >= 0 || segment.indexOf('?') >= 0;
     }
 }

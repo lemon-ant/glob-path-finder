@@ -76,4 +76,19 @@ class StringUtilsTest {
         assertThat(result).isEmpty();
         assertThatThrownBy(() -> result.add("anything")).isInstanceOf(UnsupportedOperationException.class);
     }
+
+    @Test
+    void processNormalizedStrings_nullEntries_discardedWithoutNpe() {
+        // Given
+        List<String> inputStrings = new java.util.ArrayList<>();
+        inputStrings.add("alpha");
+        inputStrings.add(null);
+        inputStrings.add("beta");
+
+        // When
+        Set<String> result = StringUtils.processNormalizedStrings(inputStrings, value -> value);
+
+        // Then
+        assertThat(result).containsExactlyInAnyOrder("alpha", "beta");
+    }
 }

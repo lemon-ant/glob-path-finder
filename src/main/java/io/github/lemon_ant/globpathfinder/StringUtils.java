@@ -36,8 +36,9 @@ class StringUtils {
     static <TProcessResult> Set<TProcessResult> processNormalizedStrings(
             @NonNull Collection<String> strings, @NonNull Function<String, TProcessResult> processor) {
         return strings.stream()
-                .map(org.apache.commons.lang3.StringUtils::trimToNull)
                 .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
                 .map(processor)
                 .collect(toUnmodifiableSet());
     }
