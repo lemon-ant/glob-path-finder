@@ -3,6 +3,7 @@ package io.github.lemon_ant.globpathfinder;
 import static java.util.stream.Collectors.toUnmodifiableSet;
 
 import java.util.Collection;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import lombok.NonNull;
@@ -35,6 +36,7 @@ class StringUtils {
     static <TProcessResult> Set<TProcessResult> processNormalizedStrings(
             @NonNull Collection<String> strings, @NonNull Function<String, TProcessResult> processor) {
         return strings.stream()
+                .filter(Objects::nonNull)
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .map(processor)
