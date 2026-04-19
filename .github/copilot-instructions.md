@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: 2026 Anton Lem <antonlem78@gmail.com>
+SPDX-License-Identifier: Apache-2.0
+-->
+
 # GitHub Copilot instructions for JHarmonizer
 
 ## Scope and maintenance
@@ -20,6 +25,12 @@
 
 - Prefer the smallest complete change that solves the reviewed problem.
 - Keep changes surgical and avoid unrelated cleanup.
+- Licensing policy is mandatory for all tracked files.
+  - Every tracked text/source/config/documentation file must include SPDX metadata.
+  - Required SPDX lines:
+    - `SPDX-FileCopyrightText: 2026 Anton Lem <antonlem78@gmail.com>`
+    - `SPDX-License-Identifier: Apache-2.0`
+  - Exception: `LICENSE` keeps the canonical Apache-2.0 legal text and may omit SPDX header lines.
 - Avoid cosmetic-only churn in production files (for example adding/removing separator blank lines) when there is no behavioral or readability gain tied to the task.
 - Reuse existing project and library utilities before introducing custom helpers.
 - Prefer explicit Java types over `var`.
@@ -82,6 +93,7 @@
 - Prefer using production pipeline building blocks such as parsers, converters, compilers, and factories instead of test-only reimplementations.
 - When an annotation argument in test code only repeats the library or framework default behavior, omit it instead of spelling it out explicitly.
 - When test code overrides standard `Object` methods, preserve the standard signature exactly; do not add nullability annotations to `Object` overrides in tests.
+- Test code and test resources follow the same repository SPDX policy with the required file-level lines listed above.
 
 ### Code reuse and deduplication
 

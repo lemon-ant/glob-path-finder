@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    SPDX-FileCopyrightText: 2026 Anton Lem <antonlem78@gmail.com>
+    SPDX-License-Identifier: Apache-2.0
+
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
@@ -17,6 +23,7 @@
     </distributionManagement>
 
     <properties>
+        <license-maven-plugin.version>4.6</license-maven-plugin.version>
         <lombok.version>1.18.44</lombok.version>
         <maven-clean-plugin.version>3.5.0</maven-clean-plugin.version>
         <maven-dependency-plugin.version>3.8.1</maven-dependency-plugin.version>
@@ -225,6 +232,50 @@
         </pluginManagement>
 
         <plugins>
+            <plugin>
+                <groupId>com.mycila</groupId>
+                <artifactId>license-maven-plugin</artifactId>
+                <version>${license-maven-plugin.version}</version>
+                <configuration>
+                    <strictCheck>true</strictCheck>
+                    <licenseSets>
+                        <licenseSet>
+                            <header>${maven.multiModuleProjectDirectory}/license-header.txt</header>
+                            <includes>
+                                <include>.editorconfig</include>
+                                <include>.gitattributes</include>
+                                <include>.github/**/*.md</include>
+                                <include>.github/**/*.yml</include>
+                                <include>.gitignore</include>
+                                <include>*.md</include>
+                                <include>**/*.java</include>
+                                <include>**/*.md</include>
+                                <include>**/*.sh</include>
+                                <include>**/*.xml</include>
+                                <include>**/*.yml</include>
+                            </includes>
+                            <excludes>
+                                <exclude>LICENSE</exclude>
+                                <exclude>target/**</exclude>
+                            </excludes>
+                        </licenseSet>
+                    </licenseSets>
+                    <mapping>
+                        <md>XML_STYLE</md>
+                        <sh>SCRIPT_STYLE</sh>
+                        <yml>SCRIPT_STYLE</yml>
+                    </mapping>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>check-spdx-headers</id>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <phase>validate</phase>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>

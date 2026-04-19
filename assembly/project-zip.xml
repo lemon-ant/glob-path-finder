@@ -1,3 +1,9 @@
+<!--
+
+    SPDX-FileCopyrightText: 2026 Anton Lem <antonlem78@gmail.com>
+    SPDX-License-Identifier: Apache-2.0
+
+-->
 <assembly xmlns="http://maven.apache.org/ASSEMBLY/3.0.0"
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
           xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/3.0.0 http://maven.apache.org/xsd/assembly-3.0.0.xsd">

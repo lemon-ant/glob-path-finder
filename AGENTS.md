@@ -1,3 +1,9 @@
+<!--
+
+    SPDX-FileCopyrightText: 2026 Anton Lem <antonlem78@gmail.com>
+    SPDX-License-Identifier: Apache-2.0
+
+-->
 # AGENTS.md
 
 This file defines repository-wide conventions for coding agents working in this repository.
@@ -25,6 +31,13 @@ This file defines repository-wide conventions for coding agents working in this 
 
 - Prefer the smallest complete change that solves the reviewed problem.
 - Keep changes surgical and avoid unrelated cleanup.
+- Licensing policy is mandatory for all tracked files in this repository.
+  - Every tracked text/source/config/documentation file must include SPDX metadata.
+  - Required file-level SPDX lines:
+    - `SPDX-FileCopyrightText: 2026 Anton Lem <antonlem78@gmail.com>`
+    - `SPDX-License-Identifier: Apache-2.0`
+  - Allowed omission: repository license body file (`LICENSE`) may keep only the canonical Apache-2.0 legal text without SPDX header.
+  - Do not introduce additional third-party license headers unless a file is truly imported from a differently licensed upstream source.
 - Avoid cosmetic-only churn in production files (for example adding/removing separator blank lines) when there is no behavioral or readability gain tied to the task.
 - Reuse existing project and library utilities before introducing custom helpers.
 - Prefer explicit Java types over `var`.
