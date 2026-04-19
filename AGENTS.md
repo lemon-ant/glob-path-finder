@@ -190,14 +190,16 @@ Notes:
 
 #### Exception tests
 
-When a test verifies that a method throws an exception, **always** split the action and the assertion into separate `// When` and `// Then` blocks.
+When a test verifies that a method throws an exception, prefer splitting the action and the assertion into separate `// When` and `// Then` blocks.
 
 - `// When` block: capture the thrown exception using `catchThrowable(...)` from AssertJ.
 - `// Then` block: assert on the captured throwable using `assertThat(thrown)`.
 
 Use `catchThrowableOfType(ExceptionType.class, ...)` instead of `catchThrowable(...)` only when the specific exception type needs to be accessed directly (for example, calling type-specific methods on it) in the `// Then` block.
 
-**Do not** use `// When / Then` with `assertThatThrownBy(...)`.
+For small, direct exception checks, such as simple argument-validation tests, `assertThatThrownBy(...)` is also acceptable.
+- In those cases, a combined `// When / Then` block is allowed when the action and assertion stay short and obvious.
+- Prefer the separate `catchThrowable(...)` pattern when the test needs additional setup clarity, multiple assertions about the exception, or type-specific follow-up checks.
 
 Recommended skeleton:
 
