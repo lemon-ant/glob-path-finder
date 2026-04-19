@@ -161,7 +161,8 @@ SPDX-License-Identifier: Apache-2.0
 - Use shared helpers such as `TestCaseResourceUtils` to read resources.
 - If a regression test verifies the built-in default configuration, load the real embedded `default-config.yml` through the production default-loading path instead of duplicating it in test fixtures or inline YAML.
 - Keep resource identifiers as typed values where feasible, such as `URL`, not raw strings.
-- Keep resource paths absolute, starting with `/`.
+- When using `ClassLoader.getResourceAsStream` (preferred), do not use a leading `/`; classpath resource names are always relative to the classpath root.
+- Only when using `Class#getResourceAsStream` should the path start with `/` to indicate an absolute classpath resource.
 - If you need to resolve a file under a directory, resolve it via a dedicated helper, not via deprecated URL constructors.
 
 ### Shared test setup and one-time initialization
