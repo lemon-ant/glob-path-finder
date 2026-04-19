@@ -11,9 +11,41 @@
 
     <groupId>io.github.lemon-ant</groupId>
     <artifactId>glob-path-finder</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0.0</version>
 
     <name>Glob Path Finder</name>
+    <description>A lightweight Java library for recursive file system traversal with flexible glob pattern filtering.</description>
+    <url>https://github.com/lemon-ant/glob-path-finder</url>
+    <inceptionYear>2026</inceptionYear>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>lemon-ant</id>
+            <name>Anton Lem</name>
+            <email>antonlem78@gmail.com</email>
+            <url>https://github.com/AntonLem</url>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:https://github.com/lemon-ant/glob-path-finder.git</connection>
+        <developerConnection>scm:git:https://github.com/lemon-ant/glob-path-finder.git</developerConnection>
+        <tag>v1.0.0</tag>
+        <url>https://github.com/lemon-ant/glob-path-finder</url>
+    </scm>
+
+    <issueManagement>
+        <system>GitHub Issues</system>
+        <url>https://github.com/lemon-ant/glob-path-finder/issues</url>
+    </issueManagement>
 
     <distributionManagement>
         <snapshotRepository>
@@ -23,11 +55,13 @@
     </distributionManagement>
 
     <properties>
+        <central-publishing-maven-plugin.version>0.7.0</central-publishing-maven-plugin.version>
         <license-maven-plugin.version>4.6</license-maven-plugin.version>
         <lombok.version>1.18.44</lombok.version>
         <maven-clean-plugin.version>3.5.0</maven-clean-plugin.version>
         <maven-dependency-plugin.version>3.8.1</maven-dependency-plugin.version>
         <maven-deploy-plugin.version>3.1.4</maven-deploy-plugin.version>
+        <maven-gpg-plugin.version>3.2.7</maven-gpg-plugin.version>
         <maven-install-plugin.version>3.1.4</maven-install-plugin.version>
         <maven-project-info-reports-plugin.version>3.9.0</maven-project-info-reports-plugin.version>
         <maven-site-plugin.version>3.21.0</maven-site-plugin.version>
@@ -228,6 +262,16 @@
                     <artifactId>maven-source-plugin</artifactId>
                     <version>3.4.0</version>
                 </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-gpg-plugin</artifactId>
+                    <version>${maven-gpg-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.sonatype.central</groupId>
+                    <artifactId>central-publishing-maven-plugin</artifactId>
+                    <version>${central-publishing-maven-plugin.version}</version>
+                </plugin>
             </plugins>
         </pluginManagement>
 
@@ -361,6 +405,77 @@
                                 </goals>
                             </execution>
                         </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- Profile for publishing a release artifact to Maven Central via Sonatype Central Portal.
+             Attaches sources and javadoc, GPG-signs all artifacts, and deploys via
+             central-publishing-maven-plugin. Activate with: mvn deploy -Prelease
+             Requires MAVEN_CENTRAL_USERNAME / MAVEN_CENTRAL_TOKEN in settings.xml (server id: central)
+             and GPG_PASSPHRASE env variable set for the signer. -->
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                                <phase>verify</phase>
+                                <configuration>
+                                    <!-- Allow non-interactive passphrase supply via env GPG_PASSPHRASE -->
+                                    <gpgArguments>
+                                        <arg>--pinentry-mode</arg>
+                                        <arg>loopback</arg>
+                                    </gpgArguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <!-- extensions=true replaces the standard deploy lifecycle -->
+                        <extensions>true</extensions>
+                        <configuration>
+                            <!-- Matches server id in ~/.m2/settings.xml -->
+                            <publishingServerId>central</publishingServerId>
+                            <!-- Automatically release after validation passes -->
+                            <autoPublish>true</autoPublish>
+                            <!-- Block until the artifact is publicly visible -->
+                            <waitUntil>published</waitUntil>
+                        </configuration>
                     </plugin>
                 </plugins>
             </build>
