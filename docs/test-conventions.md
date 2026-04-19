@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: 2026 Anton Lem <antonlem78@gmail.com>
+SPDX-License-Identifier: Apache-2.0
+-->
+
 # Test conventions
 
 This repository uses a small set of conventions for unit and integration tests.
@@ -28,6 +33,11 @@ Keep `docs/test-conventions.md`, `AGENTS.md`, and `.github/copilot-instructions.
 - When test code overrides standard `Object` methods, preserve the standard signature exactly.
   - Do not add nullability annotations to `Object` overrides in tests.
   - In particular, keep `equals(Object)` unchanged.
+- Test code and test resources follow the same repository licensing policy.
+  - Every tracked test file must include SPDX metadata.
+  - Required lines:
+    - `SPDX-FileCopyrightText: 2026 Anton Lem <antonlem78@gmail.com>`
+    - `SPDX-License-Identifier: Apache-2.0`
 
 ## Code reuse and deduplication
 
