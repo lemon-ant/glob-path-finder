@@ -5,7 +5,6 @@
 
 package io.github.lemon_ant.globpathfinder;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.function.Consumer;
@@ -152,7 +151,6 @@ final class BatchingSpliterator<T> implements Spliterator<T> {
 
     private static final class HoldingConsumer<T> implements Consumer<T> {
 
-        @Nullable
         T value;
 
         @Override

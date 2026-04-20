@@ -8,7 +8,6 @@ package io.github.lemon_ant.globpathfinder;
 import static io.github.lemon_ant.globpathfinder.StringUtils.normalizeToUnixSeparators;
 import static java.util.Optional.ofNullable;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
@@ -82,7 +81,6 @@ class FileMatchingUtils {
         return Pair.of(absoluteToPatterns.get(true), absoluteToPatterns.get(false));
     }
 
-    @Nullable
     private static String composePattern(int startSegment, String[] segments, boolean addTrailSlash) {
         if (startSegment == segments.length) {
             return null;

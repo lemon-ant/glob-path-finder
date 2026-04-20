@@ -7,8 +7,6 @@ package io.github.lemon_ant.globpathfinder;
 
 import static java.util.Optional.ofNullable;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.file.FileVisitOption;
 import java.nio.file.Path;
 import java.util.Collection;
@@ -76,7 +74,7 @@ import lombok.Value;
  * <p>Immutability: collections are defensively copied; getters return unmodifiable views.</p>
  */
 @Value
-@SuppressFBWarnings("EI_EXPOSE_REP2")
+@SuppressWarnings("EI_EXPOSE_REP2")
 public class PathQuery {
 
     /**
@@ -92,7 +90,7 @@ public class PathQuery {
      * </ul>
      */
     @NonNull
-    @SuppressFBWarnings("EI_EXPOSE_REP")
+    @SuppressWarnings("EI_EXPOSE_REP")
     Set<String> allowedExtensions;
 
     /**
@@ -115,7 +113,7 @@ public class PathQuery {
      * </ul>
      */
     @NonNull
-    @SuppressFBWarnings("EI_EXPOSE_REP")
+    @SuppressWarnings("EI_EXPOSE_REP")
     Set<String> excludeGlobs;
 
     /**
@@ -149,7 +147,7 @@ public class PathQuery {
      * </ul>
      */
     @NonNull
-    @SuppressFBWarnings("EI_EXPOSE_REP")
+    @SuppressWarnings("EI_EXPOSE_REP")
     Set<String> includeGlobs;
 
     /**
@@ -183,14 +181,14 @@ public class PathQuery {
      */
     @Builder(toBuilder = true)
     private PathQuery(
-            @Nullable Path baseDir,
-            @Nullable Collection<String> includeGlobs,
-            @Nullable Collection<String> allowedExtensions,
-            @Nullable Collection<String> excludeGlobs,
-            @Nullable Integer maxDepth,
-            @Nullable Boolean onlyFiles,
-            @Nullable Boolean followLinks,
-            @Nullable Boolean failFastOnError) {
+            Path baseDir,
+            Collection<String> includeGlobs,
+            Collection<String> allowedExtensions,
+            Collection<String> excludeGlobs,
+            Integer maxDepth,
+            Boolean onlyFiles,
+            Boolean followLinks,
+            Boolean failFastOnError) {
         this.baseDir = ofNullable(baseDir).orElse(Path.of("."));
         this.includeGlobs = ofNullable(includeGlobs).map(Set::copyOf).orElse(Set.of());
         this.allowedExtensions = ofNullable(allowedExtensions).map(Set::copyOf).orElse(Set.of());
