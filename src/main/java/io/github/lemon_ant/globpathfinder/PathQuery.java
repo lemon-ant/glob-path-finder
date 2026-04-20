@@ -7,6 +7,7 @@ package io.github.lemon_ant.globpathfinder;
 
 import static java.util.Optional.ofNullable;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.file.FileVisitOption;
 import java.nio.file.Path;
 import java.util.Collection;
@@ -75,7 +76,7 @@ import org.jspecify.annotations.Nullable;
  * <p>Immutability: collections are defensively copied; getters return unmodifiable views.</p>
  */
 @Value
-@SuppressWarnings("EI_EXPOSE_REP2")
+@SuppressFBWarnings("EI_EXPOSE_REP2")
 public class PathQuery {
 
     /**
@@ -91,7 +92,7 @@ public class PathQuery {
      * </ul>
      */
     @NonNull
-    @SuppressWarnings("EI_EXPOSE_REP")
+    @SuppressFBWarnings("EI_EXPOSE_REP")
     Set<String> allowedExtensions;
 
     /**
@@ -114,7 +115,7 @@ public class PathQuery {
      * </ul>
      */
     @NonNull
-    @SuppressWarnings("EI_EXPOSE_REP")
+    @SuppressFBWarnings("EI_EXPOSE_REP")
     Set<String> excludeGlobs;
 
     /**
@@ -148,7 +149,7 @@ public class PathQuery {
      * </ul>
      */
     @NonNull
-    @SuppressWarnings("EI_EXPOSE_REP")
+    @SuppressFBWarnings("EI_EXPOSE_REP")
     Set<String> includeGlobs;
 
     /**
