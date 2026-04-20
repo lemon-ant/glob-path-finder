@@ -20,6 +20,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.NonNull;
 import lombok.experimental.UtilityClass;
+import org.jspecify.annotations.Nullable;
 
 @UtilityClass
 class FileMatchingUtils {
@@ -81,6 +82,7 @@ class FileMatchingUtils {
         return Pair.of(absoluteToPatterns.get(true), absoluteToPatterns.get(false));
     }
 
+    @Nullable
     private static String composePattern(int startSegment, String[] segments, boolean addTrailSlash) {
         if (startSegment == segments.length) {
             return null;

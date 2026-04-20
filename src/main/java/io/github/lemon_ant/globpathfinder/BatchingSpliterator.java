@@ -9,6 +9,7 @@ import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.function.Consumer;
 import lombok.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A {@link Spliterator} wrapper that redistributes elements from a poorly-splittable source
@@ -151,6 +152,7 @@ final class BatchingSpliterator<T> implements Spliterator<T> {
 
     private static final class HoldingConsumer<T> implements Consumer<T> {
 
+        @Nullable
         T value;
 
         @Override

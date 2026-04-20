@@ -15,6 +15,7 @@ import java.util.Set;
 import lombok.Builder;
 import lombok.NonNull;
 import lombok.Value;
+import org.jspecify.annotations.Nullable;
 
 /**
  * PathQuery — immutable configuration object for {@code GlobPathFinder.findPaths(PathQuery)}.
@@ -181,14 +182,14 @@ public class PathQuery {
      */
     @Builder(toBuilder = true)
     private PathQuery(
-            Path baseDir,
-            Collection<String> includeGlobs,
-            Collection<String> allowedExtensions,
-            Collection<String> excludeGlobs,
-            Integer maxDepth,
-            Boolean onlyFiles,
-            Boolean followLinks,
-            Boolean failFastOnError) {
+            @Nullable Path baseDir,
+            @Nullable Collection<String> includeGlobs,
+            @Nullable Collection<String> allowedExtensions,
+            @Nullable Collection<String> excludeGlobs,
+            @Nullable Integer maxDepth,
+            @Nullable Boolean onlyFiles,
+            @Nullable Boolean followLinks,
+            @Nullable Boolean failFastOnError) {
         this.baseDir = ofNullable(baseDir).orElse(Path.of("."));
         this.includeGlobs = ofNullable(includeGlobs).map(Set::copyOf).orElse(Set.of());
         this.allowedExtensions = ofNullable(allowedExtensions).map(Set::copyOf).orElse(Set.of());

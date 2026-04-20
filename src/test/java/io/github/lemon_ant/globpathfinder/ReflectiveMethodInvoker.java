@@ -8,6 +8,7 @@ package io.github.lemon_ant.globpathfinder;
 import java.lang.reflect.Method;
 import lombok.NonNull;
 import lombok.experimental.UtilityClass;
+import org.jspecify.annotations.Nullable;
 
 @UtilityClass
 class ReflectiveMethodInvoker {
@@ -18,9 +19,10 @@ class ReflectiveMethodInvoker {
      * 1) Try exact lookup with inferred parameter types (wrapper -> primitive where possible).
      * 2) If not found, fallback to scanning declared methods for a compatible signature.
      */
+    @Nullable
     @SuppressWarnings("unchecked")
-    static <T> T invokePrivateStatic(@NonNull Class<?> targetClass, @NonNull String methodName, Object... arguments)
-            throws Exception {
+    static <T> T invokePrivateStatic(
+            @NonNull Class<?> targetClass, @NonNull String methodName, @Nullable Object... arguments) throws Exception {
         Method resolvedMethod;
         try {
             Class<?>[] exactParameterTypes = inferExactParameterTypes(arguments);
