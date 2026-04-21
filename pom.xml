@@ -47,13 +47,6 @@
         <url>https://github.com/lemon-ant/glob-path-finder/issues</url>
     </issueManagement>
 
-    <distributionManagement>
-        <snapshotRepository>
-            <id>github</id>
-            <url>https://maven.pkg.github.com/lemon-ant/glob-path-finder</url>
-        </snapshotRepository>
-    </distributionManagement>
-
     <properties>
         <central-publishing-maven-plugin.version>0.7.0</central-publishing-maven-plugin.version>
         <jspecify.version>1.0.0</jspecify.version>
