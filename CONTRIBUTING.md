@@ -21,8 +21,8 @@ Contributions of all kinds are welcome: reporting issues, suggesting features, i
 
 ## 🛠️ Development setup
 
-1. Fork this repository and clone your fork locally.
-2. Make sure you have **Java 11+** and **Maven 3.9+** installed.
+1. If you do not have write access, fork the repository first, then clone your fork locally. If you do have write access, clone the repository locally.
+2. Make sure you have **Java 11+** installed. **Maven 3.3.9+** is required; **Maven 3.9+** is recommended.
 3. Run tests to verify everything is working:
    ```bash
    mvn clean verify
