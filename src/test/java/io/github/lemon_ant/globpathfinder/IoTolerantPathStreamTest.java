@@ -32,14 +32,18 @@ class IoTolerantPathStreamTest {
 
     private static final Path BASE = Path.of("/test/base");
 
+    private Level originalIoTolerantPathStreamLoggerLevel;
+
     @BeforeEach
     void suppressExpectedIoWarnLogs() {
-        ioTolerantPathStreamLogger().setLevel(Level.ERROR);
+        Logger logger = ioTolerantPathStreamLogger();
+        originalIoTolerantPathStreamLoggerLevel = logger.getLevel();
+        logger.setLevel(Level.ERROR);
     }
 
     @AfterEach
     void restoreIoWarnLogLevel() {
-        ioTolerantPathStreamLogger().setLevel(null);
+        ioTolerantPathStreamLogger().setLevel(originalIoTolerantPathStreamLoggerLevel);
     }
 
     @Test
