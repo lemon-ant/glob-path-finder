@@ -59,5 +59,4 @@ First official General Availability release. The public API is now stable.
 
 The compiled bytecode targets Java 11 (`--release 11`).
 
-[1.0.1]: https://github.com/lemon-ant/glob-path-finder/releases/tag/v1.0.1
 [1.0.0]: https://github.com/lemon-ant/glob-path-finder/releases/tag/v1.0.0
