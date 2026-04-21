@@ -5,11 +5,11 @@
 
 package io.github.lemon_ant.globpathfinder;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.function.Consumer;
 import lombok.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A {@link Spliterator} wrapper that redistributes elements from a poorly-splittable source

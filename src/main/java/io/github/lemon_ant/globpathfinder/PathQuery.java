@@ -7,7 +7,6 @@ package io.github.lemon_ant.globpathfinder;
 
 import static java.util.Optional.ofNullable;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.file.FileVisitOption;
 import java.nio.file.Path;
@@ -17,6 +16,7 @@ import java.util.Set;
 import lombok.Builder;
 import lombok.NonNull;
 import lombok.Value;
+import org.jspecify.annotations.Nullable;
 
 /**
  * PathQuery — immutable configuration object for {@code GlobPathFinder.findPaths(PathQuery)}.

@@ -8,7 +8,6 @@ package io.github.lemon_ant.globpathfinder;
 import static io.github.lemon_ant.globpathfinder.StringUtils.normalizeToUnixSeparators;
 import static java.util.Optional.ofNullable;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
@@ -21,6 +20,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.NonNull;
 import lombok.experimental.UtilityClass;
+import org.jspecify.annotations.Nullable;
 
 @UtilityClass
 class FileMatchingUtils {

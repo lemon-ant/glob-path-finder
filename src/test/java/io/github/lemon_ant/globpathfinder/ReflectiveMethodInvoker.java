@@ -5,10 +5,10 @@
 
 package io.github.lemon_ant.globpathfinder;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
 import java.lang.reflect.Method;
 import lombok.NonNull;
 import lombok.experimental.UtilityClass;
+import org.jspecify.annotations.Nullable;
 
 @UtilityClass
 class ReflectiveMethodInvoker {
