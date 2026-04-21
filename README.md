@@ -22,7 +22,7 @@
 - Extension filters (case-insensitive).
 - Depth limit and symlink following control.
 - Option to select only files or include directories.
-- Parallel traversal for multiple bases.
+- Stream-friendly results — the returned `Stream<Path>` supports parallel processing via `.parallel()` for efficient concurrent file handling.
 - Unique normalized absolute paths as the result.
 - **Convenient and flexible interface** — results are fully configurable via `PathQuery`.
 - **Optimized performance** — dynamic pipeline construction ensures no unnecessary operations are executed.
@@ -64,14 +64,24 @@ try (Stream<Path> paths = GlobPathFinder.findPaths(query)) {
 
 ### Find only Java files under `src` directory relative to the current directory, excluding tests
 
+Use singular methods for a single pattern, or collection-based methods for multiple patterns at once:
+
 ```java
+// Singular — one pattern per call
 PathQuery query = PathQuery.builder()
-    .includeGlobs(Set.of("src/**"))
-    .excludeGlobs(Set.of("**/test/**"))
-    .allowedExtensions(Set.of("java"))
+    .includeGlob("src/**")
+    .excludeGlob("**/test/**")
+    .allowedExtension("java")
     .onlyFiles(true)        // default is true
     .followLinks(false)     // disable symlink following
     .failFastOnError(false) // shielded mode: errors are logged as WARN, traversal continues
+    .build();
+
+// Or collection-based — pass several patterns at once
+PathQuery query = PathQuery.builder()
+    .includeGlobs(Set.of("src/**", "docs/**"))
+    .excludeGlobs(Set.of("**/test/**", "**/generated/**"))
+    .allowedExtensions(Set.of("java", "kt"))
     .build();
 
 try (Stream<Path> paths = GlobPathFinder.findPaths(query)) {
@@ -123,20 +133,11 @@ If you like this project, please consider:
 
 ---
 
-## Wiki
-
-Additional documentation is available in the [project Wiki](../../wiki).
-The Wiki contains a dedicated article about Java NIO glob pattern syntax for background reference.
-Note that GlobPathFinder itself uses Ant/Maven-style matching (see the Quick Start note above).
-
----
-
 ## 🤝 Contributing
 
 Contributions are always welcome!
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-- Fork the repo
 - Create a feature branch
 - Add tests for your changes
 - Submit a PR 🚀
@@ -151,12 +152,23 @@ If you discover any security issue, please see [SECURITY.md](SECURITY.md).
 
 ## 📅 Roadmap
 
-- [ ] v1.1 — Performance track: reproducible benchmarks + targeted optimizations
-- [ ] v2.0 — Async API with reactive streams (non-blocking/backpressure-friendly)
+- [ ] Performance track: reproducible benchmarks + targeted optimizations
+- [ ] Async API with reactive streams (non-blocking/backpressure-friendly)
 - [ ] Resource streaming beyond local FS (classpath/JAR resources)
 - [ ] Universal source adapters (e.g., HTTP/HTTPS and pluggable providers)
 
 Longer-form future ideas are tracked in [docs/FUTURE_IDEAS.md](docs/FUTURE_IDEAS.md).
+
+---
+
+## 🔬 JVM Compatibility
+
+The CI pipeline verifies each release against the following JVM distributions and versions:
+
+| JVM distribution              | 11 | 17 | 21 | 23 |
+|-------------------------------|:--:|:--:|:--:|:--:|
+| Eclipse Temurin               | ✅ | ✅ | ✅ | ✅ |
+| Microsoft Build of OpenJDK    | ✅ | ✅ | ✅ | —  |
 
 ---
 
