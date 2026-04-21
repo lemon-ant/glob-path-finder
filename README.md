@@ -64,10 +64,9 @@ try (Stream<Path> paths = GlobPathFinder.findPaths(query)) {
 
 ### Find only Java files under `src` directory relative to the current directory, excluding tests
 
-Use singular methods for a single pattern, or collection-based methods for multiple patterns at once:
+Use singular methods for a single pattern:
 
 ```java
-// Singular — one pattern per call
 PathQuery query = PathQuery.builder()
     .includeGlob("src/**")
     .excludeGlob("**/test/**")
@@ -77,7 +76,14 @@ PathQuery query = PathQuery.builder()
     .failFastOnError(false) // shielded mode: errors are logged as WARN, traversal continues
     .build();
 
-// Or collection-based — pass several patterns at once
+try (Stream<Path> paths = GlobPathFinder.findPaths(query)) {
+    List<Path> javaFiles = paths.toList();
+}
+```
+
+Or pass multiple patterns at once using collection-based methods:
+
+```java
 PathQuery query = PathQuery.builder()
     .includeGlobs(Set.of("src/**", "docs/**"))
     .excludeGlobs(Set.of("**/test/**", "**/generated/**"))
