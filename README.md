@@ -138,9 +138,9 @@ If you like this project, please consider:
 Contributions are always welcome!
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-- Create a feature branch
+- Fork the repository if you do not have write access; otherwise create a feature branch in this repository
 - Add tests for your changes
-- Submit a PR 🚀
+- Submit a pull request 🚀
 
 ---
 
