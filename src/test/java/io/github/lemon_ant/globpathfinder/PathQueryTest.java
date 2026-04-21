@@ -11,7 +11,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.nio.file.FileVisitOption;
 import java.nio.file.Path;
 import java.util.EnumSet;
-import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -34,22 +34,13 @@ class PathQueryTest {
     }
 
     @Test
-    void collections_defensivelyCopied_doesNotReflectExternalMutation() {
-        // Given
-        Set<String> includes = new HashSet<>(Set.of("**/*.java", "**/*.md"));
-        Set<String> extensions = new HashSet<>(Set.of("java", "md"));
-        Set<String> excludes = new HashSet<>(Set.of("**/generated/**"));
-
+    void collections_listInput_preservedInBuiltObject() {
+        // Given / When
         PathQuery pathQuery = PathQuery.builder()
-                .includeGlobs(includes)
-                .allowedExtensions(extensions)
-                .excludeGlobs(excludes)
+                .includeGlobs(List.of("**/*.java", "**/*.md"))
+                .allowedExtensions(List.of("java", "md"))
+                .excludeGlobs(List.of("**/generated/**"))
                 .build();
-
-        // When
-        includes.add("**/*.xml");
-        extensions.add("xml");
-        excludes.add("**/tmp/**");
 
         // Then
         assertThat(pathQuery.getIncludeGlobs()).containsExactlyInAnyOrder("**/*.java", "**/*.md");

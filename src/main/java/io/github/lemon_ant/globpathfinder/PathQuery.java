@@ -7,7 +7,6 @@ package io.github.lemon_ant.globpathfinder;
 
 import static java.util.Optional.ofNullable;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.file.FileVisitOption;
 import java.nio.file.Path;
 import java.util.Collection;
@@ -15,6 +14,7 @@ import java.util.EnumSet;
 import java.util.Set;
 import lombok.Builder;
 import lombok.NonNull;
+import lombok.Singular;
 import lombok.Value;
 import org.jspecify.annotations.Nullable;
 
@@ -73,26 +73,19 @@ import org.jspecify.annotations.Nullable;
  *     .build();
  * }</pre>
  *
- * <p>Immutability: collections are defensively copied; getters return unmodifiable views.</p>
+ * <p>Immutability: collection fields accept any {@link Collection} from the builder and are normalized
+ * to unmodifiable {@link Set} copies via {@code Set.copyOf} in the constructor; getters return those
+ * unmodifiable sets directly.</p>
  */
 @Value
-@SuppressFBWarnings("EI_EXPOSE_REP2")
 public class PathQuery {
 
     /**
      * Optional whitelist of file extensions without dots, case-insensitive.
-     * <br/>Normalization rules performed in the constructor:
-     * <ul>
-     *   <li>If the input collection is {@code null} or omitted, this field becomes an empty Set,</li>
-     *   <li>otherwise it is defensively copied to an unmodifiable Set.</li>
-     * </ul>
-     * Behavioral notes:
-     * <ul>
-     *   <li>An empty Set disables the extension filter entirely.</li>
-     * </ul>
+     * If omitted, this field is an empty Set.
+     * An empty Set disables the extension filter entirely.
      */
     @NonNull
-    @SuppressFBWarnings("EI_EXPOSE_REP")
     Set<String> allowedExtensions;
 
     /**
@@ -104,18 +97,9 @@ public class PathQuery {
 
     /**
      * Optional exclude glob patterns.
-     * <br/>Normalization rules performed in the constructor:
-     * <ul>
-     *   <li>If the input collection is {@code null} or omitted, this field becomes an empty Set,</li>
-     *   <li>otherwise it is defensively copied to an unmodifiable Set.</li>
-     * </ul>
-     * Behavioral notes:
-     * <ul>
-     *   <li>An empty Set disables exclude filtering.</li>
-     * </ul>
+     * If omitted, this field is an empty Set, which disables exclude filtering.
      */
     @NonNull
-    @SuppressFBWarnings("EI_EXPOSE_REP")
     Set<String> excludeGlobs;
 
     /**
@@ -138,18 +122,10 @@ public class PathQuery {
 
     /**
      * Include glob patterns.
-     * <br/>Normalization rules performed in the constructor:
-     * <ul>
-     *   <li>If the input collection is {@code null} or omitted, this field becomes an empty Set,</li>
-     *   <li>otherwise it is defensively copied to an unmodifiable Set.</li>
-     * </ul>
-     * Behavior in the finder:
-     * <ul>
-     *   <li>An empty include set is interpreted as "match all under baseDir".</li>
-     * </ul>
+     * If omitted, this field is an empty Set.
+     * An empty include set is interpreted as "match all under baseDir".
      */
     @NonNull
-    @SuppressFBWarnings("EI_EXPOSE_REP")
     Set<String> includeGlobs;
 
     /**
@@ -166,35 +142,36 @@ public class PathQuery {
     /**
      * Builder-backed constructor. Normalizes nullable inputs to safe defaults.
      *
-     * @param baseDir           Starting directory. If null or omitted in the PathQuery builder, becomes the current
-     *                          working directory Path.of(".").
-     * @param includeGlobs      Include glob patterns. If null or omitted, becomes an empty Set, otherwise defensively
-     *                          copied to unmodifiable Set. An empty include set means "match all under baseDir".
-     * @param allowedExtensions Allowed file extensions without dots, case-insensitive. If null or omitted, becomes an
-     *                          empty Set (disable filter), otherwise defensively copied to unmodifiable Set.
-     * @param excludeGlobs      Exclude glob patterns. If null or omitted, becomes an empty Set (disable filter),
-     *                          otherwise defensively copied to unmodifiable Set.
-     * @param maxDepth          Maximum depth. If null or omitted or negative, becomes Integer.MAX_VALUE (unlimited).
-     * @param onlyFiles         If null or omitted, defaults to true (only regular files are returned).
-     * @param followLinks       If null or omitted, defaults to true (symbolic links are followed).
-     * @param failFastOnError   Error-handling strategy. If null or omitted, defaults to true (fail-fast).
-     *                          true ⇒ abort immediately on first I/O error,
-     *                          false ⇒ shield errors, log a warning, and continue traversal.
+     * @param baseDir           Starting directory. If null or omitted, becomes {@code Path.of(".")}.
+     * @param includeGlobs      Include glob patterns. Accepts any {@link Collection}; duplicates are removed.
+     *                          If null or omitted, becomes an empty Set.
+     *                          An empty include set means "match all under baseDir".
+     * @param allowedExtensions Allowed file extensions without dots, case-insensitive.
+     *                          Accepts any {@link Collection}; duplicates are removed.
+     *                          If null or omitted, becomes an empty Set (filter disabled).
+     * @param excludeGlobs      Exclude glob patterns. Accepts any {@link Collection}; duplicates are removed.
+     *                          If null or omitted, becomes an empty Set (filter disabled).
+     * @param maxDepth          Maximum depth. If null, omitted, or negative, becomes {@code Integer.MAX_VALUE} (unlimited).
+     * @param onlyFiles         If null or omitted, defaults to {@code true} (only regular files are returned).
+     * @param followLinks       If null or omitted, defaults to {@code true} (symbolic links are followed).
+     * @param failFastOnError   Error-handling strategy. If null or omitted, defaults to {@code true} (fail-fast).
+     *                          {@code true} ⇒ abort immediately on first I/O error,
+     *                          {@code false} ⇒ shield errors, log a warning, and continue traversal.
      */
     @Builder(toBuilder = true)
     private PathQuery(
             @Nullable Path baseDir,
-            @Nullable Collection<String> includeGlobs,
-            @Nullable Collection<String> allowedExtensions,
-            @Nullable Collection<String> excludeGlobs,
+            @Singular(ignoreNullCollections = true) Collection<String> includeGlobs,
+            @Singular(ignoreNullCollections = true) Collection<String> allowedExtensions,
+            @Singular(ignoreNullCollections = true) Collection<String> excludeGlobs,
             @Nullable Integer maxDepth,
             @Nullable Boolean onlyFiles,
             @Nullable Boolean followLinks,
             @Nullable Boolean failFastOnError) {
         this.baseDir = ofNullable(baseDir).orElse(Path.of("."));
-        this.includeGlobs = ofNullable(includeGlobs).map(Set::copyOf).orElse(Set.of());
-        this.allowedExtensions = ofNullable(allowedExtensions).map(Set::copyOf).orElse(Set.of());
-        this.excludeGlobs = ofNullable(excludeGlobs).map(Set::copyOf).orElse(Set.of());
+        this.includeGlobs = Set.copyOf(includeGlobs);
+        this.allowedExtensions = Set.copyOf(allowedExtensions);
+        this.excludeGlobs = Set.copyOf(excludeGlobs);
         this.maxDepth = ofNullable(maxDepth).filter(depth -> depth >= 0).orElse(Integer.MAX_VALUE);
         this.onlyFiles = ofNullable(onlyFiles).orElse(true);
         this.followLinks = ofNullable(followLinks).orElse(true);
