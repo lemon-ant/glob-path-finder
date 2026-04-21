@@ -12,7 +12,6 @@ import java.nio.file.FileVisitOption;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.EnumSet;
-import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -37,9 +36,14 @@ class PathQueryTest {
     @Test
     void collections_mutatedAfterBuilderCall_builtObjectNotAffected() {
         // Given
-        List<String> includes = new ArrayList<>(List.of("**/*.java", "**/*.md"));
-        List<String> extensions = new ArrayList<>(List.of("java", "md"));
-        List<String> excludes = new ArrayList<>(List.of("**/generated/**"));
+        ArrayList<String> includes = new ArrayList<>();
+        includes.add("**/*.java");
+        includes.add("**/*.md");
+        ArrayList<String> extensions = new ArrayList<>();
+        extensions.add("java");
+        extensions.add("md");
+        ArrayList<String> excludes = new ArrayList<>();
+        excludes.add("**/generated/**");
 
         PathQuery pathQuery = PathQuery.builder()
                 .includeGlobs(includes)
