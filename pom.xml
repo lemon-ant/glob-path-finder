@@ -471,10 +471,10 @@
                         <configuration>
                             <!-- Matches server id in ~/.m2/settings.xml -->
                             <publishingServerId>central</publishingServerId>
-                            <!-- Automatically release after validation passes -->
-                            <autoPublish>true</autoPublish>
-                            <!-- Block until the artifact is publicly visible -->
-                            <waitUntil>published</waitUntil>
+                            <!-- Manual publish: deploy uploads + validates, but does NOT auto-release.
+                                 After the build passes, open central.sonatype.com, verify the bundle,
+                                 then click Publish. Remove this comment and set autoPublish=true once
+                                 the first release has been confirmed. -->
                         </configuration>
                     </plugin>
                 </plugins>
