@@ -34,7 +34,7 @@ class PathQueryTest {
     }
 
     @Test
-    void collections_defensivelyCopied_doesNotReflectExternalMutation() {
+    void collections_mutatedAfterBuilderCall_builtObjectNotAffected() {
         // Given
         Set<String> includes = new HashSet<>(Set.of("**/*.java", "**/*.md"));
         Set<String> extensions = new HashSet<>(Set.of("java", "md"));
