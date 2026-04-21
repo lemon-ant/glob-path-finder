@@ -8,6 +8,8 @@ package io.github.lemon_ant.globpathfinder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
@@ -20,11 +22,29 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import lombok.NonNull;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 
 class IoTolerantPathStreamTest {
 
     private static final Path BASE = Path.of("/test/base");
+
+    private Level originalIoTolerantPathStreamLoggerLevel;
+
+    @BeforeEach
+    void suppressExpectedIoWarnLogs() {
+        Logger logger = ioTolerantPathStreamLogger();
+        originalIoTolerantPathStreamLoggerLevel = logger.getLevel();
+        logger.setLevel(Level.ERROR);
+    }
+
+    @AfterEach
+    void restoreIoWarnLogLevel() {
+        ioTolerantPathStreamLogger().setLevel(originalIoTolerantPathStreamLoggerLevel);
+    }
 
     @Test
     void wrap_nullSourceStream_throwsNullPointerException() {
@@ -154,5 +174,10 @@ class IoTolerantPathStreamTest {
 
         // Then
         assertThat(split).isNull();
+    }
+
+    @NonNull
+    private static Logger ioTolerantPathStreamLogger() {
+        return (Logger) LoggerFactory.getLogger(IoTolerantPathStream.class);
     }
 }
