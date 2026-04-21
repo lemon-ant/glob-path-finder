@@ -466,7 +466,7 @@
                                 </goals>
                                 <phase>verify</phase>
                                 <configuration>
-                                    <!-- Allow non-interactive passphrase supply via env GPG_PASSPHRASE -->
+                                    <!-- Allow non-interactive passphrase supply via env MAVEN_GPG_PASSPHRASE -->
                                     <gpgArguments>
                                         <arg>--pinentry-mode</arg>
                                         <arg>loopback</arg>

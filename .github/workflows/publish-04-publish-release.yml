@@ -15,6 +15,12 @@ jobs:
     runs-on: ubuntu-latest
     # Guard: only run for version tags (e.g. v1.0.0); skip snapshots and accidental triggers.
     if: ${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, 'SNAPSHOT') }}
+    # Expose credentials at job level so setup-java can embed them in ~/.m2/settings.xml
+    # and the Maven deploy step can authenticate against Maven Central.
+    env:
+      MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+      MAVEN_CENTRAL_TOKEN: ${{ secrets.MAVEN_CENTRAL_TOKEN }}
+      MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,7 +31,7 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-          # Generates ~/.m2/settings.xml with <server id="central"> populated from the secrets below.
+          # Generates ~/.m2/settings.xml with <server id="central"> populated from the env vars above.
           server-id: central
           server-username: MAVEN_CENTRAL_USERNAME
           server-password: MAVEN_CENTRAL_TOKEN
@@ -42,7 +48,3 @@ jobs:
         # -Ddoclint=none avoids failing the build on non-critical Javadoc warnings.
         # -Dci=true disables local-dev-only profiles (reformat-poms, reformat-sources, assemble-src-zip).
         run: mvn -B -ntp -Dci=true -Prelease -Ddoclint=none clean deploy
-        env:
-          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
-          MAVEN_CENTRAL_TOKEN: ${{ secrets.MAVEN_CENTRAL_TOKEN }}
-          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
