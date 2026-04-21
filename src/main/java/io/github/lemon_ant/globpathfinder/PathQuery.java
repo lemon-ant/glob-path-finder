@@ -10,11 +10,11 @@ import static java.util.Optional.ofNullable;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.file.FileVisitOption;
 import java.nio.file.Path;
-import java.util.Collection;
 import java.util.EnumSet;
 import java.util.Set;
 import lombok.Builder;
 import lombok.NonNull;
+import lombok.Singular;
 import lombok.Value;
 import org.jspecify.annotations.Nullable;
 
@@ -83,8 +83,7 @@ public class PathQuery {
      * Optional whitelist of file extensions without dots, case-insensitive.
      * <br/>Normalization rules performed in the constructor:
      * <ul>
-     *   <li>If the input collection is {@code null} or omitted, this field becomes an empty Set,</li>
-     *   <li>otherwise it is defensively copied to an unmodifiable Set.</li>
+     *   <li>If the input collection is {@code null} or omitted, this field becomes an empty Set.</li>
      * </ul>
      * Behavioral notes:
      * <ul>
