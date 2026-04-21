@@ -13,7 +13,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
-## [1.0.1] — 2026-04-21
+## [1.0.1] — Unreleased
 
 ### Fixed
 
@@ -22,7 +22,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
-## [1.0.0] — 2026-04-19
+## [1.0.0] — 2026-04-21
 
 First official General Availability release. The public API is now stable.
 
