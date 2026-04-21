@@ -10,8 +10,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.nio.file.FileVisitOption;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.EnumSet;
-import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -36,9 +37,9 @@ class PathQueryTest {
     @Test
     void collections_mutatedAfterBuilderCall_builtObjectNotAffected() {
         // Given
-        Set<String> includes = new HashSet<>(Set.of("**/*.java", "**/*.md"));
-        Set<String> extensions = new HashSet<>(Set.of("java", "md"));
-        Set<String> excludes = new HashSet<>(Set.of("**/generated/**"));
+        List<String> includes = new ArrayList<>(List.of("**/*.java", "**/*.md"));
+        List<String> extensions = new ArrayList<>(List.of("java", "md"));
+        List<String> excludes = new ArrayList<>(List.of("**/generated/**"));
 
         PathQuery pathQuery = PathQuery.builder()
                 .includeGlobs(includes)

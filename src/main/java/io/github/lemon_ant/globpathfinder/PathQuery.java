@@ -7,9 +7,9 @@ package io.github.lemon_ant.globpathfinder;
 
 import static java.util.Optional.ofNullable;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.file.FileVisitOption;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.Set;
 import lombok.Builder;
@@ -73,8 +73,9 @@ import org.jspecify.annotations.Nullable;
  *     .build();
  * }</pre>
  *
- * <p>Immutability: collection fields are populated by {@code @Singular}, which produces an unmodifiable
- * collection; getters return unmodifiable views.</p>
+ * <p>Immutability: collection fields accept any {@link Collection} from the builder and are normalized
+ * to unmodifiable {@link Set} copies via {@code Set.copyOf} in the constructor; getters return those
+ * unmodifiable sets directly.</p>
  */
 @Value
 public class PathQuery {
@@ -85,7 +86,6 @@ public class PathQuery {
      * An empty Set disables the extension filter entirely.
      */
     @NonNull
-    @SuppressFBWarnings("EI_EXPOSE_REP")
     Set<String> allowedExtensions;
 
     /**
@@ -100,7 +100,6 @@ public class PathQuery {
      * If omitted, this field is an empty Set, which disables exclude filtering.
      */
     @NonNull
-    @SuppressFBWarnings("EI_EXPOSE_REP")
     Set<String> excludeGlobs;
 
     /**
@@ -127,7 +126,6 @@ public class PathQuery {
      * An empty include set is interpreted as "match all under baseDir".
      */
     @NonNull
-    @SuppressFBWarnings("EI_EXPOSE_REP")
     Set<String> includeGlobs;
 
     /**
@@ -145,11 +143,14 @@ public class PathQuery {
      * Builder-backed constructor. Normalizes nullable inputs to safe defaults.
      *
      * @param baseDir           Starting directory. If null or omitted, becomes {@code Path.of(".")}.
-     * @param includeGlobs      Include glob patterns. If null or omitted, becomes an empty Set.
+     * @param includeGlobs      Include glob patterns. Accepts any {@link Collection}; duplicates are removed.
+     *                          If null or omitted, becomes an empty Set.
      *                          An empty include set means "match all under baseDir".
      * @param allowedExtensions Allowed file extensions without dots, case-insensitive.
+     *                          Accepts any {@link Collection}; duplicates are removed.
      *                          If null or omitted, becomes an empty Set (filter disabled).
-     * @param excludeGlobs      Exclude glob patterns. If null or omitted, becomes an empty Set (filter disabled).
+     * @param excludeGlobs      Exclude glob patterns. Accepts any {@link Collection}; duplicates are removed.
+     *                          If null or omitted, becomes an empty Set (filter disabled).
      * @param maxDepth          Maximum depth. If null, omitted, or negative, becomes {@code Integer.MAX_VALUE} (unlimited).
      * @param onlyFiles         If null or omitted, defaults to {@code true} (only regular files are returned).
      * @param followLinks       If null or omitted, defaults to {@code true} (symbolic links are followed).
@@ -160,17 +161,17 @@ public class PathQuery {
     @Builder(toBuilder = true)
     private PathQuery(
             @Nullable Path baseDir,
-            @Singular(ignoreNullCollections = true) Set<String> includeGlobs,
-            @Singular(ignoreNullCollections = true) Set<String> allowedExtensions,
-            @Singular(ignoreNullCollections = true) Set<String> excludeGlobs,
+            @Singular(ignoreNullCollections = true) Collection<String> includeGlobs,
+            @Singular(ignoreNullCollections = true) Collection<String> allowedExtensions,
+            @Singular(ignoreNullCollections = true) Collection<String> excludeGlobs,
             @Nullable Integer maxDepth,
             @Nullable Boolean onlyFiles,
             @Nullable Boolean followLinks,
             @Nullable Boolean failFastOnError) {
         this.baseDir = ofNullable(baseDir).orElse(Path.of("."));
-        this.includeGlobs = includeGlobs;
-        this.allowedExtensions = allowedExtensions;
-        this.excludeGlobs = excludeGlobs;
+        this.includeGlobs = Set.copyOf(includeGlobs);
+        this.allowedExtensions = Set.copyOf(allowedExtensions);
+        this.excludeGlobs = Set.copyOf(excludeGlobs);
         this.maxDepth = ofNullable(maxDepth).filter(depth -> depth >= 0).orElse(Integer.MAX_VALUE);
         this.onlyFiles = ofNullable(onlyFiles).orElse(true);
         this.followLinks = ofNullable(followLinks).orElse(true);
