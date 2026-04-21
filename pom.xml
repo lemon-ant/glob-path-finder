@@ -493,44 +493,6 @@
             </build>
         </profile>
         <profile>
-            <id>assemble-src-zip</id>
-            <activation>
-                <property>
-                    <name>!ci</name>
-                </property>
-            </activation>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-assembly-plugin</artifactId>
-                        <version>3.8.0</version>
-                        <configuration>
-                            <descriptors>
-                                <descriptor>assembly/project-zip.xml</descriptor>
-                                <!-- Reference to the descriptor; defined below -->
-                            </descriptors>
-                            <outputDirectory>${project.basedir}</outputDirectory>
-                            <finalName>${project.artifactId}-${project.version}-sources</finalName>
-                            <!-- Archive name, e.g. myproject-1.0-sources.zip -->
-                            <appendAssemblyId>false</appendAssemblyId>
-                            <!-- Do not append the assembly id suffix to the archive name -->
-                        </configuration>
-                        <executions>
-                            <execution>
-                                <id>make-assembly</id>
-                                <!-- Bound to the package phase: after compile and test, but before install -->
-                                <goals>
-                                    <goal>single</goal>
-                                </goals>
-                                <phase>package</phase>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-        <profile>
             <id>reformat-poms</id>
             <activation>
                 <property>
