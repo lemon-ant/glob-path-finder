@@ -46,5 +46,5 @@ jobs:
         # -Prelease activates: maven-source-plugin, maven-javadoc-plugin,
         #                       maven-gpg-plugin (sign), central-publishing-maven-plugin (deploy).
         # -Ddoclint=none avoids failing the build on non-critical Javadoc warnings.
-        # -Dci=true disables local-dev-only profiles (reformat-poms, reformat-sources, assemble-src-zip).
+        # -Dci=true disables local-dev-only profiles (reformat-poms, reformat-sources).
         run: mvn -B -ntp -Dci=true -Prelease -Ddoclint=none clean deploy
