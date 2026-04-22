@@ -13,7 +13,16 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
-## [1.0.0] — 2026-04-19
+## [1.0.1] — Unreleased
+
+### Fixed
+
+- Corrected the developer `<id>` in `pom.xml` from the organisation identifier to the developer's
+  own GitHub username (`AntonLem`).
+
+---
+
+## [1.0.0] — 2026-04-21
 
 First official General Availability release. The public API is now stable.
 
