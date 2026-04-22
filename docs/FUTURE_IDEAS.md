@@ -90,7 +90,9 @@ Scope:
 - Allow `include` and `exclude` filter entries to be specified as compiled `java.util.regex.Pattern`
   (or as raw regex strings with an explicit mode flag) alongside the existing glob syntax.
 - Provide dedicated file-extension filters driven by regex so callers can match groups of
-  extensions (for example `\.(java|kt|groovy)$`) without enumerating each extension separately.
+  extensions (for example the regex pattern `\.(java|kt|groovy)$`, or the Java string literal
+  `"\\.(java|kt|groovy)$"` when represented in source code) without enumerating each extension
+  separately.
 - Keep backward compatibility: glob-only users see no API change; regex is strictly additive.
 
 Expected result:
