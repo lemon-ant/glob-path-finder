@@ -4,7 +4,7 @@
     SPDX-License-Identifier: Apache-2.0
 
 -->
-# GlobPathFinder
+# Glob Path Finder
 
 [![Compatibility](https://github.com/lemon-ant/glob-path-finder/actions/workflows/publish-02-compat-test.yml/badge.svg)](https://github.com/lemon-ant/glob-path-finder/actions/workflows/publish-02-compat-test.yml)
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.lemon-ant/glob-path-finder.svg)](https://search.maven.org/artifact/io.github.lemon-ant/glob-path-finder)
@@ -24,9 +24,9 @@
 - Option to select only files or include directories.
 - Stream-friendly results — the returned `Stream<Path>` supports parallel processing via `.parallel()` for efficient concurrent file handling.
 - Unique normalized absolute paths as the result.
-- **Convenient and flexible interface** — results are fully configurable via `PathQuery`.
-- **Optimized performance** — dynamic pipeline construction ensures no unnecessary operations are executed.
-- **Professional logging and trace/debug support** — designed for developers to analyze and troubleshoot traversal.
+- Convenient and flexible interface — results are fully configurable via `PathQuery`.
+- Optimized performance — dynamic pipeline construction ensures no unnecessary operations are executed.
+- Professional logging and trace/debug support — designed for developers to analyze and troubleshoot traversal.
 
 ---
 
