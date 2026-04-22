@@ -80,6 +80,25 @@ Expected result:
 - Extensible architecture: one traversal/filtering pipeline, multiple source implementations.
 - Clear separation between source enumeration and filtering/matching stages.
 
+### 5) Regex-based include/exclude filtering
+
+**Goal:** complement the existing glob pattern matching with full regular expression support so
+callers can express more precise inclusion, exclusion, and file-extension filtering rules.
+
+Scope:
+
+- Allow `include` and `exclude` filter entries to be specified as compiled `java.util.regex.Pattern`
+  (or as raw regex strings with an explicit mode flag) alongside the existing glob syntax.
+- Provide dedicated file-extension filters driven by regex so callers can match groups of
+  extensions (for example `\.(java|kt|groovy)$`) without enumerating each extension separately.
+- Keep backward compatibility: glob-only users see no API change; regex is strictly additive.
+
+Expected result:
+
+- Richer, more expressive filtering for advanced use cases that glob patterns cannot cover.
+- A clear, documented precedence rule when both glob and regex filters are present.
+- Full test coverage including negative (exclude) regex patterns and extension-group filters.
+
 ## Notes for future decomposition
 
 When converting these ideas into executable tasks, define:
