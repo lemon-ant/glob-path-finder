@@ -162,6 +162,7 @@ If you discover any security issue, please see [SECURITY.md](SECURITY.md).
 - [ ] Async API with reactive streams (non-blocking/backpressure-friendly)
 - [ ] Resource streaming beyond local FS (classpath/JAR resources)
 - [ ] Universal source adapters (e.g., HTTP/HTTPS and pluggable providers)
+- [ ] Regex-based include/exclude filtering alongside existing glob patterns
 
 Longer-form future ideas are tracked in [docs/FUTURE_IDEAS.md](docs/FUTURE_IDEAS.md).
 
