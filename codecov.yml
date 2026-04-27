@@ -8,11 +8,11 @@ coverage:
   status:
     project:
       default:
-        target: 75%
+        target: 85%
         threshold: 1%
     patch:
       default:
-        target: 75%
+        target: 85%
 ignore:
   - "**/generated/**"
   - "**/examples/**"
