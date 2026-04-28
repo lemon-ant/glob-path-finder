@@ -5,13 +5,14 @@ name: PR Verify
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: ["**"]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref }} # Per PR branch
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }} # Per PR branch; fallback to ref on workflow_dispatch
   cancel-in-progress: true
 
 jobs:
