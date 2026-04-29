@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Anton Lem <antonlem78@gmail.com>
 # SPDX-License-Identifier: Apache-2.0
 
-name: PR Verify
+name: Verify
 
 on:
   pull_request:
@@ -12,22 +12,24 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }} # Per PR branch; fallback to ref on workflow_dispatch
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  verify:
-    name: Verify PR build
+  detect-changes:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0   # important for a correct diff in PR
+      - uses: actions/checkout@v4
+        if: github.event_name == 'pull_request'
 
       - name: Detect relevant changes
-        id: changes
+        id: filter
+        if: github.event_name == 'pull_request'
         uses: dorny/paths-filter@v3
         with:
           filters: |
@@ -35,24 +37,33 @@ jobs:
               - '**/*.java'
               - '**/pom.xml'
               - '**/src/**/resources/**'
+              - 'quality-gates/**'
               - '.github/workflows/*.yml'
 
-      # No-op: if there was not code changes, then return the green status without project building
+  no-build:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.code != 'true' && github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
       - name: No build needed (no code changes)
-        if: steps.changes.outputs.code != 'true'
         run: |
           echo "No Java/Maven/resource/workflow changes detected. Skipping build."
           echo "✅ Verify passed (no-op)."
 
-      # Real building and test if there were code changes
-      - name: Set up Temurin JDK 21
-        if: steps.changes.outputs.code == 'true'
+  build:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.code == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
           java-version: '21'
+          distribution: 'temurin'
           cache: maven
 
-      - name: Build & test
-        if: steps.changes.outputs.code == 'true'
-        run: mvn -B -ntp clean verify -Dci=true
+      - name: Build and test
+        run: mvn -B -ntp verify -Dci=true
