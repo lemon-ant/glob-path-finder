@@ -11,15 +11,13 @@ This file defines repository-wide conventions for coding agents working in this 
 ## Scope
 
 - Applies to the whole repository unless a more specific convention document says otherwise.
-- For test-specific details, also read `docs/test-conventions.md`.
 
 ## Convention maintenance
 
 - During every task, look for stable conventions that become clear from review feedback or repeated user guidance.
-- Keep `AGENTS.md`, `docs/test-conventions.md`, and `.github/copilot-instructions.md` aligned.
-  - `AGENTS.md` defines the repository-wide rules.
-  - `docs/test-conventions.md` defines the test-specific rules.
-  - `.github/copilot-instructions.md` must contain the complete operative rule set from both files so Copilot can follow it without relying on cross-file traversal.
+- Keep `AGENTS.md` and `.github/copilot-instructions.md` aligned.
+  - `AGENTS.md` defines the repository-wide rules including test conventions.
+  - `.github/copilot-instructions.md` must contain the complete operative rule set from this file so Copilot can follow it without relying on cross-file traversal.
 - If a rule is missing, unclear, or no longer accurate in the current docs, update all affected instruction files in the same task.
 - If a documented rule is ambiguous, clarify the document rather than relying on unwritten expectations for future sessions.
 - Review comments and user requests may be mistaken; for disputed framework/plugin/tool behavior, verify against official documentation before changing code.
@@ -85,4 +83,179 @@ This file defines repository-wide conventions for coding agents working in this 
 
 ## Test conventions
 
-- See `docs/test-conventions.md`.
+### Goals
+
+- Make tests readable at a glance (predictable structure).
+- Make failures actionable (clear names and error messages).
+- Keep maintenance low (shared helpers, minimal duplication).
+- Avoid "false regressions" caused by broken fixtures (fixtures must compile).
+
+### Tooling and libraries
+
+- **JUnit 5** is the test runner.
+- **AssertJ** is the assertion library.
+  - Do not use `org.junit.jupiter.api.Assertions.*` in new/updated tests.
+- Prefer ordinary imports over repeated fully qualified names in tests.
+- Prefer using production pipeline building blocks (parsers, converters, compilers, factories) instead of test-only reimplementations.
+- When an annotation argument in test code only repeats the library or framework default behavior, omit it instead of spelling it out explicitly.
+- When test code overrides standard `Object` methods, preserve the standard signature exactly.
+  - Do not add nullability annotations to `Object` overrides in tests.
+  - In particular, keep `equals(Object)` unchanged.
+- Test code and test resources follow the same repository licensing policy.
+  - Every tracked test file must include SPDX metadata.
+  - Required lines:
+    - `SPDX-FileCopyrightText: 2026 Anton Lem <antonlem78@gmail.com>`
+    - `SPDX-License-Identifier: Apache-2.0`
+
+### Code reuse and deduplication
+
+- Before copying code into another test, search for an existing shared test utility and reuse it.
+- If similar fragments appear in more than one test (or are likely to be reused), extract them into a shared test utility class.
+- Re-run this reuse analysis regularly: when adding new tests, when refactoring tests, and during cleanup passes.
+- When a test in another package must create a production type with package-private construction, prefer a dedicated test creator/helper in the target package instead of widening the production constructor visibility.
+
+### Naming
+
+#### Test methods
+
+- JUnit test method names must follow **exactly 3 segments**:
+
+  `subject_condition_expectedResult`
+
+- This naming rule applies only to executable test methods (for example methods annotated with `@Test`, `@ParameterizedTest`, and other JUnit test-invocation annotations).
+- It does **not** apply to lifecycle and helper methods such as `@BeforeEach`, `@BeforeAll`, `@AfterEach`, `@AfterAll`, or private utility methods; name those with normal Java conventions (for example `setUp`, `tearDown`).
+- `subject` names what is being tested and usually mirrors the production method, command, or feature name.
+- `condition` states only the relevant precondition/input shape.
+- `expectedResult` states the observable outcome.
+- Do not use filler words such as `should`, `when`, `then`, `must`, or similar "BDD glue" inside the method name.
+- Avoid vague words (`works`, `ok`, `smoke1`); prefer intent-revealing words.
+- Keep the condition minimal but specific.
+
+#### Test classes
+
+- Prefer `<ProductionClassName>Test` for unit tests.
+- Prefer `<FeatureOrScenarioName>Test` for integration tests that cover a pipeline.
+- If you need multiple scenarios, prefer `@Nested` classes instead of splitting into many test classes.
+
+### Structure
+
+#### Given / When / Then blocks
+
+- Each test body must be split into contiguous blocks using comments:
+  - `// Given`
+  - `// When`
+  - `// Then`
+- Do not insert empty lines **inside** a block.
+- Insert **exactly one** empty line **between blocks**.
+  - There must be a blank line **before** `// When` and a blank line **before** `// Then` (and before combined blocks such as `// When / Then`).
+- Do not insert an empty line at the very beginning of the method body before `// Given`.
+- Keep each block contiguous and focused.
+- It is valid to **merge blocks** when it improves readability.
+  - Common case: exception tests can use `// When / Then` together because the assertion captures both the action and the expectation.
+  - Another common case: very small tests may use `// Given / When` together if separating them would add noise.
+  - This is allowed as long as the combined block stays contiguous and clear.
+- Do not introduce a `// Given` block for a single obvious local variable assignment.
+  - If the setup is trivial and self-explanatory, omit `// Given` entirely or use a combined block.
+  - `// Given` must be used only when it groups multiple setup statements or improves readability.
+
+#### Parameterized tests
+
+- Use parameterized tests when it reduces repetition and improves readability.
+- The method naming rule (3 segments) still applies.
+
+### Fixtures and resources
+
+#### Where fixtures live
+
+- Store fixtures under `src/test/resources/test-cases/**`.
+- Use explicit scenario folder names (avoid generic `example/`).
+- Prefer resource fixtures over large inline YAML/Java strings embedded directly in test classes.
+- Do not keep non-trivial multi-line textual fixtures (for example YAML, JSON, XML, Java source, or long expected-output snippets) inline in test code.
+- Do not write large fixture content as inline string literals and then persist it to temp files during test setup.
+  - Store original/expected/config fixture files under `src/test/resources/test-cases/**` and copy/read them in tests.
+- For formatter-focused fixtures, keep `input/` resources valid for the parser/compiler but intentionally not already formatted like `expected/`.
+  - Store them via shared helpers such as `TestCaseResourceUtils`.
+  - Only tiny one-off snippets that stay obviously readable inline are acceptable.
+
+#### valid/ vs invalid/
+
+- `valid/` — must compile and be compilable by the build gate.
+- `invalid/` — may intentionally not compile (only for negative tests).
+
+#### Fixtures must compile (build-time gate)
+
+- All `valid/**/*.java` fixtures must compile as part of the build.
+- Prefer fixtures that are self-contained and depend only on the JDK.
+- Prefer single-file fixtures. If multiple files are required, keep them in the same scenario folder.
+- When a fixture verifies ordering inside one logical group, prefer including multiple declarations of the same kind and cover secondary ordering rules (for example visibility and alphabetical order) where the language allows it.
+
+#### Reading resources
+
+- Prefer classpath-based access (`ClassLoader.getResourceAsStream`) over filesystem paths.
+- Use shared helpers (e.g., `TestCaseResourceUtils`) to read resources.
+- If a regression test verifies the built-in default configuration, load the real embedded `default-config.yml` through the production default-loading path instead of duplicating it in test fixtures or inline YAML.
+- Keep resource identifiers as typed values where feasible (`URL`), not raw strings.
+- When using `ClassLoader.getResourceAsStream` (preferred), do not use a leading `/`; classpath resource names are always relative to the classpath root.
+- Only when using `Class#getResourceAsStream` should the path start with `/` to indicate an absolute classpath resource.
+- If you need to resolve a file under a directory, resolve via a dedicated helper, not via deprecated URL constructors.
+
+### Shared test setup and one-time initialization
+
+- If multiple tests in the same test class use the same expensive or repetitive setup, initialize it **once** at the test-class level instead of re-creating it in every test.
+- Use `private static final` constants for immutable, shareable objects created once.
+- Use `private final` fields when per-instance initialization is sufficient and the object is safe to share across tests in the class.
+- Use `@BeforeAll` to perform one-time initialization that cannot be expressed as a simple field initializer.
+  - If `@BeforeAll` must be non-static, use `@TestInstance(TestInstance.Lifecycle.PER_CLASS)`.
+- Do **not** share mutable objects across tests if the code under test may modify them.
+  - In that case, keep a single immutable "base" representation and create a fresh copy per test, or initialize the mutable object in `@BeforeEach`.
+- Avoid duplicating the same setup snippet across multiple tests in the same class.
+  - If repeated setup appears, refactor it into a shared field initializer or a dedicated setup method.
+- Keep the `// Given` section focused on *test-specific* inputs; common setup belongs to fields / `@BeforeAll` / `@BeforeEach`.
+
+### Constants grouping
+
+- Keep a small amount of shared test state as regular fields at the top of the class when that remains easy to scan.
+  - Good candidates: `@TempDir` fields and one or two obvious shared constants that help the first test read naturally.
+- If a test class contains many shared constants and they start cluttering the top of the file, group them into a nested `Constants` class.
+- Prefer a nested `Constants` class once the constant list is long enough that it pushes test methods noticeably down the file or makes the start of the class hard to scan.
+- Keep the `Constants` nested class at the end of the test class.
+- Do not move everything into `Constants` mechanically; keep only the cluttering shared constants there, while ordinary test fields such as `@TempDir` stay near the top.
+
+### Assertions and test utilities
+
+- Do not add dedicated unit tests whose only purpose is to test test-only utility classes or helper methods.
+- Validate test utilities indirectly through the real unit/integration tests that use them.
+- If a test utility becomes complex enough to deserve direct behavioral tests, that is a signal to move the logic into production code or to simplify the helper.
+- Place **private static** helper methods and **test-only utility** code at the **end of the test class**, after all test methods (and after nested `Constants`, if present).
+- Use assertions only for validating the **test contract** and expected results.
+- Prefer AssertJ (`assertThat(...)`).
+- Test utility methods must not call `fail(...)` or use assertions for control flow.
+- If a test utility cannot proceed (missing resource, ambiguous match, invalid input), it must throw a descriptive runtime exception:
+  - `IllegalArgumentException` for invalid inputs.
+  - `IllegalStateException` for unexpected setup/state.
+  - `UncheckedIOException` for I/O problems.
+- For internal test-only utility classes, prefer Lombok for null checks.
+  - Use `@NonNull` on non-private parameters instead of `Objects.requireNonNull(...)`.
+- Use `@UtilityClass` for pure utility classes.
+- For test DTO/model/state-holder classes that mainly carry data, prefer immutable Lombok (`@Value`) unless mutation is required for the scenario.
+- Private helper method parameters must not use Lombok `@NonNull`; use `@Nullable` only when the helper intentionally accepts `null`.
+- If a private test helper returns a reference type, annotate the return contract explicitly with `@NonNull` or `@Nullable`.
+- Prefer `findXxx(...)` returning `Optional<T>`.
+- Prefer `requireXxx(...)` returning `T` and throwing `IllegalStateException` if missing/ambiguous.
+- If presence/absence is a product expectation, assert it in the `// Then` block.
+- If absence is a broken fixture/setup, use `requireXxx(...)`.
+
+### Temporary files and formatting
+
+- Tests must not write into `src/test/resources`.
+- Use `@TempDir` (JUnit 5) or write into `target/`.
+- Avoid inserting empty lines between closely related constant declarations.
+  - Use a blank line only to separate semantic groups.
+- Keep `// Given` immediately after the opening brace.
+- In test utility classes, group fields/constants by meaning; do not insert a blank line after every field "just because".
+
+### Code style in tests
+
+- Prefer fully descriptive variable names (avoid `i`, `tmp`, `m`, etc.).
+- Prefer Stream API when it makes the flow clearer (filter → map → collect).
+- Keep helpers small and single-purpose.
