@@ -5,7 +5,7 @@ name: 03-Publish Release
 
 # Triggered only after the full compatibility-test matrix (02) completes
 # successfully, which itself waits for the build (01) to succeed first.
-# This enforces the correct 01 → 02 → 03 sequence and prevents publishing
+# This enforces the correct 01 -> 02 -> 03 sequence and prevents publishing
 # before both build and compat checks have passed.
 on:
   workflow_run:
@@ -26,15 +26,13 @@ permissions:
 jobs:
   # -- Step 1 ----------------------------------------------------------------
   # Determine whether the completed compat-test run belongs to a release chain
-  # (i.e. a v* tag exists for the tested commit) and locate the matching build
-  # run so we can download the already-validated artifacts from it.
+  # (i.e. a v* tag exists for the tested commit).
   detect-release:
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     outputs:
       is-release: ${{ steps.find-tag.outputs.is-release }}
       version: ${{ steps.find-tag.outputs.version }}
-      build-run-id: ${{ steps.find-build.outputs.run-id }}
     steps:
       - name: Check for a release tag at the tested commit
         id: find-tag
@@ -61,116 +59,46 @@ jobs:
             echo "version=" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Locate the successful build run for this commit
-        id: find-build
-        if: ${{ steps.find-tag.outputs.is-release == 'true' }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          SHA="${{ github.event.workflow_run.head_sha }}"
-          REPO="${{ github.repository }}"
-
-          RUN_ID=$(gh run list \
-            --repo "$REPO" \
-            --workflow "publish-01-build.yml" \
-            --json databaseId,headSha,conclusion \
-            --limit 20 | \
-            jq -r ".[] | select(.headSha == \"$SHA\" and .conclusion == \"success\") | .databaseId" \
-            | head -1)
-
-          if [ -z "$RUN_ID" ]; then
-            echo "::error::No successful build run found for commit $SHA"
-            exit 1
-          fi
-          echo "Build run ID: $RUN_ID"
-          echo "run-id=$RUN_ID" >> "$GITHUB_OUTPUT"
-
   # -- Step 2 ----------------------------------------------------------------
-  # Download the artifact that was built in 01 and validated in 02, sign it
-  # with GPG, and publish the resulting bundle to Maven Central -- without
-  # rebuilding from source.
+  # Check out the exact tagged commit and let Maven sign and publish to
+  # Maven Central via the existing release profile, skipping only the tests
+  # and quality checks that already passed in steps 01 and 02.
   publish-release:
     needs: detect-release
     if: ${{ needs.detect-release.outputs.is-release == 'true' }}
     runs-on: ubuntu-latest
-    # Expose credentials for GPG signing and Maven Central authentication.
     env:
       MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
       MAVEN_CENTRAL_TOKEN: ${{ secrets.MAVEN_CENTRAL_TOKEN }}
       MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
     steps:
-      - name: Download pre-built dist from the build run
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          mkdir -p dist
-          gh run download "${{ needs.detect-release.outputs.build-run-id }}" \
-            --repo "${{ github.repository }}" \
-            --name "gpf-dist" \
-            --dir dist
-          echo "Downloaded distribution:" && ls -l dist
+      - name: Checkout tagged commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Set up Java 21 with Maven Central credentials
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          # Generates ~/.m2/settings.xml with <server id="central"> populated
+          # from the env vars above so maven-gpg-plugin and
+          # central-publishing-maven-plugin can authenticate.
+          server-id: central
+          server-username: MAVEN_CENTRAL_USERNAME
+          server-password: MAVEN_CENTRAL_TOKEN
 
       - name: Import GPG key
         run: echo "$GPG_PRIVATE_KEY" | gpg --batch --import
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
 
-      - name: Sign artifacts and assemble Maven Central bundle
-        run: |
-          VERSION="${{ needs.detect-release.outputs.version }}"
-          GROUP_PATH="io/github/lemon-ant"
-          ARTIFACT_ID="glob-path-finder"
-          BUNDLE_DIR="bundle/${GROUP_PATH}/${ARTIFACT_ID}/${VERSION}"
-          mkdir -p "$BUNDLE_DIR"
-
-          # Rename the generic pom.xml to the versioned name Central expects.
-          cp dist/pom.xml "$BUNDLE_DIR/${ARTIFACT_ID}-${VERSION}.pom"
-
-          # Place all three JARs with the versioned names Central expects.
-          # Use find so the selection is explicit and fails cleanly if a file
-          # is missing or if the dist content is unexpectedly different.
-          MAIN_JAR=$(find dist -maxdepth 1 -name '*.jar' \
-            ! -name '*-sources.jar' ! -name '*-javadoc.jar' | head -n1)
-          SOURCES_JAR=$(find dist -maxdepth 1 -name '*-sources.jar' | head -n1)
-          JAVADOC_JAR=$(find dist -maxdepth 1 -name '*-javadoc.jar' | head -n1)
-
-          if [ -z "$MAIN_JAR" ] || [ -z "$SOURCES_JAR" ] || [ -z "$JAVADOC_JAR" ]; then
-            echo "::error::Expected main JAR, sources JAR, and javadoc JAR in dist/ but one or more are missing."
-            ls -l dist/
-            exit 1
-          fi
-
-          cp "$MAIN_JAR"    "$BUNDLE_DIR/${ARTIFACT_ID}-${VERSION}.jar"
-          cp "$SOURCES_JAR" "$BUNDLE_DIR/${ARTIFACT_ID}-${VERSION}-sources.jar"
-          cp "$JAVADOC_JAR" "$BUNDLE_DIR/${ARTIFACT_ID}-${VERSION}-javadoc.jar"
-
-          # Sign POM and all three JARs with GPG (produces .asc sidecar files).
-          for f in "$BUNDLE_DIR"/*.pom "$BUNDLE_DIR"/*.jar; do
-            echo "$MAVEN_GPG_PASSPHRASE" | gpg --batch --yes --armor --detach-sign \
-              --pinentry-mode loopback --passphrase-fd 0 "$f"
-          done
-
-          echo "Bundle contents:"
-          ls -lR bundle/
-
-          # Pack into a single ZIP for the Central Portal upload API.
-          (cd bundle && zip -r ../bundle.zip .)
-          echo "Bundle size: $(ls -lh bundle.zip)"
-
-      - name: Publish to Maven Central
-        # Central Portal REST API: Bearer token = base64(username:token).
-        # publishingType=USER_MANAGED keeps the same manual-review behaviour
-        # that was previously configured via central-publishing-maven-plugin
-        # (autoPublish was not set to true).
-        # The token is constructed inline and never stored in a shell variable
-        # to avoid inadvertently capturing it in error output.
-        run: |
-          VERSION="${{ needs.detect-release.outputs.version }}"
-
-          RESPONSE=$(curl --fail-with-body -sS \
-            -X POST \
-            "https://central.sonatype.com/api/v1/publisher/upload?name=glob-path-finder-${VERSION}&publishingType=USER_MANAGED" \
-            -H "Authorization: Bearer $(printf '%s:%s' "$MAVEN_CENTRAL_USERNAME" "$MAVEN_CENTRAL_TOKEN" | base64 -w0)" \
-            -F "bundle=@bundle.zip")
-
-          echo "Deployment response: $RESPONSE"
+      - name: Sign and publish to Maven Central
+        # -Prelease activates: maven-source-plugin, maven-javadoc-plugin,
+        #                       maven-gpg-plugin (sign), central-publishing-maven-plugin (deploy).
+        # -DskipTests skips unit tests (already passed in step 01).
+        # -Ddoclint=none avoids failing on non-critical Javadoc warnings.
+        # -Dci=true disables local-dev-only profiles (reformat-poms, reformat-sources).
+        run: mvn -B -ntp -Dci=true -Prelease -DskipTests -Ddoclint=none deploy
