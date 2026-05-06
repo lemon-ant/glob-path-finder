@@ -172,24 +172,41 @@ https://search.maven.org/artifact/io.github.lemon-ant/glob-path-finder/1.2.0/jar
 
 ---
 
-## 11. Post-release: reset `pom.xml` SCM tag to `HEAD`
+## 11. Post-release: prepare `pom.xml` for the next development cycle
 
-After the release is confirmed, set `<tag>` back to `HEAD` in `pom.xml` for the
-next development cycle:
+After the release is confirmed, make two changes to `pom.xml` in a single follow-up commit.
+
+### 11a. Bump version to the next SNAPSHOT ⚠️ (prevents accidental re-release)
+
+Set `<version>` to the next development snapshot so it is impossible to accidentally
+publish the just-released version number again:
+
+```xml
+<version>X.Y.(Z+1)-SNAPSHOT</version>
+```
+
+For example, if you just released `1.2.0`, set it to `1.2.1-SNAPSHOT`.
+Choose the next version that reflects the most likely next change (patch or minor).
+
+### 11b. Reset SCM tag back to `HEAD`
 
 ```xml
 <scm>
     ...
-    <tag>HEAD</tag>
+    <tag>HEAD</tag>   <!-- correct for development; will be set to a concrete tag at next release -->
     ...
 </scm>
 ```
 
-Commit this as a follow-up:
+`HEAD` is the expected, correct value during development.
+It must only be set to a concrete tag (`vX.Y.Z`) during the release commit itself
+(step 2b), and then reset here immediately after.
+
+### 11c. Commit and push
 
 ```bash
 git add pom.xml
-git commit -m "chore: back to development after vX.Y.Z"
+git commit -m "chore: begin next development iteration after vX.Y.Z"
 git push origin main
 ```
 
@@ -199,8 +216,9 @@ git push origin main
 
 | File | What changes |
 |---|---|
-| `pom.xml` | `<version>` → `X.Y.Z`; `<scm><tag>` → `vX.Y.Z` |
+| `pom.xml` (release commit) | `<version>` → `X.Y.Z`; `<scm><tag>` → `vX.Y.Z` |
 | `CHANGELOG.md` | New `## [X.Y.Z] — YYYY-MM-DD` section + bottom link |
 | `README.md` | Version in Maven and Gradle snippets → `X.Y.Z` |
-| Git | New annotated tag `vX.Y.Z` pushed to `origin` |
+| Git | New tag `vX.Y.Z` pushed to `origin` |
 | GitHub | Release published from tag `vX.Y.Z` |
+| `pom.xml` (post-release commit) | `<version>` → `X.Y.(Z+1)-SNAPSHOT`; `<scm><tag>` → `HEAD` |
