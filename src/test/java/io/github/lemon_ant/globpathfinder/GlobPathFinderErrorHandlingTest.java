@@ -218,10 +218,11 @@ class GlobPathFinderErrorHandlingTest {
             }
         });
 
-        // Then – I/O error must appear at DEBUG, never at WARN
+        // Then – I/O error must appear at DEBUG with stack trace, never at WARN
         assertThat(appender.list).anySatisfy(event -> {
             assertThat(event.getLevel()).isEqualTo(Level.DEBUG);
             assertThat(event.getFormattedMessage().toLowerCase(Locale.ROOT)).contains("i/o");
+            assertThat(event.getThrowableProxy()).isNotNull();
         });
         assertThat(appender.list)
                 .noneSatisfy(event -> assertThat(event.getLevel()).isEqualTo(Level.WARN));

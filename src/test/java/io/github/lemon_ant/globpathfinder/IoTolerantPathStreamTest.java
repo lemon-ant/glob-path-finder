@@ -104,8 +104,10 @@ class IoTolerantPathStreamTest {
         wrapped.spliterator().tryAdvance(path -> {});
 
         // Then
-        assertThat(appender.list)
-                .anySatisfy(event -> assertThat(event.getLevel()).isEqualTo(Level.DEBUG));
+        assertThat(appender.list).anySatisfy(event -> {
+            assertThat(event.getLevel()).isEqualTo(Level.DEBUG);
+            assertThat(event.getThrowableProxy()).isNotNull();
+        });
         assertThat(appender.list)
                 .noneSatisfy(event -> assertThat(event.getLevel()).isEqualTo(Level.WARN));
     }
@@ -123,8 +125,10 @@ class IoTolerantPathStreamTest {
         wrapped.spliterator().tryAdvance(path -> {});
 
         // Then
-        assertThat(appender.list)
-                .anySatisfy(event -> assertThat(event.getLevel()).isEqualTo(Level.WARN));
+        assertThat(appender.list).anySatisfy(event -> {
+            assertThat(event.getLevel()).isEqualTo(Level.WARN);
+            assertThat(event.getThrowableProxy()).isNull();
+        });
         assertThat(appender.list)
                 .noneSatisfy(event -> assertThat(event.getLevel()).isEqualTo(Level.DEBUG));
     }

@@ -346,7 +346,7 @@ public class GlobPathFinder {
             }
             String causeMessage = startFailure.getMessage();
             if (pathQuery.isSuppressIoWarnings()) {
-                log.debug(FAILED_TO_START_SCANNING_BASE, basePath, causeMessage);
+                log.debug(FAILED_TO_START_SCANNING_BASE, basePath, causeMessage, startFailure);
             } else {
                 log.warn(FAILED_TO_START_SCANNING_BASE, basePath, causeMessage);
             }

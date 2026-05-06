@@ -28,8 +28,8 @@ import lombok.extern.slf4j.Slf4j;
  *
  * <p><strong>Behavior</strong></p>
  * <ul>
- *   <li>Logs any {@code UncheckedIOException} at WARN (or DEBUG when suppression is enabled) with the
- *       {@code basePath} context, without printing the full stack trace.</li>
+ *   <li>Logs any {@code UncheckedIOException} at WARN (message only, no stack trace) or at DEBUG with a full
+ *       stack trace when suppression is enabled, always including the {@code basePath} context.</li>
  *   <li>Terminates the current spliterator branch; outer pipelines continue unaffected.</li>
  *   <li>Preserves {@link java.util.Spliterator#characteristics()} and delegates
  *       {@link java.util.Spliterator#trySplit()} to keep parallel streams effective.</li>
@@ -39,7 +39,7 @@ import lombok.extern.slf4j.Slf4j;
  * <p><strong>Usage</strong></p>
  * <pre>{@code
  * Stream<Path> raw = Files.find(basePath, maxDepth, fileFilter, visitOptions);
- * Stream<Path> safe = IoShieldingStreams.wrapPathStream(raw, basePath, log);
+ * Stream<Path> safe = IoTolerantPathStream.wrap(raw, basePath, suppressIoWarnings);
  * try (safe) {
  *   safe.forEach(...); // your pipeline
  * }
@@ -76,7 +76,8 @@ class IoTolerantPathStream {
     /**
      * Create a shielding {@link java.util.Spliterator} that delegates to the source but
      * catches {@link java.io.UncheckedIOException} in {@code tryAdvance} and
-     * {@code forEachRemaining}, logs a WARN, and stops iteration of this branch.
+     * {@code forEachRemaining}, logs the error (WARN with message only, or DEBUG with full stack
+     * trace when suppressed), and stops iteration of this branch.
      *
      * <p><strong>Preserved semantics</strong></p>
      * <ul>
@@ -111,7 +112,7 @@ class IoTolerantPathStream {
                     logIoError(
                             "I/O during traversal of '{}': {}. Stopping this base (forEachRemaining).",
                             basePath,
-                            ioe.getMessage(),
+                            ioe,
                             suppressIoWarnings);
                     // swallow and stop
                 }
@@ -125,7 +126,7 @@ class IoTolerantPathStream {
                     logIoError(
                             "I/O during traversal of '{}': {}. Skipping the rest of this base.",
                             basePath,
-                            ioe.getMessage(),
+                            ioe,
                             suppressIoWarnings);
                     return false; // stop this branch
                 }
@@ -139,9 +140,11 @@ class IoTolerantPathStream {
         };
     }
 
-    private static void logIoError(String format, Path basePath, String message, boolean suppressIoWarnings) {
+    private static void logIoError(
+            String format, Path basePath, UncheckedIOException throwable, boolean suppressIoWarnings) {
+        String message = throwable.getMessage();
         if (suppressIoWarnings) {
-            log.debug(format, basePath, message);
+            log.debug(format, basePath, message, throwable);
         } else {
             log.warn(format, basePath, message);
         }
