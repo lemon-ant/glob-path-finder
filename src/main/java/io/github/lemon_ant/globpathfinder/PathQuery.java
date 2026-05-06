@@ -41,6 +41,9 @@ import org.jspecify.annotations.Nullable;
  *       {@code false}, links are visited as link entries only and are never traversed.</li>
  *   <li><b>failFastOnError</b> — error-handling behavior during traversal:
  *       {@code true} ⇒ fail-fast on the first late I/O error; {@code false} ⇒ shield errors and continue.</li>
+ *   <li><b>suppressIoWarnings</b> — when {@code true}, shielded I/O errors are logged at DEBUG instead of WARN,
+ *       so they are invisible in standard logging configurations. Has no effect when {@code failFastOnError} is
+ *       {@code true}.</li>
  * </ul>
  *
  * <h2>Relaxed defaults</h2>
@@ -53,6 +56,7 @@ import org.jspecify.annotations.Nullable;
  *   <li>{@code onlyFiles == null}  or omitted → {@code true}.</li>
  *   <li>{@code followLinks == null} or omitted → {@code true}.</li>
  *   <li>{@code failFastOnError == null} or omitted → {@code true} (fail-fast).</li>
+ *   <li>{@code suppressIoWarnings == null} or omitted → {@code false} (log at WARN).</li>
  * </ul>
  *
  * <h2>Examples</h2>
@@ -107,12 +111,21 @@ public class PathQuery {
      * <ul>
      *   <li>When {@code true}, traversal is fail-fast: the first late I/O error
      *       (e.g. AccessDeniedException, UncheckedIOException) immediately throws and aborts the entire pipeline.</li>
-     *   <li>When {@code false}, traversal is shielded: errors are logged at WARN level
-     *       and only the current branch is cut, the rest of the pipeline continues.</li>
+     *   <li>When {@code false}, traversal is shielded: errors are logged (at WARN by default, or at DEBUG when
+     *       {@link #suppressIoWarnings} is {@code true}) and only the current branch is cut,
+     *       the rest of the pipeline continues.</li>
      * </ul>
      * If null or omitted in the builder, defaults to {@code true} (fail-fast).
      */
     boolean failFastOnError;
+
+    /**
+     * When {@code true}, shielded I/O errors during traversal are logged at DEBUG level instead of WARN.
+     * This silences them in standard logging configurations where DEBUG is below the effective threshold.
+     * Has no effect when {@link #failFastOnError} is {@code true}.
+     * If null or omitted in the builder, defaults to {@code false} (log at WARN).
+     */
+    boolean suppressIoWarnings;
 
     /**
      * Whether to follow symbolic links. If null or omitted in the builder, defaults to true (symbolic links are
@@ -157,6 +170,9 @@ public class PathQuery {
      * @param failFastOnError   Error-handling strategy. If null or omitted, defaults to {@code true} (fail-fast).
      *                          {@code true} ⇒ abort immediately on first I/O error,
      *                          {@code false} ⇒ shield errors, log a warning, and continue traversal.
+     * @param suppressIoWarnings When {@code true}, shielded I/O errors are logged at DEBUG instead of WARN.
+     *                          If null or omitted, defaults to {@code false} (log at WARN).
+     *                          Has no effect when {@code failFastOnError} is {@code true}.
      */
     @Builder(toBuilder = true)
     private PathQuery(
@@ -167,7 +183,8 @@ public class PathQuery {
             @Nullable Integer maxDepth,
             @Nullable Boolean onlyFiles,
             @Nullable Boolean followLinks,
-            @Nullable Boolean failFastOnError) {
+            @Nullable Boolean failFastOnError,
+            @Nullable Boolean suppressIoWarnings) {
         this.baseDir = ofNullable(baseDir).orElse(Path.of("."));
         this.includeGlobs = Set.copyOf(includeGlobs);
         this.allowedExtensions = Set.copyOf(allowedExtensions);
@@ -176,6 +193,7 @@ public class PathQuery {
         this.onlyFiles = ofNullable(onlyFiles).orElse(true);
         this.followLinks = ofNullable(followLinks).orElse(true);
         this.failFastOnError = ofNullable(failFastOnError).orElse(true);
+        this.suppressIoWarnings = ofNullable(suppressIoWarnings).orElse(false);
     }
 
     /**

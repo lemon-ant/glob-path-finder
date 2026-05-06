@@ -251,11 +251,10 @@ class GlobPathFinderAdditionalScenariosTest {
                 .as("Expected a WARN from IoShieldingStream about a filesystem loop")
                 .anySatisfy(ev -> {
                     String message = ev.getFormattedMessage();
-                    assertThat(message).contains("I/O during traversal of", "FileSystemLoopException");
+                    assertThat(message).contains("I/O during traversal of");
                     assertThat(message).containsAnyOf("Stopping", "Skipping");
-                    // Throwable presence and type hint (FileSystemLoopException)
-                    assertThat(ev.getThrowableProxy()).isNotNull();
-                    assertThat(ev.getThrowableProxy().getCause().getClassName()).contains("FileSystemLoopException");
+                    // Stack trace is intentionally suppressed; no throwable proxy expected.
+                    assertThat(ev.getThrowableProxy()).isNull();
                 });
     }
 

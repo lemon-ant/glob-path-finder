@@ -13,7 +13,19 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
-## [1.0.1] — Unreleased
+## [1.1.0] — Unreleased
+
+### Added
+
+- `PathQuery.suppressIoWarnings` flag (default `false`): when `true`, shielded I/O errors during
+  traversal are logged at `DEBUG` level only, silencing the `WARN` line in standard logging
+  configurations. Has no effect when `failFastOnError` is `true`.
+
+### Changed
+
+- I/O traversal errors are now always logged at `DEBUG` with a full stack trace for diagnostics.
+  Additionally, a concise `WARN` line (message only, no stack trace) is emitted unless
+  `suppressIoWarnings` is `true`.
 
 ### Fixed
 

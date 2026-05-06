@@ -31,6 +31,7 @@ class PathQueryTest {
         assertThat(pathQuery.isOnlyFiles()).isTrue();
         assertThat(pathQuery.isFollowLinks()).isTrue();
         assertThat(pathQuery.isFailFastOnError()).isTrue();
+        assertThat(pathQuery.isSuppressIoWarnings()).isFalse();
     }
 
     @Test
@@ -150,6 +151,15 @@ class PathQueryTest {
 
         // Then
         assertThat(pathQuery.getMaxDepth()).isEqualTo(Integer.MAX_VALUE);
+    }
+
+    @Test
+    void suppressIoWarnings_trueValue_storedCorrectly() {
+        // When
+        PathQuery pathQuery = PathQuery.builder().suppressIoWarnings(true).build();
+
+        // Then
+        assertThat(pathQuery.isSuppressIoWarnings()).isTrue();
     }
 
     @Test

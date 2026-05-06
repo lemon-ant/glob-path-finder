@@ -10,6 +10,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
@@ -49,13 +51,13 @@ class IoTolerantPathStreamTest {
     @Test
     void wrap_nullSourceStream_throwsNullPointerException() {
         // When / Then
-        assertThatThrownBy(() -> IoTolerantPathStream.wrap(null, BASE)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> IoTolerantPathStream.wrap(null, BASE, false)).isInstanceOf(NullPointerException.class);
     }
 
     @Test
     void wrap_nullBasePath_throwsNullPointerException() {
         // When / Then
-        assertThatThrownBy(() -> IoTolerantPathStream.wrap(Stream.empty(), null))
+        assertThatThrownBy(() -> IoTolerantPathStream.wrap(Stream.empty(), null, false))
                 .isInstanceOf(NullPointerException.class);
     }
 
@@ -66,7 +68,7 @@ class IoTolerantPathStreamTest {
 
         // When
         List<Path> result;
-        try (Stream<Path> wrapped = IoTolerantPathStream.wrap(elements.stream(), BASE)) {
+        try (Stream<Path> wrapped = IoTolerantPathStream.wrap(elements.stream(), BASE, false)) {
             result = wrapped.collect(Collectors.toUnmodifiableList());
         }
 
@@ -77,29 +79,8 @@ class IoTolerantPathStreamTest {
     @Test
     void tryAdvance_ioExceptionDuringAdvance_swallowsAndReturnsFalse() {
         // Given
-        Spliterator<Path> throwingSpliterator = new Spliterator<>() {
-            @Override
-            public boolean tryAdvance(Consumer<? super Path> action) {
-                throw new UncheckedIOException(new IOException("simulated I/O error"));
-            }
-
-            @Override
-            public Spliterator<Path> trySplit() {
-                return null;
-            }
-
-            @Override
-            public long estimateSize() {
-                return Long.MAX_VALUE;
-            }
-
-            @Override
-            public int characteristics() {
-                return 0;
-            }
-        };
-        Stream<Path> sourceStream = StreamSupport.stream(throwingSpliterator, false);
-        Stream<Path> wrapped = IoTolerantPathStream.wrap(sourceStream, BASE);
+        Stream<Path> sourceStream = StreamSupport.stream(throwingOnTryAdvanceSpliterator(), false);
+        Stream<Path> wrapped = IoTolerantPathStream.wrap(sourceStream, BASE, false);
         List<Path> collected = new ArrayList<>();
 
         // When
@@ -108,6 +89,50 @@ class IoTolerantPathStreamTest {
         // Then
         assertThat(advanced).isFalse();
         assertThat(collected).isEmpty();
+    }
+
+    @Test
+    void tryAdvance_ioExceptionSuppressedWarnings_logsAtDebug() {
+        // Given
+        ioTolerantPathStreamLogger().setLevel(Level.ALL);
+        Spliterator<Path> throwingSpliterator = throwingOnTryAdvanceSpliterator();
+        ListAppender<ILoggingEvent> appender = LogHelper.attachListAppender(IoTolerantPathStream.class);
+        Stream<Path> sourceStream = StreamSupport.stream(throwingSpliterator, false);
+        Stream<Path> wrapped = IoTolerantPathStream.wrap(sourceStream, BASE, true);
+
+        // When
+        wrapped.spliterator().tryAdvance(path -> {});
+
+        // Then
+        assertThat(appender.list).anySatisfy(event -> {
+            assertThat(event.getLevel()).isEqualTo(Level.DEBUG);
+            assertThat(event.getThrowableProxy()).isNotNull();
+        });
+        assertThat(appender.list)
+                .noneSatisfy(event -> assertThat(event.getLevel()).isEqualTo(Level.WARN));
+    }
+
+    @Test
+    void tryAdvance_ioExceptionDefaultWarnings_logsAtWarn() {
+        // Given
+        ioTolerantPathStreamLogger().setLevel(Level.ALL);
+        Spliterator<Path> throwingSpliterator = throwingOnTryAdvanceSpliterator();
+        ListAppender<ILoggingEvent> appender = LogHelper.attachListAppender(IoTolerantPathStream.class);
+        Stream<Path> sourceStream = StreamSupport.stream(throwingSpliterator, false);
+        Stream<Path> wrapped = IoTolerantPathStream.wrap(sourceStream, BASE, false);
+
+        // When
+        wrapped.spliterator().tryAdvance(path -> {});
+
+        // Then
+        assertThat(appender.list).anySatisfy(event -> {
+            assertThat(event.getLevel()).isEqualTo(Level.WARN);
+            assertThat(event.getThrowableProxy()).isNull();
+        });
+        assertThat(appender.list).anySatisfy(event -> {
+            assertThat(event.getLevel()).isEqualTo(Level.DEBUG);
+            assertThat(event.getThrowableProxy()).isNotNull();
+        });
     }
 
     @Test
@@ -140,7 +165,7 @@ class IoTolerantPathStreamTest {
             }
         };
         Stream<Path> sourceStream = StreamSupport.stream(throwingSpliterator, false);
-        Stream<Path> wrapped = IoTolerantPathStream.wrap(sourceStream, BASE);
+        Stream<Path> wrapped = IoTolerantPathStream.wrap(sourceStream, BASE, false);
         List<Path> collected = new ArrayList<>();
 
         // When / Then – no exception propagated
@@ -153,7 +178,7 @@ class IoTolerantPathStreamTest {
         // Given
         List<Path> elements = List.of(Path.of("a"), Path.of("b"), Path.of("c"), Path.of("d"));
         Stream<Path> sourceStream = elements.stream();
-        Stream<Path> wrapped = IoTolerantPathStream.wrap(sourceStream, BASE);
+        Stream<Path> wrapped = IoTolerantPathStream.wrap(sourceStream, BASE, false);
 
         // When
         Spliterator<Path> split = wrapped.spliterator().trySplit();
@@ -167,7 +192,7 @@ class IoTolerantPathStreamTest {
         // Given – unknown-size iterator spliterator does not support splitting
         Stream<Path> sourceStream =
                 StreamSupport.stream(Spliterators.spliteratorUnknownSize(Collections.<Path>emptyIterator(), 0), false);
-        Stream<Path> wrapped = IoTolerantPathStream.wrap(sourceStream, BASE);
+        Stream<Path> wrapped = IoTolerantPathStream.wrap(sourceStream, BASE, false);
 
         // When
         Spliterator<Path> split = wrapped.spliterator().trySplit();
@@ -179,5 +204,30 @@ class IoTolerantPathStreamTest {
     @NonNull
     private static Logger ioTolerantPathStreamLogger() {
         return (Logger) LoggerFactory.getLogger(IoTolerantPathStream.class);
+    }
+
+    @NonNull
+    private static Spliterator<Path> throwingOnTryAdvanceSpliterator() {
+        return new Spliterator<>() {
+            @Override
+            public boolean tryAdvance(Consumer<? super Path> action) {
+                throw new UncheckedIOException(new IOException("simulated I/O error"));
+            }
+
+            @Override
+            public Spliterator<Path> trySplit() {
+                return null;
+            }
+
+            @Override
+            public long estimateSize() {
+                return Long.MAX_VALUE;
+            }
+
+            @Override
+            public int characteristics() {
+                return 0;
+            }
+        };
     }
 }
