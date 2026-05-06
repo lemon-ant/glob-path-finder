@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Anton Lem <antonlem78@gmail.com>
 # SPDX-License-Identifier: Apache-2.0
 
-name: 04-Publish Release
+name: 03-Publish Release
 
 on:
   release:

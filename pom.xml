@@ -11,7 +11,7 @@
 
     <groupId>io.github.lemon-ant</groupId>
     <artifactId>glob-path-finder</artifactId>
-    <version>1.1.0</version>
+    <version>1.1.1-SNAPSHOT</version>
 
     <name>Glob Path Finder</name>
     <description>A lightweight Java library for recursive file system traversal with flexible glob pattern filtering.</description>
