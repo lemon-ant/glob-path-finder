@@ -29,6 +29,7 @@ SPDX-License-Identifier: Apache-2.0
     - `SPDX-FileCopyrightText: 2026 Anton Lem <antonlem78@gmail.com>`
     - `SPDX-License-Identifier: Apache-2.0`
   - Exception: `LICENSE` keeps the canonical Apache-2.0 legal text and may omit SPDX header lines.
+  - Do not introduce additional third-party license headers unless a file is truly imported from a differently licensed upstream source.
 - Avoid cosmetic-only churn in production files (for example adding/removing separator blank lines) when there is no behavioral or readability gain tied to the task.
 - Reuse existing project and library utilities before introducing custom helpers.
 - Prefer explicit Java types over `var`.
@@ -43,6 +44,7 @@ SPDX-License-Identifier: Apache-2.0
   - For nested helper/data-carrier types created only by the enclosing type, keep their constructors `private`; tests are not a reason to widen constructor visibility.
 - Keep production models and value objects focused on state plus simple accessors or validation.
   - Move non-trivial business, filtering, parsing, and transformation logic into dedicated service or processing classes.
+- Explicitly annotate field and non-private method nullability with `@NonNull` / `@Nullable` where applicable; private method parameters may stay implicit when the intent is already obvious.
 - Prefer Stream API when it makes the control flow clearer and more concise than imperative loops.
 - If a boolean helper is always consumed through negation at its call sites, invert the helper logic and rename it so callers stay positive and direct.
 - Prefer `get` only for conventional object-model/DTO getters; for computed values, searches, conditional lookups, or transformations, prefer a more specific verb such as `find`, `resolve`, `collect`, `compute`, or `merge`.
@@ -55,6 +57,8 @@ SPDX-License-Identifier: Apache-2.0
   - Place method-level nullability annotations on their own line above the method declaration instead of inline in the signature.
   - This repository-wide rule also applies to private helper methods in tests.
 - Prefer static imports for frequently used assertion/helper methods when repeated type-qualified calls add noise.
+- Do not use `protected` fields; keep fields `private` and expose only the narrow protected accessor methods that subclasses actually need.
+- Prefer the shorter `src*` naming family (`srcFile`, `srcPath`, `srcCode`, `srcDiff`) for source-related variables and parameters.
 - Annotate every non-private method's reference-type parameters and non-primitive return type with explicit nullability using `lombok.NonNull` or `org.jspecify.annotations.Nullable`.
 - Do not change standard `Object` method signatures when overriding them.
   - Do not add nullability annotations to `Object` overrides just to satisfy local conventions.
