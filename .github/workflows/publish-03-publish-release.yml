@@ -24,7 +24,7 @@ permissions:
   actions: read
 
 jobs:
-  # ── Step 1 ─────────────────────────────────────────────────────────────────
+  # -- Step 1 ----------------------------------------------------------------
   # Determine whether the completed compat-test run belongs to a release chain
   # (i.e. a v* tag exists for the tested commit) and locate the matching build
   # run so we can download the already-validated artifacts from it.
@@ -56,7 +56,7 @@ jobs:
             echo "is-release=true" >> "$GITHUB_OUTPUT"
             echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           else
-            echo "No release tag found for commit $SHA – push-to-main run; skipping publish."
+            echo "No release tag found for commit $SHA -- push-to-main run; skipping publish."
             echo "is-release=false" >> "$GITHUB_OUTPUT"
             echo "version=" >> "$GITHUB_OUTPUT"
           fi
@@ -85,9 +85,9 @@ jobs:
           echo "Build run ID: $RUN_ID"
           echo "run-id=$RUN_ID" >> "$GITHUB_OUTPUT"
 
-  # ── Step 2 ─────────────────────────────────────────────────────────────────
+  # -- Step 2 ----------------------------------------------------------------
   # Download the artifact that was built in 01 and validated in 02, sign it
-  # with GPG, and publish the resulting bundle to Maven Central – without
+  # with GPG, and publish the resulting bundle to Maven Central -- without
   # rebuilding from source.
   publish-release:
     needs: detect-release
@@ -127,10 +127,22 @@ jobs:
           cp dist/pom.xml "$BUNDLE_DIR/${ARTIFACT_ID}-${VERSION}.pom"
 
           # Place all three JARs with the versioned names Central expects.
-          MAIN_JAR=$(ls dist/*.jar | grep -v -- '-sources.jar' | grep -v -- '-javadoc.jar' | head -n1)
-          cp "$MAIN_JAR"        "$BUNDLE_DIR/${ARTIFACT_ID}-${VERSION}.jar"
-          cp dist/*-sources.jar "$BUNDLE_DIR/${ARTIFACT_ID}-${VERSION}-sources.jar"
-          cp dist/*-javadoc.jar "$BUNDLE_DIR/${ARTIFACT_ID}-${VERSION}-javadoc.jar"
+          # Use find so the selection is explicit and fails cleanly if a file
+          # is missing or if the dist content is unexpectedly different.
+          MAIN_JAR=$(find dist -maxdepth 1 -name '*.jar' \
+            ! -name '*-sources.jar' ! -name '*-javadoc.jar' | head -n1)
+          SOURCES_JAR=$(find dist -maxdepth 1 -name '*-sources.jar' | head -n1)
+          JAVADOC_JAR=$(find dist -maxdepth 1 -name '*-javadoc.jar' | head -n1)
+
+          if [ -z "$MAIN_JAR" ] || [ -z "$SOURCES_JAR" ] || [ -z "$JAVADOC_JAR" ]; then
+            echo "::error::Expected main JAR, sources JAR, and javadoc JAR in dist/ but one or more are missing."
+            ls -l dist/
+            exit 1
+          fi
+
+          cp "$MAIN_JAR"    "$BUNDLE_DIR/${ARTIFACT_ID}-${VERSION}.jar"
+          cp "$SOURCES_JAR" "$BUNDLE_DIR/${ARTIFACT_ID}-${VERSION}-sources.jar"
+          cp "$JAVADOC_JAR" "$BUNDLE_DIR/${ARTIFACT_ID}-${VERSION}-javadoc.jar"
 
           # Sign POM and all three JARs with GPG (produces .asc sidecar files).
           for f in "$BUNDLE_DIR"/*.pom "$BUNDLE_DIR"/*.jar; do
@@ -150,14 +162,15 @@ jobs:
         # publishingType=USER_MANAGED keeps the same manual-review behaviour
         # that was previously configured via central-publishing-maven-plugin
         # (autoPublish was not set to true).
+        # The token is constructed inline and never stored in a shell variable
+        # to avoid inadvertently capturing it in error output.
         run: |
           VERSION="${{ needs.detect-release.outputs.version }}"
-          TOKEN=$(printf '%s:%s' "$MAVEN_CENTRAL_USERNAME" "$MAVEN_CENTRAL_TOKEN" | base64 -w0)
 
           RESPONSE=$(curl --fail-with-body -sS \
             -X POST \
             "https://central.sonatype.com/api/v1/publisher/upload?name=glob-path-finder-${VERSION}&publishingType=USER_MANAGED" \
-            -H "Authorization: Bearer $TOKEN" \
+            -H "Authorization: Bearer $(printf '%s:%s' "$MAVEN_CENTRAL_USERNAME" "$MAVEN_CENTRAL_TOKEN" | base64 -w0)" \
             -F "bundle=@bundle.zip")
 
           echo "Deployment response: $RESPONSE"
