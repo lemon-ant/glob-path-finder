@@ -28,7 +28,8 @@ import lombok.extern.slf4j.Slf4j;
  *
  * <p><strong>Behavior</strong></p>
  * <ul>
- *   <li>Logs any {@code UncheckedIOException} at WARN with the {@code basePath} context.</li>
+ *   <li>Logs any {@code UncheckedIOException} at WARN (or DEBUG when suppression is enabled) with the
+ *       {@code basePath} context, without printing the full stack trace.</li>
  *   <li>Terminates the current spliterator branch; outer pipelines continue unaffected.</li>
  *   <li>Preserves {@link java.util.Spliterator#characteristics()} and delegates
  *       {@link java.util.Spliterator#trySplit()} to keep parallel streams effective.</li>
@@ -46,7 +47,6 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @UtilityClass
-@SuppressWarnings("PMD.GuardLogStatement")
 class IoTolerantPathStream {
 
     /**
@@ -59,15 +59,16 @@ class IoTolerantPathStream {
      *   <li>Closing the returned stream will also close the {@code sourceStream}.</li>
      * </ul>
      *
-     * @param sourceStream original stream (e.g., from {@link java.nio.file.Files#find})
-     * @param basePath     context for logging; typically the scanned base directory
+     * @param sourceStream      original stream (e.g., from {@link java.nio.file.Files#find})
+     * @param basePath          context for logging; typically the scanned base directory
+     * @param suppressIoWarnings when {@code true}, I/O errors are logged at DEBUG instead of WARN
      * @return a shielded stream that logs and suppresses late {@code UncheckedIOException}
      */
     @NonNull
-    static Stream<Path> wrap(@NonNull Stream<Path> sourceStream, @NonNull Path basePath) {
+    static Stream<Path> wrap(@NonNull Stream<Path> sourceStream, @NonNull Path basePath, boolean suppressIoWarnings) {
         boolean isParallel = sourceStream.isParallel();
         Spliterator<Path> sourceSpliterator = sourceStream.spliterator();
-        Spliterator<Path> shielded = createIoTolerantSpliterator(sourceSpliterator, basePath);
+        Spliterator<Path> shielded = createIoTolerantSpliterator(sourceSpliterator, basePath, suppressIoWarnings);
 
         return StreamSupport.stream(shielded, isParallel).onClose(sourceStream::close);
     }
@@ -83,12 +84,14 @@ class IoTolerantPathStream {
      *   <li>Returns the same {@link java.util.Spliterator#characteristics()} as the source.</li>
      * </ul>
      *
-     * @param source   underlying spliterator
-     * @param basePath base-path context for logging
+     * @param source              underlying spliterator
+     * @param basePath            base-path context for logging
+     * @param suppressIoWarnings  when {@code true}, I/O errors are logged at DEBUG instead of WARN
      * @return shielding spliterator
      */
     @NonNull
-    private static Spliterator<Path> createIoTolerantSpliterator(Spliterator<Path> source, Path basePath) {
+    private static Spliterator<Path> createIoTolerantSpliterator(
+            Spliterator<Path> source, Path basePath, boolean suppressIoWarnings) {
         return new Spliterator<>() {
             @Override
             public int characteristics() {
@@ -105,11 +108,11 @@ class IoTolerantPathStream {
                 try {
                     source.forEachRemaining(action);
                 } catch (UncheckedIOException ioe) {
-                    log.warn(
+                    logIoError(
                             "I/O during traversal of '{}': {}. Stopping this base (forEachRemaining).",
                             basePath,
                             ioe.getMessage(),
-                            ioe);
+                            suppressIoWarnings);
                     // swallow and stop
                 }
             }
@@ -119,11 +122,11 @@ class IoTolerantPathStream {
                 try {
                     return source.tryAdvance(action);
                 } catch (UncheckedIOException ioe) {
-                    log.warn(
+                    logIoError(
                             "I/O during traversal of '{}': {}. Skipping the rest of this base.",
                             basePath,
                             ioe.getMessage(),
-                            ioe);
+                            suppressIoWarnings);
                     return false; // stop this branch
                 }
             }
@@ -131,8 +134,16 @@ class IoTolerantPathStream {
             @Override
             public Spliterator<Path> trySplit() {
                 Spliterator<Path> split = source.trySplit();
-                return (split == null) ? null : createIoTolerantSpliterator(split, basePath);
+                return (split == null) ? null : createIoTolerantSpliterator(split, basePath, suppressIoWarnings);
             }
         };
+    }
+
+    private static void logIoError(String format, Path basePath, String message, boolean suppressIoWarnings) {
+        if (suppressIoWarnings) {
+            log.debug(format, basePath, message);
+        } else {
+            log.warn(format, basePath, message);
+        }
     }
 }

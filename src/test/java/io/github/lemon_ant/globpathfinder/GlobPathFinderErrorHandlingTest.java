@@ -11,6 +11,7 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import java.io.IOException;
@@ -27,6 +28,7 @@ import java.util.stream.Stream;
 import org.assertj.core.api.Condition;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.slf4j.LoggerFactory;
 
 /**
  * Integration-style tests that exercise GlobPathFinder against real filesystem conditions:
@@ -177,6 +179,61 @@ class GlobPathFinderErrorHandlingTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Base path is not a directory: ")
                 .hasMessageContaining(file.toAbsolutePath().normalize().toString());
+    }
+
+    @Test
+    void findPaths_unreadableSubdirectory_suppressedWarnings_logsAtDebug() throws IOException {
+        // Run only on POSIX where chmod(000) is available
+        assumeTrue(
+                Files.getFileAttributeView(tempDir, PosixFileAttributeView.class) != null,
+                "POSIX attributes not supported; skipping test.");
+
+        // Given
+        Path base = tempDir.resolve("base-suppressed");
+        Path okDir = base.resolve("ok");
+        Path deniedDir = base.resolve("denied");
+        Files.createDirectories(okDir);
+        Files.createDirectories(deniedDir);
+        Files.writeString(okDir.resolve("file1.txt"), "hello");
+        Files.writeString(deniedDir.resolve("file2.txt"), "secret");
+        Files.setPosixFilePermissions(deniedDir, Set.of());
+
+        Logger logger = (Logger) LoggerFactory.getLogger(IoTolerantPathStream.class);
+        Level savedLevel = logger.getLevel();
+        logger.setLevel(Level.ALL);
+        ListAppender<ILoggingEvent> appender = LogHelper.attachListAppender(IoTolerantPathStream.class);
+
+        PathQuery query = PathQuery.builder()
+                .baseDir(base)
+                .includeGlobs(Set.of("**/*.txt"))
+                .onlyFiles(true)
+                .failFastOnError(false)
+                .suppressIoWarnings(true)
+                .build();
+
+        // When
+        assertThatNoException().isThrownBy(() -> {
+            try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
+                pathStream.collect(Collectors.toUnmodifiableList());
+            }
+        });
+
+        // Then – I/O error must appear at DEBUG, never at WARN
+        assertThat(appender.list).anySatisfy(event -> {
+            assertThat(event.getLevel()).isEqualTo(Level.DEBUG);
+            assertThat(event.getFormattedMessage().toLowerCase(Locale.ROOT)).contains("i/o");
+        });
+        assertThat(appender.list)
+                .noneSatisfy(event -> assertThat(event.getLevel()).isEqualTo(Level.WARN));
+
+        // Cleanup
+        logger.setLevel(savedLevel);
+        Files.setPosixFilePermissions(
+                deniedDir,
+                Set.of(
+                        PosixFilePermission.OWNER_READ,
+                        PosixFilePermission.OWNER_WRITE,
+                        PosixFilePermission.OWNER_EXECUTE));
     }
 
     @Test

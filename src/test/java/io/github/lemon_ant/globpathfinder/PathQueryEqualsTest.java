@@ -161,6 +161,21 @@ class PathQueryEqualsTest {
     }
 
     @Test
+    void equals_differentSuppressIoWarnings_returnsFalse() {
+        // Given
+        Path base = Paths.get(".").toAbsolutePath().normalize();
+
+        // When
+        PathQuery left =
+                PathQuery.builder().baseDir(base).suppressIoWarnings(false).build();
+        PathQuery right =
+                PathQuery.builder().baseDir(base).suppressIoWarnings(true).build();
+
+        // Then
+        assertThat(left).isNotEqualTo(right);
+    }
+
+    @Test
     void equals_differentType_returnsFalse() {
         // Given
         Path base = Paths.get(".").toAbsolutePath().normalize();

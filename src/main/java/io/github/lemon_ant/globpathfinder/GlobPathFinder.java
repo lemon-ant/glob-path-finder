@@ -60,7 +60,7 @@ import lombok.extern.slf4j.Slf4j;
 public class GlobPathFinder {
 
     private static final String FAILED_TO_START_SCANNING_BASE =
-            "Failed to start scanning base '{}'. Skipping this base.";
+            "Failed to start scanning base '{}': {}. Skipping this base.";
     private static final String BASE_DIR_DOES_NOT_EXIST = "Base directory does not exist: ";
     private static final String BASE_PATH_NOT_A_DIRECTORY = "Base path is not a directory: ";
 
@@ -333,18 +333,23 @@ public class GlobPathFinder {
 
             // If fail-fast is enabled, do NOT shield: let UncheckedIOException bubble up.
             // Otherwise wrap to log+swallow and cut only the current branch.
-            Stream<Path> shieldedPaths =
-                    pathQuery.isFailFastOnError() ? foundPaths : IoTolerantPathStream.wrap(foundPaths, basePath);
+            Stream<Path> shieldedPaths = pathQuery.isFailFastOnError()
+                    ? foundPaths
+                    : IoTolerantPathStream.wrap(foundPaths, basePath, pathQuery.isSuppressIoWarnings());
 
             Function<Stream<Path>, Stream<Path>> perBasePipeline = perBasePipelineFactory.apply(baseEntry);
 
             return perBasePipeline.apply(globalPipeline.apply(shieldedPaths)).onClose(shieldedPaths::close);
         } catch (IOException startFailure) {
-            // Early failure when creating the stream (not during iteration).
             if (pathQuery.isFailFastOnError()) {
                 throw new UncheckedIOException("Failed to start scanning base '" + basePath + "'.", startFailure);
             }
-            log.warn(FAILED_TO_START_SCANNING_BASE, basePath, startFailure);
+            String causeMessage = startFailure.getMessage();
+            if (pathQuery.isSuppressIoWarnings()) {
+                log.debug(FAILED_TO_START_SCANNING_BASE, basePath, causeMessage);
+            } else {
+                log.warn(FAILED_TO_START_SCANNING_BASE, basePath, causeMessage);
+            }
             return Stream.empty();
         }
     }
