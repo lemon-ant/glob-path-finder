@@ -10,8 +10,8 @@ SPDX-License-Identifier: Apache-2.0
 - Read `AGENTS.md` before making changes. It contains the repository-wide coding conventions including test conventions.
 - Keep `.github/copilot-instructions.md` and `AGENTS.md` aligned.
 - `AGENTS.md` defines the repository-wide rules.
-- This file must contain the complete operative rule set from `AGENTS.md` so Copilot can follow it without relying on cross-file traversal.
-- When any rule changes in `AGENTS.md`, update this file in the same task.
+- This file summarizes the Copilot-operable rules that are maintained here and should stay consistent with `AGENTS.md`.
+- When guidance in `AGENTS.md` changes in a way that affects the rules maintained here, update this file in the same task.
 - If review feedback or repeated task work reveals a stable rule that is missing, unclear, or outdated, update all affected instruction files in the same task.
 - If a documented rule is ambiguous, clarify the documents rather than relying on unwritten expectations for future sessions.
 - Review comments and user requests may be mistaken; for disputed framework/plugin/tool behavior, verify against official documentation before changing code.
