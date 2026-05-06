@@ -92,7 +92,18 @@ Search for the previous version string and replace every occurrence with `X.Y.Z`
 
 ---
 
-## 5. Run the full build locally
+## 5. Update supported version in `SECURITY.md`
+
+`SECURITY.md` declares which version is currently supported.
+Update the version number to `X.Y.Z`:
+
+```markdown
+As of now, this means version **X.Y.Z**.
+```
+
+---
+
+## 6. Run the full build locally
 
 ```bash
 mvn -B -ntp verify
@@ -103,12 +114,12 @@ Fix any failures before proceeding.
 
 ---
 
-## 6. Commit all changes
+## 7. Commit all changes
 
 Stage and commit **only** the release-related changes in a single commit:
 
 ```bash
-git add pom.xml CHANGELOG.md README.md
+git add pom.xml CHANGELOG.md README.md SECURITY.md
 git commit -m "chore: prepare release vX.Y.Z"
 ```
 
@@ -116,7 +127,7 @@ Push the commit to `main` (or open a PR if branch protection requires a review).
 
 ---
 
-## 7. Create and push the Git tag
+## 8. Create and push the Git tag
 
 ```bash
 git tag vX.Y.Z
@@ -128,7 +139,7 @@ prefix (`refs/tags/v*`) and will be skipped if the tag does not match.
 
 ---
 
-## 8. Create the GitHub Release
+## 9. Create the GitHub Release
 
 1. Go to **Releases → Draft a new release** on GitHub.
 2. Select the tag `vX.Y.Z` you just pushed.
@@ -142,7 +153,7 @@ and uploads the artifact to Maven Central.
 
 ---
 
-## 9. Verify CI workflows
+## 10. Verify CI workflows
 
 After publishing the release, confirm that all three workflows succeed:
 
@@ -156,7 +167,7 @@ If any workflow fails, investigate the logs before announcing the release.
 
 ---
 
-## 10. Verify Maven Central publication
+## 11. Verify Maven Central publication
 
 Wait up to 30 minutes, then confirm the artifact is searchable:
 
@@ -172,11 +183,11 @@ https://search.maven.org/artifact/io.github.lemon-ant/glob-path-finder/1.2.0/jar
 
 ---
 
-## 11. Post-release: prepare `pom.xml` for the next development cycle
+## 12. Post-release: prepare `pom.xml` for the next development cycle
 
 After the release is confirmed, make two changes to `pom.xml` in a single follow-up commit.
 
-### 11a. Bump version to the next SNAPSHOT ⚠️ (prevents accidental re-release)
+### 12a. Bump version to the next SNAPSHOT ⚠️ (prevents accidental re-release)
 
 Set `<version>` to the next development snapshot so it is impossible to accidentally
 publish the just-released version number again:
@@ -188,7 +199,7 @@ publish the just-released version number again:
 For example, if you just released `1.2.0`, set it to `1.2.1-SNAPSHOT`.
 Choose the next version that reflects the most likely next change (patch or minor).
 
-### 11b. Reset SCM tag back to `HEAD`
+### 12b. Reset SCM tag back to `HEAD`
 
 ```xml
 <scm>
@@ -202,7 +213,7 @@ Choose the next version that reflects the most likely next change (patch or mino
 It must only be set to a concrete tag (`vX.Y.Z`) during the release commit itself
 (step 2b), and then reset here immediately after.
 
-### 11c. Commit and push
+### 12c. Commit and push
 
 ```bash
 git add pom.xml
@@ -219,6 +230,7 @@ git push origin main
 | `pom.xml` (release commit) | `<version>` → `X.Y.Z`; `<scm><tag>` → `vX.Y.Z` |
 | `CHANGELOG.md` | New `## [X.Y.Z] — YYYY-MM-DD` section + bottom link |
 | `README.md` | Version in Maven and Gradle snippets → `X.Y.Z` |
+| `SECURITY.md` | `version **X.Y.Z**` (supported version) |
 | Git | New tag `vX.Y.Z` pushed to `origin` |
 | GitHub | Release published from tag `vX.Y.Z` |
 | `pom.xml` (post-release commit) | `<version>` → `X.Y.(Z+1)-SNAPSHOT`; `<scm><tag>` → `HEAD` |
