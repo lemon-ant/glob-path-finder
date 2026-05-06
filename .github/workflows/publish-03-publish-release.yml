@@ -1,54 +1,104 @@
 # SPDX-FileCopyrightText: 2026 Anton Lem <antonlem78@gmail.com>
 # SPDX-License-Identifier: Apache-2.0
 
-name: 04-Publish Release
+name: 03-Publish Release
 
+# Triggered only after the full compatibility-test matrix (02) completes
+# successfully, which itself waits for the build (01) to succeed first.
+# This enforces the correct 01 -> 02 -> 03 sequence and prevents publishing
+# before both build and compat checks have passed.
 on:
-  release:
-    types: [ published ]
+  workflow_run:
+    workflows: ["02-Compatibility Test"]
+    types: [ completed ]
 
+# One concurrency slot per release commit.
+# Do not cancel in-progress publishes: a partial upload to Maven Central
+# can leave the deployment in an inconsistent state.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
-  publish-release:
+  # -- Step 1 ----------------------------------------------------------------
+  # Determine whether the completed compat-test run belongs to a release chain
+  # (i.e. a v* tag exists for the tested commit).
+  detect-release:
     runs-on: ubuntu-latest
-    # Guard: only run for version tags (e.g. v1.0.0); skip accidental triggers.
-    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
-    # Expose credentials at job level so setup-java can embed them in ~/.m2/settings.xml
-    # and the Maven deploy step can authenticate against Maven Central.
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    outputs:
+      is-release: ${{ steps.find-tag.outputs.is-release }}
+      version: ${{ steps.find-tag.outputs.version }}
+    steps:
+      - name: Check for a release tag at the tested commit
+        id: find-tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SHA="${{ github.event.workflow_run.head_sha }}"
+          REPO="${{ github.repository }}"
+
+          # repos/REPO/tags returns the actual commit SHA (dereferenced for
+          # annotated tags), so this works for both tag types.
+          TAG=$(gh api "repos/$REPO/tags" --paginate \
+            --jq ".[] | select(.commit.sha == \"$SHA\" and (.name | startswith(\"v\"))) | .name" \
+            | head -1)
+
+          if [ -n "$TAG" ]; then
+            VERSION="${TAG#v}"
+            echo "Release tag: $TAG  version: $VERSION"
+            echo "is-release=true" >> "$GITHUB_OUTPUT"
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          else
+            echo "No release tag found for commit $SHA -- push-to-main run; skipping publish."
+            echo "is-release=false" >> "$GITHUB_OUTPUT"
+            echo "version=" >> "$GITHUB_OUTPUT"
+          fi
+
+  # -- Step 2 ----------------------------------------------------------------
+  # Check out the exact tagged commit and let Maven sign and publish to
+  # Maven Central via the existing release profile, skipping only the tests
+  # and quality checks that already passed in steps 01 and 02.
+  publish-release:
+    needs: detect-release
+    if: ${{ needs.detect-release.outputs.is-release == 'true' }}
+    runs-on: ubuntu-latest
     env:
       MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
       MAVEN_CENTRAL_TOKEN: ${{ secrets.MAVEN_CENTRAL_TOKEN }}
       MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
     steps:
-      - name: Checkout
+      - name: Checkout tagged commit
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Set up Java 21 with Maven Central server credentials
+      - name: Set up Java 21 with Maven Central credentials
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
-          # Generates ~/.m2/settings.xml with <server id="central"> populated from the env vars above.
+          # Generates ~/.m2/settings.xml with <server id="central"> populated
+          # from the env vars above so maven-gpg-plugin and
+          # central-publishing-maven-plugin can authenticate.
           server-id: central
           server-username: MAVEN_CENTRAL_USERNAME
           server-password: MAVEN_CENTRAL_TOKEN
 
       - name: Import GPG key
-        run: |
-          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+        run: echo "$GPG_PRIVATE_KEY" | gpg --batch --import
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
 
-      - name: Build, sign, and publish to Maven Central
+      - name: Sign and publish to Maven Central
         # -Prelease activates: maven-source-plugin, maven-javadoc-plugin,
         #                       maven-gpg-plugin (sign), central-publishing-maven-plugin (deploy).
-        # -Ddoclint=none avoids failing the build on non-critical Javadoc warnings.
+        # -DskipTests skips unit tests (already passed in step 01).
+        # -Ddoclint=none avoids failing on non-critical Javadoc warnings.
         # -Dci=true disables local-dev-only profiles (reformat-poms, reformat-sources).
-        run: mvn -B -ntp -Dci=true -Prelease -Ddoclint=none clean deploy
+        run: mvn -B -ntp -Dci=true -Prelease -DskipTests -Ddoclint=none deploy
