@@ -148,7 +148,7 @@ prefix (`refs/tags/v*`) and will be skipped if the tag does not match.
 5. Ensure **Set as the latest release** is checked (unless this is a pre-release).
 6. Click **Publish release**.
 
-Publishing the release triggers the **04-Publish Release** workflow, which builds, signs,
+Publishing the release triggers the **03-Publish Release** workflow, which builds, signs,
 and uploads the artifact to Maven Central.
 
 ---
@@ -161,7 +161,7 @@ After publishing the release, confirm that all three workflows succeed:
 |---|---|
 | `01-Build Artifacts` | ✅ Green |
 | `02-Compat Test` | ✅ Green |
-| `04-Publish Release` | ✅ Green — artifact uploaded to Maven Central |
+| `03-Publish Release` | ✅ Green — artifact uploaded to Maven Central |
 
 If any workflow fails, investigate the logs before announcing the release.
 
