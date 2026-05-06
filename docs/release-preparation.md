@@ -22,8 +22,8 @@ Follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html):
 | Backward-compatible new feature | Increment **minor**: `1.1.0 → 1.2.0` |
 | Breaking API change | Increment **major**: `1.1.0 → 2.0.0` |
 
-Throughout this document `X.Y.Z` refers to the chosen new version (without the `v` prefix)
-and `vX.Y.Z` refers to the Git tag (with the prefix).
+Throughout this document `X.Y.Z` refers to the chosen new version (without the `v` prefix, e.g. `1.2.0`)
+and `vX.Y.Z` refers to the Git tag (with the prefix, e.g. `v1.2.0`).
 
 ---
 
@@ -162,6 +162,12 @@ Wait up to 30 minutes, then confirm the artifact is searchable:
 
 ```
 https://search.maven.org/artifact/io.github.lemon-ant/glob-path-finder/X.Y.Z/jar
+```
+
+For example, for version `1.2.0`:
+
+```
+https://search.maven.org/artifact/io.github.lemon-ant/glob-path-finder/1.2.0/jar
 ```
 
 ---
