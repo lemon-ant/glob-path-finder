@@ -38,14 +38,14 @@ Add to your **Maven** `pom.xml`:
 <dependency>
   <groupId>io.github.lemon-ant</groupId>
   <artifactId>glob-path-finder</artifactId>
-  <version>1.0.0</version>
+  <version>1.1.0</version>
 </dependency>
 ```
 
 Or with **Gradle**:
 
 ```groovy
-implementation 'io.github.lemon-ant:glob-path-finder:1.0.0'
+implementation 'io.github.lemon-ant:glob-path-finder:1.1.0'
 ```
 
 ---

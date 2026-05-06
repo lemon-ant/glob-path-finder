@@ -9,7 +9,7 @@
 ## Supported Versions
 
 Currently supported: only the latest stable release.
-As of now, this means version **1.0.0**.
+As of now, this means version **1.1.0**.
 
 ---
 
