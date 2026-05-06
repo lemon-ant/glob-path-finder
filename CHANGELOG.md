@@ -13,7 +13,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
-## [1.1.0] — Unreleased
+## [1.1.0] — 2026-05-06
 
 ### Added
 
@@ -71,4 +71,5 @@ First official General Availability release. The public API is now stable.
 
 The compiled bytecode targets Java 11 (`--release 11`).
 
+[1.1.0]: https://github.com/lemon-ant/glob-path-finder/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/lemon-ant/glob-path-finder/releases/tag/v1.0.0
