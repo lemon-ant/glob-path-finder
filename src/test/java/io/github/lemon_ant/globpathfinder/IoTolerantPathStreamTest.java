@@ -129,8 +129,10 @@ class IoTolerantPathStreamTest {
             assertThat(event.getLevel()).isEqualTo(Level.WARN);
             assertThat(event.getThrowableProxy()).isNull();
         });
-        assertThat(appender.list)
-                .noneSatisfy(event -> assertThat(event.getLevel()).isEqualTo(Level.DEBUG));
+        assertThat(appender.list).anySatisfy(event -> {
+            assertThat(event.getLevel()).isEqualTo(Level.DEBUG);
+            assertThat(event.getThrowableProxy()).isNotNull();
+        });
     }
 
     @Test

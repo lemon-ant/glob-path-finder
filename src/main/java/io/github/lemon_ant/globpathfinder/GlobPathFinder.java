@@ -345,9 +345,8 @@ public class GlobPathFinder {
                 throw new UncheckedIOException("Failed to start scanning base '" + basePath + "'.", startFailure);
             }
             String causeMessage = startFailure.getMessage();
-            if (pathQuery.isSuppressIoWarnings()) {
-                log.debug(FAILED_TO_START_SCANNING_BASE, basePath, causeMessage, startFailure);
-            } else {
+            log.debug(FAILED_TO_START_SCANNING_BASE, basePath, causeMessage, startFailure);
+            if (!pathQuery.isSuppressIoWarnings()) {
                 log.warn(FAILED_TO_START_SCANNING_BASE, basePath, causeMessage);
             }
             return Stream.empty();
