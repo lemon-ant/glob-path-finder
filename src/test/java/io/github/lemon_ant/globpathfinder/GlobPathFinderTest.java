@@ -72,7 +72,8 @@ class GlobPathFinderTest {
                 .includeGlobs(Set.of("**/*.java"))
                 .build();
 
-        // When / Then (no exceptions and results available)
+        // When / Then
+        // Verify the stream can be consumed and closed without exceptions.
         try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
             assertThat(pathStream.collect(Collectors.toSet())).hasSize(1);
         }
