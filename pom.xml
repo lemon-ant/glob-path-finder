@@ -368,7 +368,8 @@
     </build>
 
     <profiles>
-        <!-- Profile to build and install javadoc jar -->
+        <!-- Profile to build and install javadoc jar.
+             Uses doclint=none to suppress broken-link warnings that fail javadoc on JDK 21. -->
         <profile>
             <id>doc</id>
             <build>
@@ -376,6 +377,9 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
+                        <configuration>
+                            <doclint>none</doclint>
+                        </configuration>
                         <executions>
                             <execution>
                                 <id>attach-javadocs</id>
@@ -389,7 +393,9 @@
             </build>
         </profile>
 
-        <!-- Profile to build and install sources jar -->
+        <!-- Profile to build and install sources jar.
+             Uses jar-no-fork to avoid forking the lifecycle a second time per module,
+             which would otherwise re-run tests and quality gates. -->
         <profile>
             <id>src</id>
             <build>
@@ -401,7 +407,7 @@
                             <execution>
                                 <id>attach-sources</id>
                                 <goals>
-                                    <goal>jar</goal>
+                                    <goal>jar-no-fork</goal>
                                 </goals>
                             </execution>
                         </executions>
@@ -434,6 +440,9 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
+                        <configuration>
+                            <doclint>none</doclint>
+                        </configuration>
                         <executions>
                             <execution>
                                 <id>attach-javadocs</id>
