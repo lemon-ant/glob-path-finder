@@ -542,20 +542,6 @@
             <build>
                 <plugins>
                     <plugin>
-                        <groupId>com.github.ekryd.sortpom</groupId>
-                        <artifactId>sortpom-maven-plugin</artifactId>
-                        <executions>
-                            <execution>
-                                <id>check-sources</id>
-                                <goals>
-                                    <goal>verify</goal>
-                                </goals>
-                                <phase>initialize</phase>
-                            </execution>
-                        </executions>
-                    </plugin>
-
-                    <plugin>
                         <artifactId>maven-pmd-plugin</artifactId>
                         <version>3.28.0</version>
                         <configuration>
@@ -665,6 +651,20 @@
             </activation>
             <build>
                 <plugins>
+                    <plugin>
+                        <groupId>com.github.ekryd.sortpom</groupId>
+                        <artifactId>sortpom-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>check-sources</id>
+                                <goals>
+                                    <goal>verify</goal>
+                                </goals>
+                                <phase>initialize</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+
                     <plugin>
                         <groupId>io.github.lemon-ant.jharmonizer</groupId>
                         <artifactId>jharmonizer-maven-plugin</artifactId>
