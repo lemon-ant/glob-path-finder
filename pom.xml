@@ -561,6 +561,7 @@
                                 <goals>
                                     <goal>check-fast</goal>
                                 </goals>
+                                <phase>validate</phase>
                             </execution>
                         </executions>
                     </plugin>
