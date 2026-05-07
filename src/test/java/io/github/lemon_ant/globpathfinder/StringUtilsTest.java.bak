@@ -18,16 +18,16 @@ import org.junit.jupiter.params.provider.CsvSource;
 class StringUtilsTest {
 
     @Test
-    void normalizeToUnixSeparators_alreadyUnixSeparators_returnedUnchanged() {
+    void normalizeToUnixSeparators_backslashes_replacedWithForwardSlash() {
         // When / Then
-        assertThat(StringUtils.normalizeToUnixSeparators("src/main/java/Foo.java"))
+        assertThat(StringUtils.normalizeToUnixSeparators("src\\main\\java\\Foo.java"))
                 .isEqualTo("src/main/java/Foo.java");
     }
 
     @Test
-    void normalizeToUnixSeparators_backslashes_replacedWithForwardSlash() {
+    void normalizeToUnixSeparators_alreadyUnixSeparators_returnedUnchanged() {
         // When / Then
-        assertThat(StringUtils.normalizeToUnixSeparators("src\\main\\java\\Foo.java"))
+        assertThat(StringUtils.normalizeToUnixSeparators("src/main/java/Foo.java"))
                 .isEqualTo("src/main/java/Foo.java");
     }
 
@@ -36,6 +36,19 @@ class StringUtilsTest {
     void normalizeToUnixSeparators_windowsPaths_allBackslashesReplaced(String input, String expected) {
         // When / Then
         assertThat(StringUtils.normalizeToUnixSeparators(input)).isEqualTo(expected);
+    }
+
+    @Test
+    void processNormalizedStrings_processorNormalizesToSameToken_preservesDistinct() {
+        // Given
+        List<String> inputStrings = List.of("gamma", "GAMMA", " gamma ");
+        Function<String, String> normalizeToLowerCase = value -> value.trim().toLowerCase();
+
+        // When
+        Set<String> result = StringUtils.processNormalizedStrings(inputStrings, normalizeToLowerCase);
+
+        // Then
+        assertThat(result).containsExactly("gamma");
     }
 
     @Test
@@ -82,18 +95,5 @@ class StringUtilsTest {
 
         // Then
         assertThat(result).containsExactlyInAnyOrder("alpha", "beta");
-    }
-
-    @Test
-    void processNormalizedStrings_processorNormalizesToSameToken_preservesDistinct() {
-        // Given
-        List<String> inputStrings = List.of("gamma", "GAMMA", " gamma ");
-        Function<String, String> normalizeToLowerCase = value -> value.trim().toLowerCase();
-
-        // When
-        Set<String> result = StringUtils.processNormalizedStrings(inputStrings, normalizeToLowerCase);
-
-        // Then
-        assertThat(result).containsExactly("gamma");
     }
 }

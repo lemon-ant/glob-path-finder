@@ -49,6 +49,7 @@
 
     <properties>
         <central-publishing-maven-plugin.version>0.7.0</central-publishing-maven-plugin.version>
+        <jharmonizer-maven-plugin.version>1.0.1</jharmonizer-maven-plugin.version>
         <jspecify.version>1.0.0</jspecify.version>
         <license-maven-plugin.version>4.6</license-maven-plugin.version>
         <lombok.version>1.18.44</lombok.version>
@@ -60,12 +61,10 @@
         <maven-project-info-reports-plugin.version>3.9.0</maven-project-info-reports-plugin.version>
         <maven-site-plugin.version>3.21.0</maven-site-plugin.version>
         <maven.compiler.release>11</maven.compiler.release>
-        <palantir-java-format.version>2.73.0</palantir-java-format.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <sortpom-maven-plugin.version>4.0.0</sortpom-maven-plugin.version>
         <spotbugs-maven-plugin.version>4.9.8.3</spotbugs-maven-plugin.version>
         <spotbugs.version>4.9.8</spotbugs.version>
-        <spotless-maven-plugin.version>2.46.1</spotless-maven-plugin.version>
     </properties>
 
     <dependencyManagement>
@@ -246,16 +245,9 @@
                 </plugin>
 
                 <plugin>
-                    <groupId>com.diffplug.spotless</groupId>
-                    <artifactId>spotless-maven-plugin</artifactId>
-                    <version>${spotless-maven-plugin.version}</version>
-                    <configuration>
-                        <java>
-                            <palantirJavaFormat>
-                                <version>${palantir-java-format.version}</version>
-                            </palantirJavaFormat>
-                        </java>
-                    </configuration>
+                    <groupId>io.github.lemon-ant.jharmonizer</groupId>
+                    <artifactId>jharmonizer-maven-plugin</artifactId>
+                    <version>${jharmonizer-maven-plugin.version}</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -521,15 +513,15 @@
             <build>
                 <plugins>
                     <plugin>
-                        <groupId>com.diffplug.spotless</groupId>
-                        <artifactId>spotless-maven-plugin</artifactId>
+                        <groupId>io.github.lemon-ant.jharmonizer</groupId>
+                        <artifactId>jharmonizer-maven-plugin</artifactId>
                         <executions>
                             <execution>
                                 <id>reformat-sources</id>
                                 <goals>
-                                    <goal>apply</goal>
+                                    <goal>reorder</goal>
                                 </goals>
-                                <phase>validate</phase>
+                                <phase>process-sources</phase>
                             </execution>
                         </executions>
                     </plugin>
@@ -561,15 +553,14 @@
                     </plugin>
 
                     <plugin>
-                        <groupId>com.diffplug.spotless</groupId>
-                        <artifactId>spotless-maven-plugin</artifactId>
+                        <groupId>io.github.lemon-ant.jharmonizer</groupId>
+                        <artifactId>jharmonizer-maven-plugin</artifactId>
                         <executions>
                             <execution>
                                 <id>check-sources</id>
                                 <goals>
-                                    <goal>check</goal>
+                                    <goal>check-fast</goal>
                                 </goals>
-                                <phase>initialize</phase>
                             </execution>
                         </executions>
                     </plugin>
