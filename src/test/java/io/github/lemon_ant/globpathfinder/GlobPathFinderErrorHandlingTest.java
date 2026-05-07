@@ -43,6 +43,49 @@ class GlobPathFinderErrorHandlingTest {
     Path tempDir;
 
     @Test
+    void findPaths_baseDirIsFile_throwsIllegalArgumentException() throws IOException {
+        // Given
+        Path file = tempDir.resolve("somefile.txt");
+        Files.writeString(file, "content");
+        PathQuery query = PathQuery.builder().baseDir(file).build();
+
+        // When
+        Throwable thrown = catchThrowable(() -> {
+            try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
+                pathStream.collect(Collectors.toList());
+            }
+        });
+
+        // Then
+        assertThat(thrown)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Base path is not a directory: ")
+                .hasMessageContaining(file.toAbsolutePath().normalize().toString());
+    }
+
+    @Test
+    void findPaths_failSafeEnabled_existingBase_traversesShieldedStream() throws IOException {
+        // Given
+        Path base = tempDir.resolve("safe");
+        Files.createDirectories(base.resolve("sub"));
+        Files.writeString(base.resolve("sub/Hello.java"), "class Hello {}");
+        PathQuery query = PathQuery.builder()
+                .baseDir(base)
+                .includeGlobs(Set.of("**/*.java"))
+                .failFastOnError(false)
+                .build();
+
+        // When
+        List<Path> result;
+        try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
+            result = pathStream.collect(Collectors.toUnmodifiableList());
+        }
+
+        // Then
+        assertThat(result).hasSize(1);
+    }
+
+    @Test
     void findPaths_nonExistentBase_failFastDisabled_throwsIllegalArgumentException() {
         // Given
         Path nonExistingBase = tempDir.resolve("does-not-exist");
@@ -68,6 +111,87 @@ class GlobPathFinderErrorHandlingTest {
                 .hasMessageContaining("Base directory does not exist: ")
                 .hasMessageContaining(
                         nonExistingBase.toAbsolutePath().normalize().toString());
+    }
+
+    @Test
+    void findPaths_nonExistentBase_failFastEnabled_throwsIllegalArgumentException() {
+        // Given
+        Path nonExistingBase = tempDir.resolve("does-not-exist");
+        PathQuery query = PathQuery.builder()
+                .baseDir(nonExistingBase)
+                .includeGlobs(Set.of("**/*.txt"))
+                .failFastOnError(true)
+                .build();
+
+        // When
+        Throwable thrown = catchThrowable(() -> {
+            try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
+                pathStream.collect(Collectors.toList());
+            }
+        });
+
+        // Then
+        assertThat(thrown)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Base directory does not exist: ")
+                .hasMessageContaining(
+                        nonExistingBase.toAbsolutePath().normalize().toString());
+    }
+
+    @Test
+    void findPaths_unreadableSubdirectory_suppressedWarnings_logsAtDebug() throws IOException {
+        // Run only on POSIX where chmod(000) is available
+        assumeTrue(
+                Files.getFileAttributeView(tempDir, PosixFileAttributeView.class) != null,
+                "POSIX attributes not supported; skipping test.");
+
+        // Given
+        Path base = tempDir.resolve("base-suppressed");
+        Path okDir = base.resolve("ok");
+        Path deniedDir = base.resolve("denied");
+        Files.createDirectories(okDir);
+        Files.createDirectories(deniedDir);
+        Files.writeString(okDir.resolve("file1.txt"), "hello");
+        Files.writeString(deniedDir.resolve("file2.txt"), "secret");
+        Files.setPosixFilePermissions(deniedDir, Set.of());
+
+        Logger logger = (Logger) LoggerFactory.getLogger(IoTolerantPathStream.class);
+        Level savedLevel = logger.getLevel();
+        logger.setLevel(Level.ALL);
+        ListAppender<ILoggingEvent> appender = LogHelper.attachListAppender(IoTolerantPathStream.class);
+
+        PathQuery query = PathQuery.builder()
+                .baseDir(base)
+                .includeGlobs(Set.of("**/*.txt"))
+                .onlyFiles(true)
+                .failFastOnError(false)
+                .suppressIoWarnings(true)
+                .build();
+
+        // When
+        assertThatNoException().isThrownBy(() -> {
+            try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
+                pathStream.collect(Collectors.toUnmodifiableList());
+            }
+        });
+
+        // Then – I/O error must appear at DEBUG with stack trace, never at WARN
+        assertThat(appender.list).anySatisfy(event -> {
+            assertThat(event.getLevel()).isEqualTo(Level.DEBUG);
+            assertThat(event.getFormattedMessage().toLowerCase(Locale.ROOT)).contains("i/o");
+            assertThat(event.getThrowableProxy()).isNotNull();
+        });
+        assertThat(appender.list)
+                .noneSatisfy(event -> assertThat(event.getLevel()).isEqualTo(Level.WARN));
+
+        // Cleanup
+        logger.setLevel(savedLevel);
+        Files.setPosixFilePermissions(
+                deniedDir,
+                Set.of(
+                        PosixFilePermission.OWNER_READ,
+                        PosixFilePermission.OWNER_WRITE,
+                        PosixFilePermission.OWNER_EXECUTE));
     }
 
     @Test
@@ -133,129 +257,5 @@ class GlobPathFinderErrorHandlingTest {
                         PosixFilePermission.OWNER_READ,
                         PosixFilePermission.OWNER_WRITE,
                         PosixFilePermission.OWNER_EXECUTE));
-    }
-
-    @Test
-    void findPaths_nonExistentBase_failFastEnabled_throwsIllegalArgumentException() {
-        // Given
-        Path nonExistingBase = tempDir.resolve("does-not-exist");
-        PathQuery query = PathQuery.builder()
-                .baseDir(nonExistingBase)
-                .includeGlobs(Set.of("**/*.txt"))
-                .failFastOnError(true)
-                .build();
-
-        // When
-        Throwable thrown = catchThrowable(() -> {
-            try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
-                pathStream.collect(Collectors.toList());
-            }
-        });
-
-        // Then
-        assertThat(thrown)
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Base directory does not exist: ")
-                .hasMessageContaining(
-                        nonExistingBase.toAbsolutePath().normalize().toString());
-    }
-
-    @Test
-    void findPaths_baseDirIsFile_throwsIllegalArgumentException() throws IOException {
-        // Given
-        Path file = tempDir.resolve("somefile.txt");
-        Files.writeString(file, "content");
-        PathQuery query = PathQuery.builder().baseDir(file).build();
-
-        // When
-        Throwable thrown = catchThrowable(() -> {
-            try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
-                pathStream.collect(Collectors.toList());
-            }
-        });
-
-        // Then
-        assertThat(thrown)
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Base path is not a directory: ")
-                .hasMessageContaining(file.toAbsolutePath().normalize().toString());
-    }
-
-    @Test
-    void findPaths_unreadableSubdirectory_suppressedWarnings_logsAtDebug() throws IOException {
-        // Run only on POSIX where chmod(000) is available
-        assumeTrue(
-                Files.getFileAttributeView(tempDir, PosixFileAttributeView.class) != null,
-                "POSIX attributes not supported; skipping test.");
-
-        // Given
-        Path base = tempDir.resolve("base-suppressed");
-        Path okDir = base.resolve("ok");
-        Path deniedDir = base.resolve("denied");
-        Files.createDirectories(okDir);
-        Files.createDirectories(deniedDir);
-        Files.writeString(okDir.resolve("file1.txt"), "hello");
-        Files.writeString(deniedDir.resolve("file2.txt"), "secret");
-        Files.setPosixFilePermissions(deniedDir, Set.of());
-
-        Logger logger = (Logger) LoggerFactory.getLogger(IoTolerantPathStream.class);
-        Level savedLevel = logger.getLevel();
-        logger.setLevel(Level.ALL);
-        ListAppender<ILoggingEvent> appender = LogHelper.attachListAppender(IoTolerantPathStream.class);
-
-        PathQuery query = PathQuery.builder()
-                .baseDir(base)
-                .includeGlobs(Set.of("**/*.txt"))
-                .onlyFiles(true)
-                .failFastOnError(false)
-                .suppressIoWarnings(true)
-                .build();
-
-        // When
-        assertThatNoException().isThrownBy(() -> {
-            try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
-                pathStream.collect(Collectors.toUnmodifiableList());
-            }
-        });
-
-        // Then – I/O error must appear at DEBUG with stack trace, never at WARN
-        assertThat(appender.list).anySatisfy(event -> {
-            assertThat(event.getLevel()).isEqualTo(Level.DEBUG);
-            assertThat(event.getFormattedMessage().toLowerCase(Locale.ROOT)).contains("i/o");
-            assertThat(event.getThrowableProxy()).isNotNull();
-        });
-        assertThat(appender.list)
-                .noneSatisfy(event -> assertThat(event.getLevel()).isEqualTo(Level.WARN));
-
-        // Cleanup
-        logger.setLevel(savedLevel);
-        Files.setPosixFilePermissions(
-                deniedDir,
-                Set.of(
-                        PosixFilePermission.OWNER_READ,
-                        PosixFilePermission.OWNER_WRITE,
-                        PosixFilePermission.OWNER_EXECUTE));
-    }
-
-    @Test
-    void findPaths_failSafeEnabled_existingBase_traversesShieldedStream() throws IOException {
-        // Given
-        Path base = tempDir.resolve("safe");
-        Files.createDirectories(base.resolve("sub"));
-        Files.writeString(base.resolve("sub/Hello.java"), "class Hello {}");
-        PathQuery query = PathQuery.builder()
-                .baseDir(base)
-                .includeGlobs(Set.of("**/*.java"))
-                .failFastOnError(false)
-                .build();
-
-        // When
-        List<Path> result;
-        try (Stream<Path> pathStream = GlobPathFinder.findPaths(query)) {
-            result = pathStream.collect(Collectors.toUnmodifiableList());
-        }
-
-        // Then
-        assertThat(result).hasSize(1);
     }
 }

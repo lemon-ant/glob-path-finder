@@ -120,14 +120,6 @@ public class PathQuery {
     boolean failFastOnError;
 
     /**
-     * When {@code true}, shielded I/O errors during traversal are logged at DEBUG level instead of WARN.
-     * This silences them in standard logging configurations where DEBUG is below the effective threshold.
-     * Has no effect when {@link #failFastOnError} is {@code true}.
-     * If null or omitted in the builder, defaults to {@code false} (log at WARN).
-     */
-    boolean suppressIoWarnings;
-
-    /**
      * Whether to follow symbolic links. If null or omitted in the builder, defaults to true (symbolic links are
      * followed).
      */
@@ -151,6 +143,14 @@ public class PathQuery {
      * defaults to true (only regular files are returned).
      */
     boolean onlyFiles;
+
+    /**
+     * When {@code true}, shielded I/O errors during traversal are logged at DEBUG level instead of WARN.
+     * This silences them in standard logging configurations where DEBUG is below the effective threshold.
+     * Has no effect when {@link #failFastOnError} is {@code true}.
+     * If null or omitted in the builder, defaults to {@code false} (log at WARN).
+     */
+    boolean suppressIoWarnings;
 
     /**
      * Builder-backed constructor. Normalizes nullable inputs to safe defaults.

@@ -31,7 +31,6 @@ import lombok.NonNull;
  * directory between {@code **} and the filename segment.</p>
  */
 final class AntStylePathMatcher implements PathMatcher {
-
     private static final String DOUBLE_STAR = "**";
     private static final char WILDCARD_ANY = '*';
     private static final char WILDCARD_ONE = '?';
@@ -39,8 +38,10 @@ final class AntStylePathMatcher implements PathMatcher {
     @NonNull
     private final String[] patternParts;
 
-    private AntStylePathMatcher(String pattern) {
-        this.patternParts = splitSegments(normalizeToUnixSeparators(pattern));
+    @Override
+    public boolean matches(@NonNull Path path) {
+        String pathString = normalizeToUnixSeparators(path.toString());
+        return matchSegments(patternParts, 0, splitSegments(pathString), 0);
     }
 
     /**
@@ -54,22 +55,100 @@ final class AntStylePathMatcher implements PathMatcher {
         return new AntStylePathMatcher(pattern);
     }
 
-    @Override
-    public boolean matches(@NonNull Path path) {
-        String pathString = normalizeToUnixSeparators(path.toString());
-        return matchSegments(patternParts, 0, splitSegments(pathString), 0);
+    /**
+     * Handles a {@code *} wildcard by advancing past consecutive stars, then trying to
+     * anchor the rest of the pattern at every position from {@code ti} onward.
+     *
+     * @param pattern the pattern string
+     * @param starPos index of the first {@code *} in {@code pattern}
+     * @param text    the text to match
+     * @param ti      current position in {@code text}
+     * @return {@code true} if the rest of the pattern matches any suffix of the text
+     */
+    private static boolean matchAfterStar(String pattern, int starPos, String text, int ti) {
+        int pi = starPos + 1;
+        // Skip consecutive stars — a single * already matches zero or more characters
+        while (pi < pattern.length() && pattern.charAt(pi) == WILDCARD_ANY) {
+            pi++;
+        }
+        if (pi == pattern.length()) {
+            // Trailing * matches the rest of the text unconditionally
+            return true;
+        }
+        for (int j = ti; j <= text.length(); j++) {
+            if (matchChars(pattern, pi, text, j)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
-     * Splits a slash-delimited path or pattern string into segments, discarding empty
-     * tokens caused by a leading, trailing, or doubled {@code /}.
+     * Character-level wildcard match with backtracking.
+     * {@code *} matches zero or more characters; {@code ?} matches exactly one character.
+     * Consecutive {@code *} characters are collapsed to a single wildcard.
      *
-     * @param s the path or pattern string
-     * @return the non-empty segments
+     * @param pattern  the pattern string
+     * @param piStart  starting index in {@code pattern}
+     * @param text     the text to match
+     * @param tiStart  starting index in {@code text}
+     * @return {@code true} if the remaining pattern matches the remaining text
      */
-    @NonNull
-    private static String[] splitSegments(String s) {
-        return Arrays.stream(s.split("/", -1)).filter(part -> !part.isEmpty()).toArray(String[]::new);
+    private static boolean matchChars(String pattern, int piStart, String text, int tiStart) {
+        int pi = piStart;
+        int ti = tiStart;
+        while (pi < pattern.length()) {
+            char pc = pattern.charAt(pi);
+            if (pc == WILDCARD_ANY) {
+                return matchAfterStar(pattern, pi, text, ti);
+            } else if (pc == WILDCARD_ONE) {
+                if (ti >= text.length()) {
+                    return false;
+                }
+                pi++;
+                ti++;
+            } else {
+                if (ti >= text.length() || pc != text.charAt(ti)) {
+                    return false;
+                }
+                pi++;
+                ti++;
+            }
+        }
+        return ti == text.length();
+    }
+
+    /**
+     * Handles a {@code **} segment by trying to match the remaining pattern against
+     * every possible suffix of the remaining path (zero or more segments skipped).
+     *
+     * @param patParts         the pattern segments
+     * @param pi               index of the {@code **} segment in {@code patParts}
+     * @param pathParts        the path segments
+     * @param si               current position in {@code pathParts}
+     * @param memoizedResults  cached results indexed by pattern and path positions
+     * @return {@code true} if any skip count leads to a full match
+     */
+    private static boolean matchFromDoubleStar(
+            String[] patParts, int pi, String[] pathParts, int si, byte[][] memoizedResults) {
+        for (int skip = 0; skip <= pathParts.length - si; skip++) {
+            if (matchSegments(patParts, pi + 1, pathParts, si + skip, memoizedResults)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Matches a single pattern segment (which may contain {@code *} and {@code ?})
+     * against a single path segment using backtracking.
+     *
+     * @param pattern the segment pattern
+     * @param text    the segment text to match against
+     * @return {@code true} if the pattern matches the text
+     */
+    private static boolean matchSegment(String pattern, String text) {
+        return matchChars(pattern, 0, text, 0);
     }
 
     /**
@@ -131,98 +210,18 @@ final class AntStylePathMatcher implements PathMatcher {
     }
 
     /**
-     * Handles a {@code **} segment by trying to match the remaining pattern against
-     * every possible suffix of the remaining path (zero or more segments skipped).
+     * Splits a slash-delimited path or pattern string into segments, discarding empty
+     * tokens caused by a leading, trailing, or doubled {@code /}.
      *
-     * @param patParts         the pattern segments
-     * @param pi               index of the {@code **} segment in {@code patParts}
-     * @param pathParts        the path segments
-     * @param si               current position in {@code pathParts}
-     * @param memoizedResults  cached results indexed by pattern and path positions
-     * @return {@code true} if any skip count leads to a full match
+     * @param s the path or pattern string
+     * @return the non-empty segments
      */
-    private static boolean matchFromDoubleStar(
-            String[] patParts, int pi, String[] pathParts, int si, byte[][] memoizedResults) {
-        for (int skip = 0; skip <= pathParts.length - si; skip++) {
-            if (matchSegments(patParts, pi + 1, pathParts, si + skip, memoizedResults)) {
-                return true;
-            }
-        }
-        return false;
+    @NonNull
+    private static String[] splitSegments(String s) {
+        return Arrays.stream(s.split("/", -1)).filter(part -> !part.isEmpty()).toArray(String[]::new);
     }
 
-    /**
-     * Matches a single pattern segment (which may contain {@code *} and {@code ?})
-     * against a single path segment using backtracking.
-     *
-     * @param pattern the segment pattern
-     * @param text    the segment text to match against
-     * @return {@code true} if the pattern matches the text
-     */
-    private static boolean matchSegment(String pattern, String text) {
-        return matchChars(pattern, 0, text, 0);
-    }
-
-    /**
-     * Character-level wildcard match with backtracking.
-     * {@code *} matches zero or more characters; {@code ?} matches exactly one character.
-     * Consecutive {@code *} characters are collapsed to a single wildcard.
-     *
-     * @param pattern  the pattern string
-     * @param piStart  starting index in {@code pattern}
-     * @param text     the text to match
-     * @param tiStart  starting index in {@code text}
-     * @return {@code true} if the remaining pattern matches the remaining text
-     */
-    private static boolean matchChars(String pattern, int piStart, String text, int tiStart) {
-        int pi = piStart;
-        int ti = tiStart;
-        while (pi < pattern.length()) {
-            char pc = pattern.charAt(pi);
-            if (pc == WILDCARD_ANY) {
-                return matchAfterStar(pattern, pi, text, ti);
-            } else if (pc == WILDCARD_ONE) {
-                if (ti >= text.length()) {
-                    return false;
-                }
-                pi++;
-                ti++;
-            } else {
-                if (ti >= text.length() || pc != text.charAt(ti)) {
-                    return false;
-                }
-                pi++;
-                ti++;
-            }
-        }
-        return ti == text.length();
-    }
-
-    /**
-     * Handles a {@code *} wildcard by advancing past consecutive stars, then trying to
-     * anchor the rest of the pattern at every position from {@code ti} onward.
-     *
-     * @param pattern the pattern string
-     * @param starPos index of the first {@code *} in {@code pattern}
-     * @param text    the text to match
-     * @param ti      current position in {@code text}
-     * @return {@code true} if the rest of the pattern matches any suffix of the text
-     */
-    private static boolean matchAfterStar(String pattern, int starPos, String text, int ti) {
-        int pi = starPos + 1;
-        // Skip consecutive stars — a single * already matches zero or more characters
-        while (pi < pattern.length() && pattern.charAt(pi) == WILDCARD_ANY) {
-            pi++;
-        }
-        if (pi == pattern.length()) {
-            // Trailing * matches the rest of the text unconditionally
-            return true;
-        }
-        for (int j = ti; j <= text.length(); j++) {
-            if (matchChars(pattern, pi, text, j)) {
-                return true;
-            }
-        }
-        return false;
+    private AntStylePathMatcher(String pattern) {
+        this.patternParts = splitSegments(normalizeToUnixSeparators(pattern));
     }
 }

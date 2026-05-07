@@ -63,22 +63,53 @@ import org.jspecify.annotations.Nullable;
  * @param <T> the element type
  */
 final class BatchingSpliterator<T> implements Spliterator<T> {
-
-    private final Spliterator<T> source;
     private final int batchSize;
+    private final Spliterator<T> source;
 
     /**
-     * Wraps the given source spliterator with fixed-batch splitting capability.
+     * Returns the characteristics of this spliterator, excluding {@link #SIZED} and
+     * {@link #SUBSIZED} since batch splitting makes those estimates unreliable.
      *
-     * @param source    the underlying spliterator to pull elements from
-     * @param batchSize maximum number of elements per split batch; must be positive
+     * @return the masked characteristics of the source spliterator
      */
-    BatchingSpliterator(@NonNull Spliterator<T> source, int batchSize) {
-        if (batchSize <= 0) {
-            throw new IllegalArgumentException("batchSize must be positive: " + batchSize);
-        }
-        this.source = source;
-        this.batchSize = batchSize;
+    @Override
+    public int characteristics() {
+        return source.characteristics() & ~SIZED & ~SUBSIZED;
+    }
+
+    /**
+     * Returns {@link Long#MAX_VALUE} regardless of source estimate, so the
+     * {@link java.util.concurrent.ForkJoinPool} continues calling {@link #trySplit()} eagerly.
+     *
+     * <p>The source estimate is unreliable after wrapping (e.g., {@code flatMap} over
+     * {@code Files.find} streams reports the base-entry count, not the element count).
+     *
+     * @return {@link Long#MAX_VALUE} always
+     */
+    @Override
+    public long estimateSize() {
+        return Long.MAX_VALUE;
+    }
+
+    /**
+     * Iterates all remaining elements from the source spliterator, delegating directly.
+     *
+     * @param action the action to perform on each remaining element
+     */
+    @Override
+    public void forEachRemaining(Consumer<? super T> action) {
+        source.forEachRemaining(action);
+    }
+
+    /**
+     * Advances by one element from the source spliterator, delegating directly.
+     *
+     * @param action the action to perform on the next element
+     * @return {@code true} if an element was consumed; {@code false} if the source is exhausted
+     */
+    @Override
+    public boolean tryAdvance(Consumer<? super T> action) {
+        return source.tryAdvance(action);
     }
 
     /**
@@ -105,49 +136,17 @@ final class BatchingSpliterator<T> implements Spliterator<T> {
     }
 
     /**
-     * Advances by one element from the source spliterator, delegating directly.
+     * Wraps the given source spliterator with fixed-batch splitting capability.
      *
-     * @param action the action to perform on the next element
-     * @return {@code true} if an element was consumed; {@code false} if the source is exhausted
+     * @param source    the underlying spliterator to pull elements from
+     * @param batchSize maximum number of elements per split batch; must be positive
      */
-    @Override
-    public boolean tryAdvance(Consumer<? super T> action) {
-        return source.tryAdvance(action);
-    }
-
-    /**
-     * Iterates all remaining elements from the source spliterator, delegating directly.
-     *
-     * @param action the action to perform on each remaining element
-     */
-    @Override
-    public void forEachRemaining(Consumer<? super T> action) {
-        source.forEachRemaining(action);
-    }
-
-    /**
-     * Returns {@link Long#MAX_VALUE} regardless of source estimate, so the
-     * {@link java.util.concurrent.ForkJoinPool} continues calling {@link #trySplit()} eagerly.
-     *
-     * <p>The source estimate is unreliable after wrapping (e.g., {@code flatMap} over
-     * {@code Files.find} streams reports the base-entry count, not the element count).
-     *
-     * @return {@link Long#MAX_VALUE} always
-     */
-    @Override
-    public long estimateSize() {
-        return Long.MAX_VALUE;
-    }
-
-    /**
-     * Returns the characteristics of this spliterator, excluding {@link #SIZED} and
-     * {@link #SUBSIZED} since batch splitting makes those estimates unreliable.
-     *
-     * @return the masked characteristics of the source spliterator
-     */
-    @Override
-    public int characteristics() {
-        return source.characteristics() & ~SIZED & ~SUBSIZED;
+    BatchingSpliterator(@NonNull Spliterator<T> source, int batchSize) {
+        if (batchSize <= 0) {
+            throw new IllegalArgumentException("batchSize must be positive: " + batchSize);
+        }
+        this.source = source;
+        this.batchSize = batchSize;
     }
 
     private static final class HoldingConsumer<T> implements Consumer<T> {

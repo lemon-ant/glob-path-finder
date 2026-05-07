@@ -16,6 +16,32 @@ import org.junit.jupiter.api.Test;
 class BatchingSpliteratorTest {
 
     @Test
+    void characteristics_sourceSizedAndSubsized_sizedAndSubsizedStripped() {
+        // Given
+        Spliterator<String> sourceSpliterator = List.of("a", "b").spliterator();
+        // List spliterator is SIZED | SUBSIZED | ORDERED | IMMUTABLE
+        assertThat(sourceSpliterator.hasCharacteristics(Spliterator.SIZED)).isTrue();
+        assertThat(sourceSpliterator.hasCharacteristics(Spliterator.SUBSIZED)).isTrue();
+
+        BatchingSpliterator<String> spliterator = new BatchingSpliterator<>(sourceSpliterator, 10);
+
+        // When
+        int characteristics = spliterator.characteristics();
+
+        // Then
+        assertThat(characteristics & Spliterator.SIZED).isZero();
+        assertThat(characteristics & Spliterator.SUBSIZED).isZero();
+    }
+
+    @Test
+    void constructor_negativeBatchSize_throwsIllegalArgumentException() {
+        // When / Then
+        assertThatThrownBy(() -> new BatchingSpliterator<>(List.of("a").spliterator(), -1))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("batchSize must be positive");
+    }
+
+    @Test
     void constructor_nullSource_throwsNullPointerException() {
         // When / Then
         assertThatThrownBy(() -> new BatchingSpliterator<>(null, 5)).isInstanceOf(NullPointerException.class);
@@ -30,11 +56,40 @@ class BatchingSpliteratorTest {
     }
 
     @Test
-    void constructor_negativeBatchSize_throwsIllegalArgumentException() {
+    void estimateSize_always_returnsMaxValue() {
+        // Given
+        BatchingSpliterator<String> spliterator =
+                new BatchingSpliterator<>(List.of("a").spliterator(), 10);
+
         // When / Then
-        assertThatThrownBy(() -> new BatchingSpliterator<>(List.of("a").spliterator(), -1))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("batchSize must be positive");
+        assertThat(spliterator.estimateSize()).isEqualTo(Long.MAX_VALUE);
+    }
+
+    @Test
+    void forEachRemaining_withElements_consumesAll() {
+        // Given
+        List<String> elements = List.of("p", "q", "r");
+        BatchingSpliterator<String> spliterator = new BatchingSpliterator<>(elements.spliterator(), 10);
+        List<String> consumed = new ArrayList<>();
+
+        // When
+        spliterator.forEachRemaining(consumed::add);
+
+        // Then
+        assertThat(consumed).containsExactly("p", "q", "r");
+    }
+
+    @Test
+    void tryAdvance_emptySource_returnsFalse() {
+        // Given
+        BatchingSpliterator<String> spliterator =
+                new BatchingSpliterator<>(List.<String>of().spliterator(), 10);
+
+        // When
+        boolean advanced = spliterator.tryAdvance(value -> {});
+
+        // Then
+        assertThat(advanced).isFalse();
     }
 
     @Test
@@ -53,16 +108,19 @@ class BatchingSpliteratorTest {
     }
 
     @Test
-    void tryAdvance_emptySource_returnsFalse() {
+    void trySplit_batchSizeLargerThanSource_returnsAllElements() {
         // Given
-        BatchingSpliterator<String> spliterator =
-                new BatchingSpliterator<>(List.<String>of().spliterator(), 10);
+        List<String> elements = List.of("a", "b");
+        BatchingSpliterator<String> spliterator = new BatchingSpliterator<>(elements.spliterator(), 100);
 
         // When
-        boolean advanced = spliterator.tryAdvance(value -> {});
+        Spliterator<String> batch = spliterator.trySplit();
 
         // Then
-        assertThat(advanced).isFalse();
+        assertThat(batch).isNotNull();
+        List<String> batchElements = new ArrayList<>();
+        batch.forEachRemaining(batchElements::add);
+        assertThat(batchElements).containsExactly("a", "b");
     }
 
     @Test
@@ -92,63 +150,5 @@ class BatchingSpliteratorTest {
         List<String> batchElements = new ArrayList<>();
         batch.forEachRemaining(batchElements::add);
         assertThat(batchElements).hasSize(3).containsExactly("a", "b", "c");
-    }
-
-    @Test
-    void trySplit_batchSizeLargerThanSource_returnsAllElements() {
-        // Given
-        List<String> elements = List.of("a", "b");
-        BatchingSpliterator<String> spliterator = new BatchingSpliterator<>(elements.spliterator(), 100);
-
-        // When
-        Spliterator<String> batch = spliterator.trySplit();
-
-        // Then
-        assertThat(batch).isNotNull();
-        List<String> batchElements = new ArrayList<>();
-        batch.forEachRemaining(batchElements::add);
-        assertThat(batchElements).containsExactly("a", "b");
-    }
-
-    @Test
-    void forEachRemaining_withElements_consumesAll() {
-        // Given
-        List<String> elements = List.of("p", "q", "r");
-        BatchingSpliterator<String> spliterator = new BatchingSpliterator<>(elements.spliterator(), 10);
-        List<String> consumed = new ArrayList<>();
-
-        // When
-        spliterator.forEachRemaining(consumed::add);
-
-        // Then
-        assertThat(consumed).containsExactly("p", "q", "r");
-    }
-
-    @Test
-    void estimateSize_always_returnsMaxValue() {
-        // Given
-        BatchingSpliterator<String> spliterator =
-                new BatchingSpliterator<>(List.of("a").spliterator(), 10);
-
-        // When / Then
-        assertThat(spliterator.estimateSize()).isEqualTo(Long.MAX_VALUE);
-    }
-
-    @Test
-    void characteristics_sourceSizedAndSubsized_sizedAndSubsizedStripped() {
-        // Given
-        Spliterator<String> sourceSpliterator = List.of("a", "b").spliterator();
-        // List spliterator is SIZED | SUBSIZED | ORDERED | IMMUTABLE
-        assertThat(sourceSpliterator.hasCharacteristics(Spliterator.SIZED)).isTrue();
-        assertThat(sourceSpliterator.hasCharacteristics(Spliterator.SUBSIZED)).isTrue();
-
-        BatchingSpliterator<String> spliterator = new BatchingSpliterator<>(sourceSpliterator, 10);
-
-        // When
-        int characteristics = spliterator.characteristics();
-
-        // Then
-        assertThat(characteristics & Spliterator.SIZED).isZero();
-        assertThat(characteristics & Spliterator.SUBSIZED).isZero();
     }
 }

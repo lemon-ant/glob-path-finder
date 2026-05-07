@@ -72,6 +72,20 @@ class PathQueryEqualsTest {
     }
 
     @Test
+    void equals_differentFailFastOnError_returnsFalse() {
+        // Given
+        Path base = Paths.get(".").toAbsolutePath().normalize();
+
+        // When
+        PathQuery left = PathQuery.builder().baseDir(base).failFastOnError(true).build();
+        PathQuery right =
+                PathQuery.builder().baseDir(base).failFastOnError(false).build();
+
+        // Then
+        assertThat(left).isNotEqualTo(right);
+    }
+
+    @Test
     void equals_differentFollowLinks_returnsFalse() {
         // Given
         Path base = Paths.get(".").toAbsolutePath().normalize();
@@ -86,20 +100,6 @@ class PathQueryEqualsTest {
                 true,
                 false, // different
                 42);
-
-        // Then
-        assertThat(left).isNotEqualTo(right);
-    }
-
-    @Test
-    void equals_differentFailFastOnError_returnsFalse() {
-        // Given
-        Path base = Paths.get(".").toAbsolutePath().normalize();
-
-        // When
-        PathQuery left = PathQuery.builder().baseDir(base).failFastOnError(true).build();
-        PathQuery right =
-                PathQuery.builder().baseDir(base).failFastOnError(false).build();
 
         // Then
         assertThat(left).isNotEqualTo(right);

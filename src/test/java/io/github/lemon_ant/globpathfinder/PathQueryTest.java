@@ -128,6 +128,15 @@ class PathQueryTest {
     }
 
     @Test
+    void maxDepth_negativeValue_treatedAsUnlimited() {
+        // When
+        PathQuery pathQuery = PathQuery.builder().maxDepth(-1).build();
+
+        // Then
+        assertThat(pathQuery.getMaxDepth()).isEqualTo(Integer.MAX_VALUE);
+    }
+
+    @Test
     void optionalFields_nullInput_defaultsToEmpty() {
         // Given
         PathQuery pathQuery = PathQuery.builder()
@@ -142,15 +151,6 @@ class PathQueryTest {
         assertThat(pathQuery.getIncludeGlobs()).isEmpty();
         assertThat(pathQuery.getAllowedExtensions()).isEmpty();
         assertThat(pathQuery.getExcludeGlobs()).isEmpty();
-    }
-
-    @Test
-    void maxDepth_negativeValue_treatedAsUnlimited() {
-        // When
-        PathQuery pathQuery = PathQuery.builder().maxDepth(-1).build();
-
-        // Then
-        assertThat(pathQuery.getMaxDepth()).isEqualTo(Integer.MAX_VALUE);
     }
 
     @Test
