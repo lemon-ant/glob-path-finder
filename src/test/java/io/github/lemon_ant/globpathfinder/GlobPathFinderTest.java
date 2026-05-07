@@ -109,7 +109,8 @@ class GlobPathFinderTest {
         // When
         Set<String> result = collectToRelStringSet(GlobPathFinder.findPaths(query), tempDir.resolve("exclbase"));
 
-        // Then — both .java files should be excluded
+        // Then
+        // both .java files should be excluded
         assertThat(result).containsExactlyInAnyOrder("Keep.txt");
     }
 
