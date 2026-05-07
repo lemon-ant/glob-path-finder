@@ -95,7 +95,8 @@ class GlobPathFinderTest {
 
     @Test
     void findPaths_doubleStarExclude_excludesFilesInBaseDir() throws Exception {
-        // Given — exclude with ** should also hit files directly at the base level
+        // Given
+        // Exclude with ** should also hit files directly at the base level.
         createFile("exclbase/Keep.txt");
         createFile("exclbase/Skip.java");
         createFile("exclbase/sub/AlsoSkip.java");
