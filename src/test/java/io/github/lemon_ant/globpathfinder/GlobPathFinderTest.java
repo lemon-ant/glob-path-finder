@@ -116,7 +116,8 @@ class GlobPathFinderTest {
 
     @Test
     void findPaths_doubleStarGlob_matchesFilesInBaseDir() throws Exception {
-        // Given — file directly in baseDir, no subdirectory
+        // Given
+        // File directly in baseDir, no subdirectory
         createFile("antglob/Root.java");
         createFile("antglob/sub/Nested.java");
 
