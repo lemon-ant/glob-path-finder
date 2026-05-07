@@ -176,7 +176,8 @@ class GlobPathFinderTest {
 
     @Test
     void findPaths_matchAllIncludeWithRelativeExcludes_excludesMatches() throws Exception {
-        // Given – empty includeGlobs (MATCH_ALL for the base) + a relative exclude
+        // Given
+        // empty includeGlobs (MATCH_ALL for the base) + a relative exclude
         createFile("src/Keep.java");
         createFile("src/gen/Skip.java");
         PathQuery query = PathQuery.builder()
