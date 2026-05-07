@@ -129,7 +129,8 @@ class GlobPathFinderTest {
         // When
         Set<String> result = collectToRelStringSet(GlobPathFinder.findPaths(query), tempDir.resolve("antglob"));
 
-        // Then — Root.java must be found (** matches zero directories per Ant/Maven convention)
+        // Then
+        // Root.java must be found (** matches zero directories per Ant/Maven convention)
         assertThat(result).containsExactlyInAnyOrder("Root.java", "sub/Nested.java");
     }
 
