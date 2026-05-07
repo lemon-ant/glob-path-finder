@@ -142,7 +142,7 @@ If you like this project, please consider:
 ## 🤝 Contributing
 
 Contributions are always welcome!
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for guidelines.
 
 - Fork the repository if you do not have write access; otherwise create a feature branch in this repository
 - Add tests for your changes
@@ -152,7 +152,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## 🛡️ Security
 
-If you discover any security issue, please see [SECURITY.md](SECURITY.md).
+If you discover any security issue, please see [SECURITY.md](.github/SECURITY.md).
 
 ---
 

@@ -15,8 +15,8 @@ This file defines repository-wide conventions for coding agents working in this 
 ## Convention maintenance
 
 - During every task, look for stable conventions that become clear from review feedback or repeated user guidance.
-- Keep `AGENTS.md` and `.github/copilot-instructions.md` aligned.
-  - `AGENTS.md` defines the repository-wide rules including test conventions.
+- Keep `.github/AGENTS.md` and `.github/copilot-instructions.md` aligned.
+  - `.github/AGENTS.md` defines the repository-wide rules including test conventions.
   - `.github/copilot-instructions.md` must contain the complete operative rule set from this file so Copilot can follow it without relying on cross-file traversal.
 - If a rule is missing, unclear, or no longer accurate in the current docs, update all affected instruction files in the same task.
 - If a documented rule is ambiguous, clarify the document rather than relying on unwritten expectations for future sessions.
