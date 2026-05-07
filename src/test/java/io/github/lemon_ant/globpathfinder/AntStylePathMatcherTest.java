@@ -63,7 +63,8 @@ class AntStylePathMatcherTest {
 
         @Test
         void matches_consecutiveStarsInSegment_doesNotCrossSegmentBoundary() {
-            // Given - *** in a segment acts like * (single-segment wildcard), not like **
+            // Given
+            // *** in a segment acts like * (single-segment wildcard), not like **
             PathMatcher matcher = AntStylePathMatcher.compile("com/***.java");
 
             // When / Then
