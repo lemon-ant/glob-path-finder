@@ -248,6 +248,9 @@
                     <groupId>io.github.lemon-ant.jharmonizer</groupId>
                     <artifactId>jharmonizer-maven-plugin</artifactId>
                     <version>${jharmonizer-maven-plugin.version}</version>
+                    <configuration>
+                        <backupsEnabled>false</backupsEnabled>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>

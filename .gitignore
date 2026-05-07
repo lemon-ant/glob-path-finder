@@ -3,5 +3,3 @@
 
 target/
 .idea/
-# JHarmonizer backup files created by jharmonizer:reorder
-*.bak
