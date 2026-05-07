@@ -75,7 +75,8 @@ class IoTolerantPathStreamTest {
         Stream<Path> wrapped = IoTolerantPathStream.wrap(sourceStream, BASE, false);
         List<Path> collected = new ArrayList<>();
 
-        // When / Then – no exception propagated
+        // When / Then
+        // no exception propagated
         wrapped.spliterator().forEachRemaining(collected::add);
         assertThat(collected).isEmpty();
     }
